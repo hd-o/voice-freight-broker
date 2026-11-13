@@ -84,7 +84,7 @@ export function renderCallHistory({
               {rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-border hover:bg-muted/50 focus-within:bg-muted/50"
+                  className="h-14 border-b border-border hover:bg-muted/50 focus-within:bg-muted/50"
                 >
                   <th
                     scope="row"
