@@ -21,6 +21,8 @@ vp run dev
 For isolated component development, run `vp run storybook` in another terminal.
 Use `vp run` without a task name to discover the other workspace tasks.
 
+UI components use shadcn's `base-nova` preset with Base UI primitives.
+
 Local scaffolding runs without Cloudflare or OpenAI credentials. The
 [setup script](scripts/setup.sh) documents installation details; package
 manifests and the lockfile own dependency versions.
