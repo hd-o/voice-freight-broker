@@ -7,7 +7,7 @@ export function renderSkeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
       data-slot="skeleton"
-      className={mergeClasses("rounded-md bg-muted", className)}
+      className={mergeClasses("animate-pulse rounded-md bg-muted", className)}
       {...props}
       aria-hidden="true"
     />
