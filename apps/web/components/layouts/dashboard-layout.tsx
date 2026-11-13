@@ -48,7 +48,7 @@ export function renderDashboardLayout({
             className="space-y-8"
           >
             <span className="sr-only">Loading dashboard</span>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {[0, 1, 2, 3, 4].map((item) => (
                 <Skeleton key={item} className="h-[132px]" />
               ))}
@@ -60,7 +60,7 @@ export function renderDashboardLayout({
           <>
             <div
               aria-label="Call metrics"
-              className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
             >
               {metrics.map((metric) => (
                 <MetricCard key={metric.label} {...metric} />
