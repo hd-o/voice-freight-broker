@@ -21,7 +21,11 @@ type Story = StoryObj<typeof meta>;
 export const Call: Story = {};
 
 export const Dashboard: Story = {
-  args: { activePage: "dashboard", signedIn: true },
+  args: {
+    activePage: "dashboard",
+    signedIn: true,
+    accountName: "Local Reviewer",
+  },
 };
 
 export const Phone: Story = {

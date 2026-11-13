@@ -26,6 +26,7 @@ import {
 
 export type CallLayoutProps = CallControlsProps & {
   signedIn: boolean;
+  accountName?: string;
   duration?: string;
   carriers: readonly DemoCarrier[];
   entries: readonly TranscriptEntry[];
@@ -43,6 +44,7 @@ export type CallLayoutProps = CallControlsProps & {
 export function renderCallLayout({
   state,
   signedIn,
+  accountName,
   accountPending,
   muted,
   duration = "00:00",
@@ -70,6 +72,7 @@ export function renderCallLayout({
     <ApplicationLayout
       activePage="call"
       signedIn={signedIn}
+      accountName={accountName}
       accountPending={accountPending}
       onNavigate={onNavigate}
       onAccountAction={onAccountAction}

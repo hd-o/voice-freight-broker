@@ -60,6 +60,7 @@ export default function renderCallDetailsPage() {
   return (
     <CallDetailLayout
       signedIn={!!account.user}
+      accountName={account.user?.name}
       accountPending={account.pending}
       onNavigate={navigateSection}
       onAccountAction={account.performAccountAction}

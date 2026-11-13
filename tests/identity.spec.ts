@@ -71,7 +71,7 @@ test("local identities scope private history, restocking, logout, and expired se
     .click();
   await expect(dialog).toHaveCount(0);
   await expect(
-    page.getByText("Local Reviewer · Reviewer", { exact: true }),
+    page.getByRole("img", { name: "Signed in as Local Reviewer", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Restock inventory" }),
@@ -268,11 +268,17 @@ test("logout blocks overlapping account changes in this tab and another tab", as
     expect(signIns).toHaveLength(1);
     await otherTab.goto("/dashboard");
     await expect(
-      otherTab.getByText("Local Reviewer · Reviewer", { exact: true }),
+      otherTab.getByRole("img", {
+        name: "Signed in as Local Reviewer",
+        exact: true,
+      }),
     ).toBeVisible();
     await otherTab.reload();
     await expect(
-      otherTab.getByText("Local Reviewer · Reviewer", { exact: true }),
+      otherTab.getByRole("img", {
+        name: "Signed in as Local Reviewer",
+        exact: true,
+      }),
     ).toBeVisible();
   } finally {
     releaseLogout();
@@ -322,7 +328,10 @@ test("failed logout releases account controls and leaves public samples usable",
     await signIn(page, "Local Reviewer");
     await page.reload();
     await expect(
-      page.getByText("Local Reviewer · Reviewer", { exact: true }),
+      page.getByRole("img", {
+        name: "Signed in as Local Reviewer",
+        exact: true,
+      }),
     ).toBeVisible();
   } finally {
     releaseLogout();

@@ -23,6 +23,7 @@ export default function renderCallPage() {
     <CallLayout
       state="ready"
       signedIn={!!account.user}
+      accountName={account.user?.name}
       accountPending={account.pending}
       carriers={demoCarriers}
       entries={[]}

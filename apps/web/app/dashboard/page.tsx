@@ -85,6 +85,7 @@ export default function renderDashboardPage() {
   return (
     <DashboardLayout
       signedIn={!!account.user}
+      accountName={account.user?.name}
       accountPending={account.pending}
       onNavigate={navigatePage}
       onAccountAction={account.performAccountAction}
@@ -93,10 +94,8 @@ export default function renderDashboardPage() {
         !readiness || account.loading || (!!account.user && live.isPending)
       }
       controls={
-        account.user && (
+        account.user?.role === "administrator" && (
           <DashboardControls
-            administrator={account.user.role === "administrator"}
-            accountName={account.user.name}
             restocking={restocking}
             feedback={feedback}
             error={failure}
