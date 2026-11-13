@@ -47,13 +47,6 @@ Browser integration checks manage their own servers; stop any existing Storybook
 or static preview process before running them. These checks cover the scaffold,
 fixture layouts, keyboard access, responsive behavior, and accessibility.
 
-Design reference: the Voice Freight Broker FigCraft project, adapted from
-[Sitsiilia's design](https://www.figma.com/community/file/1342715840824755935)
-under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The
-implementation adds responsive layouts, dark mode, accessible controls, and
-fixture states. The voice orb adapts the supplied procedural WebGL reference
-with static fallbacks and reduced-motion support.
-
 See the [CI workflow](.github/workflows/checks.yml) for the validation sequence
 and [AGENTS.md](AGENTS.md) for contributor conventions.
 
