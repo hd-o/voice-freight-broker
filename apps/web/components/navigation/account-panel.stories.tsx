@@ -1,10 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { renderAccountPanel as AccountPanel } from "./account-panel";
+import { renderAlertDialog as AlertDialog } from "@/components/ui/alert-dialog";
 
 const meta = {
   title: "Navigation/Account Panel",
   component: AccountPanel,
+  decorators: [
+    (Story) => (
+      <AlertDialog open>
+        <Story />
+      </AlertDialog>
+    ),
+  ],
   args: {
     identities: [
       { id: "reviewer", name: "Local Reviewer", role: "reviewer" },
@@ -16,7 +24,6 @@ const meta = {
     ],
     pending: false,
     onSignIn: fn(),
-    onClose: fn(),
   },
 } satisfies Meta<typeof AccountPanel>;
 export default meta;

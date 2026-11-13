@@ -1,4 +1,12 @@
-import { renderButton as Button } from "@/components/ui/button";
+import {
+  renderAlertDialogAction as AlertDialogAction,
+  renderAlertDialogCancel as AlertDialogCancel,
+  renderAlertDialogContent as AlertDialogContent,
+  renderAlertDialogDescription as AlertDialogDescription,
+  renderAlertDialogFooter as AlertDialogFooter,
+  renderAlertDialogHeader as AlertDialogHeader,
+  renderAlertDialogTitle as AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Identity } from "@voice-freight/contracts/business";
 
 export type AccountPanelProps = {
@@ -7,7 +15,6 @@ export type AccountPanelProps = {
   progress?: string;
   error?: string;
   onSignIn: (id: string) => void;
-  onClose: () => void;
 };
 
 export function renderAccountPanel({
@@ -16,33 +23,31 @@ export function renderAccountPanel({
   progress,
   error,
   onSignIn,
-  onClose,
 }: AccountPanelProps) {
   return (
-    <section
-      aria-label="Local sign in"
-      className="space-y-4 rounded-lg border border-border bg-surface p-6"
-    >
-      <h2 className="text-xl font-semibold">Local sign in</h2>
-      <p className="text-sm text-muted-foreground">
-        Choose a development account. Local sessions last eight hours.
-      </p>
+    <AlertDialogContent className="max-w-xl">
+      <AlertDialogHeader>
+        <AlertDialogTitle>Local sign in</AlertDialogTitle>
+        <AlertDialogDescription>
+          Choose a development account. Local sessions last eight hours.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
       {error && <p role="alert">{error}</p>}
       {pending && <p role="status">{progress ?? "Loading account…"}</p>}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         {identities.map((identity) => (
-          <Button
+          <AlertDialogAction
             key={identity.id}
             disabled={pending}
             onClick={() => onSignIn(identity.id)}
           >
             {identity.name}
-          </Button>
+          </AlertDialogAction>
         ))}
-        <Button variant="outline" disabled={pending} onClick={onClose}>
-          Close
-        </Button>
       </div>
-    </section>
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={pending}>Close</AlertDialogCancel>
+      </AlertDialogFooter>
+    </AlertDialogContent>
   );
 }

@@ -15,6 +15,7 @@ import {
   type Identity,
 } from "@voice-freight/contracts/business";
 import { renderAccountPanel as AccountPanel } from "@/components/navigation/account-panel";
+import { renderAlertDialog as AlertDialog } from "@/components/ui/alert-dialog";
 
 const accountContext = createContext<{
   user: Identity | null;
@@ -82,7 +83,6 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
   >(null);
   const [notice, setNotice] = useState<string>();
   const mutation = useRef(false);
-  const dialog = useRef<HTMLDialogElement>(null);
   const pending = operation !== null;
   const progress =
     operation === "sign-in"
@@ -101,10 +101,6 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: "always",
   });
   const user = session ? (identity.data?.user ?? null) : null;
-
-  useEffect(() => {
-    if (panel) dialog.current?.showModal();
-  }, [panel]);
 
   useEffect(() => {
     setSession(localStorage.getItem(accountKey));
@@ -226,25 +222,17 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      {panel && (
-        <dialog
-          ref={dialog}
-          aria-label="Local sign in"
-          className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-xl bg-transparent text-foreground backdrop:bg-black/60"
-          onCancel={() => setPanel(false)}
-        >
-          <AccountPanel
-            identities={identity.data?.identities ?? []}
-            pending={pending || identity.isFetching}
-            progress={progress}
-            error={pending ? undefined : (notice ?? identity.error?.message)}
-            onSignIn={(id) => {
-              void signIn(id);
-            }}
-            onClose={() => setPanel(false)}
-          />
-        </dialog>
-      )}
+      <AlertDialog open={panel} onOpenChange={setPanel}>
+        <AccountPanel
+          identities={identity.data?.identities ?? []}
+          pending={pending || identity.isFetching}
+          progress={progress}
+          error={pending ? undefined : (notice ?? identity.error?.message)}
+          onSignIn={(id) => {
+            void signIn(id);
+          }}
+        />
+      </AlertDialog>
     </accountContext.Provider>
   );
 }

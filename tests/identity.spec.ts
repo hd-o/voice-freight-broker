@@ -8,7 +8,7 @@ test.use({
 async function signIn(page: Page, name: string) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page
-    .getByRole("dialog", { name: "Local sign in" })
+    .getByRole("alertdialog", { name: "Local sign in" })
     .getByRole("button", { name, exact: true })
     .click();
   await expect(
@@ -61,7 +61,7 @@ test("local identities scope private history, restocking, logout, and expired se
   });
 
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Local sign in" });
+  const dialog = page.getByRole("alertdialog", { name: "Local sign in" });
   await expect(
     dialog.getByRole("button", { name: "Local Reviewer", exact: true }),
   ).toBeEnabled();
@@ -238,7 +238,7 @@ test("logout blocks overlapping account changes in this tab and another tab", as
     await otherTab
       .getByRole("button", { name: "Sign in to start a call" })
       .click();
-    const dialog = otherTab.getByRole("dialog", { name: "Local sign in" });
+    const dialog = otherTab.getByRole("alertdialog", { name: "Local sign in" });
     const reviewer = dialog.getByRole("button", {
       name: "Local Reviewer",
       exact: true,
@@ -249,7 +249,10 @@ test("logout blocks overlapping account changes in this tab and another tab", as
     );
     await expect(reviewer).toBeDisabled();
     await expect(
-      otherTab.getByRole("button", { name: "Sign in to start a call" }),
+      otherTab.getByRole("button", {
+        name: "Sign in to start a call",
+        includeHidden: true,
+      }),
     ).toBeDisabled();
     expect(signIns).toHaveLength(0);
 

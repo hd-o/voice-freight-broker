@@ -6,7 +6,7 @@ const origin = "http://127.0.0.1:4173";
 test("sign-in failure keeps public samples available", async ({ page }) => {
   await page.goto(`${origin}/call`);
   await page.getByRole("button", { name: "Sign in to start a call" }).click();
-  const dialog = page.getByRole("dialog", { name: "Local sign in" });
+  const dialog = page.getByRole("alertdialog", { name: "Local sign in" });
   await expect(dialog.getByRole("alert")).toContainText(
     "Local API unavailable",
   );
