@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    // Lint
+    "VoidZero.vite-plus-extension-pack",
+    "DavidAnson.vscode-markdownlint",
+    // Format
+    "darkriszty.markdown-table-prettify",
+    // Spelling
+    "streetsidesoftware.code-spell-checker",
+  ]
+}

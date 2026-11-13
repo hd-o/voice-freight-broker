@@ -1,0 +1,26 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+	"name": "Ubuntu",
+	"image": "mcr.microsoft.com/devcontainers/base:resolute",
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:4": {
+			"moby": false
+		},
+		"ghcr.io/devcontainers/features/node:2": {},
+		// SSH access for desktop coding agents
+		// 1. In container, run `sudo passwd $(whoami)` to set a password
+		// 2. Outside, run `ssh-copy-id -p 2222 vscode@localhost` to add keys
+		// 3. Then follow your coding agent instructions for remote SSH
+		"ghcr.io/devcontainers/features/sshd:1": {}
+	},
+	"mounts": [
+		"type=bind,src=/tmp,dst=/tmp"
+	],
+	"postCreateCommand": {
+		"install-playwright-cli": "npm install -g @playwright/cli@latest",
+		"install-playwright-deps": "playwright-cli install"
+	},
+	"forwardPorts": [],
+	"portsAttributes": {}
+}
