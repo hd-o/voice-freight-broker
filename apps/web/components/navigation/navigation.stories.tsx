@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { renderNavigation as Navigation } from "./navigation";
 
 const meta = {
@@ -21,4 +21,17 @@ export const Dashboard: Story = {
 };
 export const Phone: Story = {
   globals: { viewport: { value: "phone", isRotated: false } },
+};
+export const Callbacks: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Dashboard" }));
+    await expect(args.onNavigate).toHaveBeenLastCalledWith("dashboard");
+    await userEvent.click(canvas.getByRole("button", { name: /^Call$/ }));
+    await expect(args.onNavigate).toHaveBeenLastCalledWith("call");
+    await expect(args.onNavigate).toHaveBeenCalledTimes(2);
+    await expect(
+      canvas.getByRole("button", { name: /^Call$/ }),
+    ).toHaveAttribute("aria-current", "page");
+  },
 };
