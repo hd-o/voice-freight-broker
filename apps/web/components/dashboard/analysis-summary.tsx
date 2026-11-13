@@ -63,7 +63,7 @@ export function renderAnalysisSummary({
           <p className="mt-2 text-muted-foreground">
             {status === "pending"
               ? "Summary and sentiment analysis will appear when complete."
-              : "The call and transcript are saved. An administrator can retry the analysis."}
+              : "The call transcript is saved. An administrator can retry the analysis."}
           </p>
           {status === "failed" && administrator ? (
             <Button
