@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wrangler dev --local --env local --config wrangler.jsonc --config ../tools/wrangler.jsonc --port 8787 --persist-to ../../.wrangler/state",
     "build": "wrangler deploy --dry-run --outdir dist",
+    "build:test": "wrangler deploy --dry-run --env local --outdir dist-test",
     "cf:types": "wrangler types --config wrangler.jsonc --config ../tools/wrangler.jsonc",
     "typecheck": "tsc --noEmit && tsc --noEmit -p test/tsconfig.json",
     "test": "vp test run"

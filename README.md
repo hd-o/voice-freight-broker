@@ -46,6 +46,15 @@ Run `vpr check`, `vpr build`, `vpr build:storybook`, `vpr test`, and
 `vpr test:browser` for validation. Browser checks manage their own servers; stop
 existing Storybook/static previews first.
 
+Browser tests default to two parallel workers. Identity tests give each worker
+its own local API/Tools runtime and D1 database, reset storage between tests,
+and apply migrations before the next test. Playwright builds the local test
+Workers once at startup. These tests use a private browser proxy and do not use
+the database from `vpr dev`. Runtime scratch directories stay under the ignored
+`.local` directory and are removed after each run.
+
+To compare a single-worker run, use `pnpm exec playwright test --workers=1`.
+
 See the [CI workflow](.github/workflows/checks.yml) for the validation sequence
 and [AGENTS.md](AGENTS.md) for contributor conventions.
 

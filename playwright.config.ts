@@ -2,7 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./tests/setup.ts",
   fullyParallel: true,
+  workers: 2,
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: "list",
@@ -14,13 +16,12 @@ export default defineConfig({
   projects: [
     {
       name: "static",
-      testIgnore: "identity.spec.ts",
+      testIgnore: ["identity.spec.ts", "isolation.spec.ts"],
       use: { baseURL: "http://127.0.0.1:4173" },
     },
     {
       name: "development",
-      workers: 1,
-      testMatch: ["hydration.spec.ts", "identity.spec.ts"],
+      testMatch: ["identity.spec.ts", "isolation.spec.ts"],
       use: { baseURL: "http://127.0.0.1:3000" },
     },
   ],
@@ -38,12 +39,6 @@ export default defineConfig({
     {
       command: "pnpm dev:web",
       url: "http://127.0.0.1:3000",
-      timeout: 60_000,
-      reuseExistingServer: !process.env.CI,
-    },
-    {
-      command: "pnpm db:migrate && pnpm dev:workers",
-      url: "http://127.0.0.1:8787/api/health",
       timeout: 60_000,
       reuseExistingServer: !process.env.CI,
     },
