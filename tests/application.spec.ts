@@ -3,6 +3,18 @@ import { expect, test } from "@playwright/test";
 
 const origin = "http://127.0.0.1:4173";
 
+test("sign-in failure keeps public samples available", async ({ page }) => {
+  await page.goto(`${origin}/call`);
+  await page.getByRole("button", { name: "Sign in to start a call" }).click();
+  const dialog = page.getByRole("dialog", { name: "Local sign in" });
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Local API unavailable",
+  );
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Explore sample calls" }).click();
+  await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();
+});
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/api{,/**}", (route) => route.abort("connectionrefused"));
 });
@@ -24,14 +36,12 @@ test("public static routes load directly and navigation works without an API", a
   ).toBeVisible();
   await expect(page.getByRole("navigation")).toHaveCSS("position", "fixed");
   await expect(page.getByText("MC 123456")).toBeVisible();
-  await page.getByRole("button", { name: "Sign in to start a call" }).click();
-  await expect(page.getByRole("status")).toContainText("not available yet");
   await page.getByRole("button", { name: "Explore sample calls" }).click();
   await expect(page).toHaveURL(`${origin}/dashboard`);
   await expect(
     page.getByRole("heading", { name: "Call Dashboard" }),
   ).toBeVisible();
-  await expect(page.getByText("Sample calls · Synthetic data")).toBeVisible();
+  await expect(page.getByRole("combobox")).toHaveCount(0);
   await page.getByRole("link", { name: "Call", exact: true }).click();
   await expect(page).toHaveURL(`${origin}/call`);
   await page.goto(`${origin}/dashboard`);
@@ -54,7 +64,7 @@ test("whole history rows open a dedicated details page with load and navigation 
   await expect(metrics.getByText("60%", { exact: true })).toBeVisible();
   await expect(metrics.getByText("3 of 5 matched calls")).toBeVisible();
   await expect(metrics.getByText("+$95", { exact: true })).toBeVisible();
-  await expect(page.getByText("Showing 1–5 of 8 sample calls")).toBeVisible();
+  await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();
 
   const row = page.getByRole("row").filter({
     has: page.getByRole("link", {
@@ -123,7 +133,7 @@ test("whole history rows open a dedicated details page with load and navigation 
   await expect(page.getByRole("table")).toBeVisible();
 
   await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(page.getByText("Showing 6–8 of 8 sample calls")).toBeVisible();
+  await expect(page.getByText("Showing 6–8 of 8 calls")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Next", exact: true }),
   ).toBeDisabled();
@@ -142,7 +152,7 @@ test("whole history rows open a dedicated details page with load and navigation 
   ).toBeVisible();
   await page.getByRole("button", { name: "Back to dashboard" }).click();
   await expect(page).toHaveURL(`${origin}/dashboard?page=2`);
-  await expect(page.getByText("Showing 6–8 of 8 sample calls")).toBeVisible();
+  await expect(page.getByText("Showing 6–8 of 8 calls")).toBeVisible();
 
   const link = page.getByRole("link", {
     name: "View call from Summit Transport",
@@ -153,7 +163,7 @@ test("whole history rows open a dedicated details page with load and navigation 
   await expect(page).toHaveURL(`${origin}/dashboard/call?call=retained&page=2`);
   await page.goBack();
   await page.getByRole("button", { name: "Previous", exact: true }).click();
-  await expect(page.getByText("Showing 1–5 of 8 sample calls")).toBeVisible();
+  await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();
 });
 
 test("call details show loading until the browser reads the selected call", async ({

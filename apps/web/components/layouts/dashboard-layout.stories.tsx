@@ -12,7 +12,7 @@ import { calls, longCalls } from "@/components/dashboard/call-history.fixtures";
 
 const history = {
   rows: calls,
-  pageLabel: `Showing 1–5 of ${sampleCalls.length} sample calls`,
+  pageLabel: `Showing 1–5 of ${sampleCalls.length} calls`,
   getCallHref: createCallHref,
   onNext: fn(),
   onPrevious: fn(),

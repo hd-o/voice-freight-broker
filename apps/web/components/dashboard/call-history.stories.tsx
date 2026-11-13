@@ -10,7 +10,7 @@ const meta = {
   component: CallHistory,
   args: {
     rows: calls,
-    pageLabel: `Showing 1–5 of ${sampleCalls.length} sample calls`,
+    pageLabel: `Showing 1–5 of ${sampleCalls.length} calls`,
     getCallHref: createCallHref,
     onNext: fn(),
     onPrevious: fn(),
@@ -35,7 +35,7 @@ export const Empty: Story = { args: { rows: [], pageLabel: "0 calls" } };
 export const LastPage: Story = {
   args: {
     rows: calls.slice(0, 3),
-    pageLabel: `Showing 6–8 of ${sampleCalls.length} sample calls`,
+    pageLabel: `Showing 6–8 of ${sampleCalls.length} calls`,
     previousVisible: true,
     nextDisabled: true,
   },

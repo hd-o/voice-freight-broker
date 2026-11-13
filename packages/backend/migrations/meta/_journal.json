@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1794597049580,
+      "tag": "0000_steady_screwball",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794597076599,
+      "tag": "0001_constraints",
+      "breakpoints": true
+    }
+  ]
+}

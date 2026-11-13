@@ -30,7 +30,7 @@ source "$VP_HOME/env"
 # Install workspace dependencies without changing the committed lockfile.
 vp install --frozen-lockfile
 # Generate TypeScript declarations for the Workers' configured bindings.
-vp run cf:types
+vpr cf:types
 # Only Linux needs this system-package installation step.
 if [[ "$(uname -s)" == "Linux" ]]; then
   # Install Chromium's required system libraries; Playwright may request sudo.

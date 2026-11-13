@@ -12,10 +12,15 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "static", use: { baseURL: "http://127.0.0.1:4173" } },
+    {
+      name: "static",
+      testIgnore: "identity.spec.ts",
+      use: { baseURL: "http://127.0.0.1:4173" },
+    },
     {
       name: "development",
-      testMatch: "hydration.spec.ts",
+      workers: 1,
+      testMatch: ["hydration.spec.ts", "identity.spec.ts"],
       use: { baseURL: "http://127.0.0.1:3000" },
     },
   ],
@@ -33,6 +38,12 @@ export default defineConfig({
     {
       command: "pnpm dev:web",
       url: "http://127.0.0.1:3000",
+      timeout: 60_000,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: "pnpm db:migrate && pnpm dev:workers",
+      url: "http://127.0.0.1:8787/api/health",
       timeout: 60_000,
       reuseExistingServer: !process.env.CI,
     },

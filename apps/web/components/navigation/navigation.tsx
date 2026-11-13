@@ -20,6 +20,7 @@ export type NavigationPage = (typeof navigationItems)[number]["page"];
 export type NavigationProps = {
   activePage: NavigationPage;
   signedIn: boolean;
+  accountPending?: boolean;
   onNavigate: (page: NavigationPage) => void;
   onAccountAction: () => void;
 };
@@ -27,6 +28,7 @@ export type NavigationProps = {
 export function renderNavigation({
   activePage,
   signedIn,
+  accountPending,
   onNavigate,
   onAccountAction,
 }: NavigationProps) {
@@ -74,6 +76,7 @@ export function renderNavigation({
         <div className="md:absolute md:bottom-2.5">
           <AccountAction
             signedIn={signedIn}
+            pending={accountPending}
             onAccountAction={onAccountAction}
           />
         </div>

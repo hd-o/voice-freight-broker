@@ -15,6 +15,9 @@ export const loadSchema = z
     commodity: z.string().min(1),
     weightPounds: z.number().int().positive(),
     postedRateCents: moneySchema,
+    notes: z.string().optional(),
+    pieces: z.number().int().positive().optional(),
+    dimensions: z.string().optional(),
     negotiation: z.array(
       z.object({
         kind: z.enum(["Carrier offer", "Broker counter"]),

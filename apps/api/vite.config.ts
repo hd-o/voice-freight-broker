@@ -1,12 +1,17 @@
 import { fileURLToPath, URL } from "node:url";
-import { cloudflareTest } from "@cloudflare/vitest-plugin";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   plugins: [
     cloudflareTest({
-      wrangler: { configPath: "./wrangler.jsonc" },
+      wrangler: { configPath: "./wrangler.jsonc", environment: "local" },
       miniflare: {
+        bindings: {
+          TEST_MIGRATIONS: await readD1Migrations(
+            "../../packages/backend/migrations",
+          ),
+        },
         workers: [
           {
             name: "voice-freight-tools",
@@ -25,5 +30,5 @@ export default defineConfig({
       },
     }),
   ],
-  test: { include: ["test/**/*.test.ts"] },
+  test: { include: ["test/**/*.test.ts"], setupFiles: ["./test/setup.ts"] },
 });

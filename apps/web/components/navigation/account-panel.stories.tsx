@@ -1,0 +1,37 @@
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn } from "storybook/test";
+import { renderAccountPanel as AccountPanel } from "./account-panel";
+
+const meta = {
+  title: "Navigation/Account Panel",
+  component: AccountPanel,
+  args: {
+    identities: [
+      { id: "reviewer", name: "Local Reviewer", role: "reviewer" },
+      {
+        id: "administrator",
+        name: "Local Administrator",
+        role: "administrator",
+      },
+    ],
+    pending: false,
+    onSignIn: fn(),
+    onClose: fn(),
+  },
+} satisfies Meta<typeof AccountPanel>;
+export default meta;
+type Story = StoryObj<typeof meta>;
+export const Accounts: Story = {};
+export const Loading: Story = { args: { pending: true, identities: [] } };
+export const Waiting: Story = {
+  args: {
+    pending: true,
+    progress:
+      "Another account change is finishing. Try again when it completes.",
+  },
+};
+export const Failure: Story = {
+  args: {
+    error: "Local API unavailable. Start the local workers and try again.",
+  },
+};

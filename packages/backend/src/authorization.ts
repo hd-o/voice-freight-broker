@@ -1,0 +1,40 @@
+import type { CallContext, Identity } from "@voice-freight/contracts/business";
+import type { State } from "./model";
+import { requireCondition } from "./model";
+
+export function resolveIdentity(state: State, userId: string): Identity {
+  const user = state.users.find((user) => user.id === userId);
+  requireCondition(user, "unauthenticated", "Sign in to continue.", 401);
+  return user;
+}
+
+export function authorizeCall(
+  state: State,
+  context: CallContext,
+  active = true,
+) {
+  const user = resolveIdentity(state, context.userId);
+  const call = state.calls.find((call) => call.id === context.callId);
+  requireCondition(
+    call && (call.ownerId === user.id || user.role === "administrator"),
+    "call_unavailable",
+    "Call unavailable.",
+    404,
+  );
+  if (active)
+    requireCondition(
+      call.record.endedAt === null,
+      "call_ended",
+      "This call has ended.",
+    );
+  return call;
+}
+
+export function authorizeAdministrator(state: State, userId: string) {
+  requireCondition(
+    resolveIdentity(state, userId).role === "administrator",
+    "forbidden",
+    "Administrator access required.",
+    403,
+  );
+}

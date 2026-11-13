@@ -41,7 +41,9 @@ test("reloading call details and traversing history preserves the selected call"
       name: "View call from Summit Transport",
       exact: false,
     });
-    await expect(link).toBeVisible({ timeout: 15_000 });
+    // Cold development modules also traverse the deliberately slow connection.
+    // This check waits for readiness; it does not set a startup speed target.
+    await expect(link).toBeVisible({ timeout: session ? 30_000 : 15_000 });
     await link.click();
     await expect(
       page.getByRole("heading", { name: "Phoenix → Dallas" }),
@@ -62,7 +64,7 @@ test("reloading call details and traversing history preserves the selected call"
 
     await expect(page).toHaveURL(/\/dashboard\?page=2$/);
     await expect(page.getByRole("table")).toBeVisible();
-    await expect(page.getByText("Showing 6–8 of 8 sample calls")).toBeVisible();
+    await expect(page.getByText("Showing 6–8 of 8 calls")).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Call", exact: true }),
     ).toBeVisible();

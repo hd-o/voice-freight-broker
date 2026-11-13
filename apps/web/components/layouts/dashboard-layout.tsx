@@ -16,6 +16,7 @@ import {
   type CallHistoryProps,
 } from "@/components/dashboard/call-history";
 import { renderSkeleton as Skeleton } from "@/components/ui/skeleton";
+import type { ReactNode } from "react";
 
 export type DashboardLayoutProps = Omit<
   ApplicationLayoutProps,
@@ -26,6 +27,7 @@ export type DashboardLayoutProps = Omit<
   history: CallHistoryProps;
   loading?: boolean;
   notice?: string;
+  controls?: ReactNode;
 };
 
 export function renderDashboardLayout({
@@ -34,6 +36,7 @@ export function renderDashboardLayout({
   history,
   loading = false,
   notice,
+  controls,
   ...navigation
 }: DashboardLayoutProps) {
   return (
@@ -41,11 +44,9 @@ export function renderDashboardLayout({
       <div className="space-y-8">
         <PageHeader
           title="Call Dashboard"
-          subtitle="Explore sample conversations, agreements, and post-call analysis"
+          subtitle="Explore conversations, agreements, and post-call analysis"
         />
-        <p className="text-sm text-muted-foreground">
-          Sample calls · Synthetic data · No sign-in required
-        </p>
+        {controls}
         {notice && <p role="status">{notice}</p>}
         {loading ? (
           <div

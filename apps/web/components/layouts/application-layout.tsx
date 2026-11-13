@@ -9,6 +9,7 @@ import {
 export type ApplicationLayoutProps = {
   activePage: NavigationPage;
   signedIn: boolean;
+  accountPending?: boolean;
   onNavigate: (page: NavigationPage) => void;
   onAccountAction: () => void;
   children: ReactNode;
@@ -17,6 +18,7 @@ export type ApplicationLayoutProps = {
 export function renderApplicationLayout({
   activePage,
   signedIn,
+  accountPending,
   onNavigate,
   onAccountAction,
   children,
@@ -32,6 +34,7 @@ export function renderApplicationLayout({
       <Navigation
         activePage={activePage}
         signedIn={signedIn}
+        accountPending={accountPending}
         onNavigate={onNavigate}
         onAccountAction={onAccountAction}
       />

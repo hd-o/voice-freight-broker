@@ -24,6 +24,8 @@ export const SignedOut: Story = {};
 
 export const SignedIn: Story = { args: { signedIn: true } };
 
+export const Pending: Story = { args: { pending: true } };
+
 export const Callback: Story = {
   play: async ({ canvasElement, args }) => {
     await userEvent.click(

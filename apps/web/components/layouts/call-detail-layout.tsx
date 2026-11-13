@@ -114,7 +114,7 @@ export function renderCallDetailLayout({
                 </h2>
                 <p className="mt-3 text-muted-foreground">
                   {unavailable
-                    ? "This call is not in the available sample records. Return to the dashboard and choose an available call."
+                    ? "This call is unavailable to this account. Return to the dashboard and choose an available call."
                     : "Choose a call from the dashboard to see its details."}
                 </p>
               </div>

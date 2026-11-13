@@ -6,6 +6,27 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
+  "vars": { "ENVIRONMENT": "hosted", "AUTH_MODE": "access" },
+  "env": {
+    "local": {
+      "vars": { "ENVIRONMENT": "local", "AUTH_MODE": "local" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "voice-freight-local",
+          "database_id": "00000000-0000-0000-0000-000000000001",
+          "migrations_dir": "../../packages/backend/migrations",
+        },
+      ],
+      "services": [
+        {
+          "binding": "TOOLS",
+          "service": "voice-freight-tools",
+          "entrypoint": "Tools",
+        },
+      ],
+    },
+  },
   "d1_databases": [
     {
       "binding": "DB",

@@ -2,10 +2,18 @@
 
 import { renderCallLayout as CallLayout } from "@/components/layouts/call-layout";
 import { demoCarriers } from "@/components/call/carrier-fixtures";
-import { navigatePage, usePublicAccount } from "@/lib/navigation";
+import { navigatePage } from "@/lib/navigation";
+import { useAccount } from "@/lib/account";
+import { useState } from "react";
 
 export default function renderCallPage() {
-  const { notice, explainAvailability } = usePublicAccount();
+  const account = useAccount();
+  const [notice, setNotice] = useState<string>();
+  function explainAvailability() {
+    setNotice(
+      "Live voice calls will be available in Phase 3. Explore the synthetic sample calls.",
+    );
+  }
 
   function exploreSamples() {
     navigatePage("dashboard");
@@ -14,16 +22,17 @@ export default function renderCallPage() {
   return (
     <CallLayout
       state="ready"
-      signedIn={false}
+      signedIn={!!account.user}
+      accountPending={account.pending}
       carriers={demoCarriers}
       entries={[]}
-      notice={notice}
+      notice={account.notice ?? notice}
       onNavigate={navigatePage}
-      onAccountAction={explainAvailability}
+      onAccountAction={account.performAccountAction}
       onExploreSamples={exploreSamples}
       onViewCall={exploreSamples}
       onStart={explainAvailability}
-      onSignIn={explainAvailability}
+      onSignIn={account.performAccountAction}
       onMute={explainAvailability}
       onHangUp={explainAvailability}
       onNewCall={explainAvailability}

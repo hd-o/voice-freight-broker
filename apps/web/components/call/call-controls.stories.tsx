@@ -23,6 +23,8 @@ export const SignedOut: Story = {};
 
 export const SignedIn: Story = { args: { signedIn: true } };
 
+export const AccountPending: Story = { args: { accountPending: true } };
+
 export const Connected: Story = {
   args: { state: "connected", signedIn: true },
 };

@@ -3,6 +3,7 @@ import { renderButton as Button } from "@/components/ui/button";
 export type CallControlsProps = {
   state: "ready" | "connected" | "ended";
   signedIn?: boolean;
+  accountPending?: boolean;
   muted?: boolean;
   onStart: () => void;
   onSignIn: () => void;
@@ -14,6 +15,7 @@ export type CallControlsProps = {
 export function renderCallControls({
   state,
   signedIn = false,
+  accountPending = false,
   muted = false,
   onStart,
   onSignIn,
@@ -46,7 +48,7 @@ export function renderCallControls({
   }
 
   return (
-    <Button onClick={signedIn ? onStart : onSignIn}>
+    <Button disabled={accountPending} onClick={signedIn ? onStart : onSignIn}>
       {signedIn ? "Start call" : "Sign in to start a call"}
     </Button>
   );

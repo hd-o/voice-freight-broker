@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --local --config wrangler.jsonc --config ../tools/wrangler.jsonc --port 8787 --persist-to ../../.wrangler/state",
+    "dev": "wrangler dev --local --env local --config wrangler.jsonc --config ../tools/wrangler.jsonc --port 8787 --persist-to ../../.wrangler/state",
     "build": "wrangler deploy --dry-run --outdir dist",
     "cf:types": "wrangler types --config wrangler.jsonc --config ../tools/wrangler.jsonc",
     "typecheck": "tsc --noEmit && tsc --noEmit -p test/tsconfig.json",
@@ -14,7 +14,8 @@
     "@voice-freight/backend": "workspace:*",
     "@voice-freight/contracts": "workspace:*",
     "@voice-freight/tools": "workspace:*",
-    "hono": "4.13.18"
+    "hono": "4.13.18",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.8.1",

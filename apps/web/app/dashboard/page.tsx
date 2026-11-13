@@ -1,27 +1,49 @@
 "use client";
 
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { callsSchema } from "@voice-freight/contracts/calls";
 import { summarizeCalls } from "@voice-freight/contracts/reporting";
 import { renderDashboardLayout as DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { renderDashboardControls as DashboardControls } from "@/components/dashboard/dashboard-controls";
 import { sampleCalls } from "@/lib/samples";
 import { createHistory, createMetrics } from "@/lib/reporting";
+import { useAccount, requestApi } from "@/lib/account";
 import {
   changeQuery,
   createCallHref,
   navigatePage,
-  usePublicAccount,
   useQueryParameters,
 } from "@/lib/navigation";
 
 const pageSize = 5;
-const history = createHistory(sampleCalls);
-const metrics = createMetrics(sampleCalls);
-const report = summarizeCalls(sampleCalls);
 
 export default function renderDashboardPage() {
   const { parameters, readiness } = useQueryParameters();
-  const { notice, explainAvailability } = usePublicAccount();
+  const account = useAccount();
+  const [feedback, setFeedback] = useState<string>();
+  const [failure, setFailure] = useState(false);
+  const [restocking, setRestocking] = useState(false);
+  const [operationId, setOperationId] = useState<string>();
+  const live = useQuery({
+    queryKey: ["private", account.user?.id, "dashboard"],
+    enabled: !!account.user,
+    retry: false,
+    queryFn: async () => {
+      const data: { calls: unknown } = await (
+        await requestApi("/dashboard")
+      ).json();
+      return callsSchema.parse(data.calls);
+    },
+  });
+  const calls = [
+    ...sampleCalls,
+    ...(account.user ? (live.data ?? []) : []),
+  ].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  const history = createHistory(calls);
+  const report = summarizeCalls(calls);
   const pageNumber = Number(parameters.get("page") ?? 1);
-  const lastPage = Math.ceil(history.length / pageSize);
+  const lastPage = Math.max(1, Math.ceil(history.length / pageSize));
   const currentPage =
     Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= lastPage
       ? pageNumber
@@ -32,22 +54,68 @@ export default function renderDashboardPage() {
     parameters.set("page", String(page));
     changeQuery(parameters);
   }
+  async function restock() {
+    const id = operationId ?? crypto.randomUUID();
+    setOperationId(id);
+    setRestocking(true);
+    setFeedback(undefined);
+    setFailure(false);
+    try {
+      const result: { added: number } = await (
+        await requestApi("/inventory/restock", "POST", { operationId: id })
+      ).json();
+      setFeedback(
+        result.added
+          ? `Added ${result.added} loads. Existing calls keep their inventory.`
+          : "This restock already completed. Existing history is preserved.",
+      );
+      setOperationId(undefined);
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Restocking failed. Try again.",
+      );
+      setFailure(true);
+    } finally {
+      setRestocking(false);
+    }
+  }
 
   return (
     <DashboardLayout
-      signedIn={false}
+      signedIn={!!account.user}
+      accountPending={account.pending}
       onNavigate={navigatePage}
-      onAccountAction={explainAvailability}
-      notice={notice}
-      loading={!readiness}
-      metrics={metrics}
+      onAccountAction={account.performAccountAction}
+      notice={account.notice ?? live.error?.message}
+      loading={
+        !readiness || account.loading || (!!account.user && live.isPending)
+      }
+      controls={
+        account.user && (
+          <DashboardControls
+            administrator={account.user.role === "administrator"}
+            accountName={account.user.name}
+            restocking={restocking}
+            feedback={feedback}
+            error={failure}
+            onRestock={() => {
+              void restock();
+            }}
+          />
+        )
+      }
+      metrics={createMetrics(calls)}
       sentiment={{
         segments: report.sentiments,
         description: `${report.callCount} calls · One rating per call`,
       }}
       history={{
         rows: history.slice(offset, offset + pageSize),
-        pageLabel: `Showing ${offset + 1}–${Math.min(offset + pageSize, history.length)} of ${history.length} sample calls`,
+        pageLabel: history.length
+          ? `Showing ${offset + 1}–${Math.min(offset + pageSize, history.length)} of ${history.length} calls`
+          : "0 calls",
         nextDisabled: currentPage === lastPage,
         previousVisible: currentPage > 1,
         getCallHref: (id) => createCallHref(id, currentPage),

@@ -21,10 +21,10 @@ jobs:
           node-version-file: .node-version
           run-install: false
       - run: vp install --frozen-lockfile
-      - run: vp run cf:types
-      - run: vp run check
-      - run: vp run build
-      - run: vp run build:storybook
-      - run: vp run test
+      - run: vpr cf:types
+      - run: vpr check
+      - run: vpr build
+      - run: vpr build:storybook
+      - run: vpr test
       - run: vp exec playwright install --with-deps chromium
-      - run: vp run test:browser
+      - run: vpr test:browser

@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/database.ts"
+    ".": "./src/database.ts",
+    "./*": "./src/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@voice-freight/contracts": "workspace:*",
     "drizzle-orm": "0.45.4"
   },
   "devDependencies": {

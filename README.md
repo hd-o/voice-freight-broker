@@ -1,8 +1,8 @@
 # Voice Freight Broker
 
-Browser-based voice freight brokerage simulation using synthetic carriers and
-loads. The intended experience is a carrier sales conversation followed by an
-inspectable dashboard record.
+Browser-based freight brokerage simulation with synthetic carriers and loads.
+The dashboard, local accounts, and business engine are implemented. Live voice,
+hosted authentication, and analysis processing are planned in the [PRD][prd].
 
 ## Getting started
 
@@ -12,56 +12,44 @@ Open the repository in its devcontainer, or run the setup script:
 bash scripts/setup.sh
 ```
 
-Follow the script's instruction to load Vite+, then start the public app:
+Follow the script's instruction to load Vite+, then apply migrations and start
+the frontend, API, and Tools workers:
 
 ```sh
-vp run dev:web
+vpr db:migrate
+vpr dev
 ```
 
+Open <http://localhost:3000/dashboard>. **Sign in** offers Local Reviewer,
+Second Reviewer, and Local Administrator. Sign-in creates the selected account.
+Reviewers see their own call records; administrators see all records and can
+**Restock inventory** to populate or replenish inventory. The dashboard includes
+public samples alongside calls your account can access. Private history starts
+empty; the UI cannot start voice sessions yet.
 
-Run `vp run dev` to include the local API and Tools workers. For isolated UI
-development, run `vp run storybook`; stories cover component and layout states,
-light/dark themes, and phone/tablet/desktop viewports.
+Use desktop Chrome for local sign-in. Overlapping account changes are blocked.
 
-Use `vp run` without a task name to discover the other workspace tasks.
-
-UI components use shadcn's `base-nova` preset with Base UI primitives.
-
-Local development runs without Cloudflare or OpenAI credentials. The
-[setup script](scripts/setup.sh) documents installation details; package
-manifests and the lockfile own dependency versions.
+For frontend-only development, use `vpr dev:web`; bundled samples work without
+the API. Use `vpr storybook` to develop components in isolation. Use `vpr`
+without a task name to discover the other workspace tasks.
 
 ## Development notes
 
-The frontend is intended to remain a static export. Backend behavior belongs in
-the Workers, with shared business logic kept outside the HTTP and RPC adapters.
-Browser-safe contracts are separate from private backend code.
+The frontend remains a static export. Run `vpr build` before `vpr preview`;
+preview serves only the exported frontend. Use `vpr dev` for the API proxy.
 
-Static preview requires a build first and serves only the exported frontend. Use
-the development server when working with the API proxy. Storybook has a separate
-Vite configuration because its client renderer must not load vinext's
-server-component plugins.
+UI components use shadcn's `base-nova` preset with Base UI primitives. Storybook
+uses a separate Vite configuration to keep vinext's server-component plugins out
+of its client renderer.
 
-Run `vp run check`, `vp run build`, `vp run build:storybook`, `vp run test`, and
-`vp run test:browser` for validation. Browser checks manage their own servers;
-stop existing Storybook/static previews first. Checks cover static sample
-browsing with the API unavailable, URL history, reporting denominators, keyboard
-access, responsive behavior, and accessibility.
-
-Public records live in `apps/web/data/calls.json`, validated by the browser-safe
-contracts package. Shared reporting counts each matched ended call once,
-excludes unresolved errors without a retained agreement, and uses only final
-effective agreements for rate variance. Unknown sentiment stays separate; dates
-show UTC.
+Run `vpr check`, `vpr build`, `vpr build:storybook`, `vpr test`, and
+`vpr test:browser` for validation. Browser checks manage their own servers; stop
+existing Storybook/static previews first.
 
 See the [CI workflow](.github/workflows/checks.yml) for the validation sequence
 and [AGENTS.md](AGENTS.md) for contributor conventions.
 
-[prd]: https://chatgpt.com/space/page_4da0fc95119881919f400a7d37c9181c
-
 ## Architecture
-
-The application supports local development and static frontend preview:
 
 ```mermaid
 flowchart TD
@@ -75,11 +63,17 @@ flowchart TD
   Browser -->|Development| Dev
   Browser -->|Static preview| App
   Dev -->|/api proxy| API
-  API -->|Service Binding RPC| Tools
+  API -->|Health check RPC| Tools
   API -->|Drizzle| DB
   Tools -->|Drizzle| DB
 ```
 
-API and Tools import the same backend package and Zod contracts. The RPC path
-currently exercises the health probe; voice coordination, authentication, and
-post-call processing are defined in the [PRD][prd] and remain to be implemented.
+API REST routes and Tools RPC methods call shared backend handlers directly.
+Business logic stays outside the adapters; browser-safe Zod contracts stay
+separate from private backend code. Both Workers share the same local D1
+database. The API currently calls Tools RPC only for its health check.
+
+See [business engine notes](docs/business.md) for fixtures, negotiation rules,
+confirmation, reporting, and persistence.
+
+[prd]: https://chatgpt.com/space/page_4da0fc95119881919f400a7d37c9181c

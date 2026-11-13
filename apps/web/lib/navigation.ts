@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import type { NavigationPage } from "@/components/navigation/navigation";
 
 function subscribeNavigation(onChange: () => void) {
@@ -53,16 +53,4 @@ export function createCallHref(id: string, page = 1) {
   }
 
   return `/dashboard/call?${parameters}`;
-}
-
-export function usePublicAccount() {
-  const [notice, setNotice] = useState<string>();
-
-  function explainAvailability() {
-    setNotice(
-      "Sign-in and live calls are not available yet. Explore the synthetic sample calls without signing in.",
-    );
-  }
-
-  return { notice, explainAvailability };
 }

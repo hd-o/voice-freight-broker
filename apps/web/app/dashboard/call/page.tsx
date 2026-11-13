@@ -7,15 +7,30 @@ import { createCallDetail } from "@/lib/reporting";
 import {
   changeQuery,
   navigatePage,
-  usePublicAccount,
   useQueryParameters,
 } from "@/lib/navigation";
+import { useAccount, requestApi } from "@/lib/account";
+import { useQuery } from "@tanstack/react-query";
+import { callSchema } from "@voice-freight/contracts/calls";
 
 export default function renderCallDetailsPage() {
   const { parameters, readiness } = useQueryParameters();
-  const { notice, explainAvailability } = usePublicAccount();
+  const account = useAccount();
   const selection = parameters.get("call");
-  const call = sampleCalls.find((call) => call.id === selection);
+  const sample = sampleCalls.find((call) => call.id === selection);
+  const privateSelection = selection !== null && !sample;
+  const live = useQuery({
+    queryKey: ["private", account.user?.id, "call", selection],
+    enabled: privateSelection && !!account.user,
+    retry: false,
+    queryFn: async () =>
+      callSchema.parse(
+        await (
+          await requestApi(`/calls/${encodeURIComponent(selection!)}`)
+        ).json(),
+      ),
+  });
+  const call = sample ?? (account.user ? live.data : undefined);
 
   function selectLoad(id: string | null) {
     if (id === null) {
@@ -39,17 +54,26 @@ export default function renderCallDetailsPage() {
     if (historyPage !== null) {
       query.set("page", historyPage);
     }
-
     window.location.assign(`/dashboard${query.size ? `?${query}` : ""}`);
   }
 
   return (
     <CallDetailLayout
-      signedIn={false}
+      signedIn={!!account.user}
+      accountPending={account.pending}
       onNavigate={navigateSection}
-      onAccountAction={explainAvailability}
-      notice={notice}
-      loading={!readiness}
+      onAccountAction={account.performAccountAction}
+      notice={
+        account.notice ??
+        (privateSelection && !account.user
+          ? "Sign in to view this private call."
+          : live.error?.message)
+      }
+      loading={
+        !readiness ||
+        account.loading ||
+        (privateSelection && !!account.user && live.isPending)
+      }
       unavailable={selection !== null && !call}
       record={
         call ? createCallDetail(call, parameters.get("load"), selectLoad) : null
