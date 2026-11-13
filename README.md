@@ -18,7 +18,12 @@ Follow the script's instruction to load Vite+, then start development:
 vp run dev
 ```
 
-For isolated component development, run `vp run storybook` in another terminal.
+For component and layout development, run `vp run storybook` in another
+terminal. Storybook contains fixture-backed call and dashboard screens,
+component states, light/dark themes, and phone/tablet/desktop viewports.
+Callbacks log actions; authentication, live audio, data fetching, and workflow
+transitions remain out of scope. The app route remains the development scaffold.
+
 Use `vp run` without a task name to discover the other workspace tasks.
 
 UI components use shadcn's `base-nova` preset with Base UI primitives.
@@ -39,8 +44,15 @@ Vite configuration because its client renderer must not load vinext's
 server-component plugins.
 
 Browser integration checks manage their own servers; stop any existing Storybook
-or static preview process before running them. These checks validate the
-scaffold, not live audio or hosted authentication.
+or static preview process before running them. These checks cover the scaffold,
+fixture layouts, keyboard access, responsive behavior, and accessibility.
+
+Design reference: the Voice Freight Broker FigCraft project, adapted from
+[Sitsiilia's design](https://www.figma.com/community/file/1342715840824755935)
+under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The
+implementation adds responsive layouts, dark mode, accessible controls, and
+fixture states. The voice orb adapts the supplied procedural WebGL reference
+with static fallbacks and reduced-motion support.
 
 See the [CI workflow](.github/workflows/checks.yml) for the validation sequence
 and [AGENTS.md](AGENTS.md) for contributor conventions.
