@@ -8,10 +8,8 @@ const getBadgeClasses = cva(
     variants: {
       variant: {
         default: "bg-muted text-foreground",
-        success:
-          "bg-emerald-100 text-emerald-800 [[data-theme=dark]_&]:bg-emerald-950 [[data-theme=dark]_&]:text-emerald-200",
-        warning:
-          "bg-amber-100 text-amber-900 [[data-theme=dark]_&]:bg-amber-950 [[data-theme=dark]_&]:text-amber-200",
+        success: "bg-success text-success-foreground",
+        warning: "bg-warning text-warning-foreground",
         destructive: "bg-destructive text-destructive-foreground",
         outline: "border border-border text-muted-foreground",
       },
