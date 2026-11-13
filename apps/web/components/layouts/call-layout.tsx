@@ -1,0 +1,132 @@
+"use client";
+
+import {
+  renderApplicationLayout as ApplicationLayout,
+  type ApplicationLayoutProps,
+} from "./application-layout";
+import { renderPageHeader as PageHeader } from "@/components/navigation/page-header";
+import {
+  renderCallerBriefing as CallerBriefing,
+  type DemoCarrier,
+} from "@/components/call/caller-briefing";
+import { renderCallIntroduction as CallIntroduction } from "@/components/call/call-introduction";
+import {
+  renderCallControls as CallControls,
+  type CallControlsProps,
+} from "@/components/call/call-controls";
+import { renderVoiceOrb as VoiceOrb } from "@/components/call/voice-orb";
+import {
+  renderTranscript as Transcript,
+  type TranscriptEntry,
+} from "@/components/call/transcript";
+import {
+  renderCallNotification as CallNotification,
+  type CallNotificationKind,
+} from "@/components/call/call-notification";
+
+export type CallLayoutProps = CallControlsProps & {
+  signedIn: boolean;
+  duration?: string;
+  carriers: DemoCarrier[];
+  entries: TranscriptEntry[];
+  notification?: CallNotificationKind;
+  administrator?: boolean;
+  onNavigate: ApplicationLayoutProps["onNavigate"];
+  onAccountAction: () => void;
+  onExploreSamples: () => void;
+  onViewCall: () => void;
+  onDismissNotification: () => void;
+  onNotificationAction: () => void;
+};
+
+export function renderCallLayout({
+  state,
+  signedIn,
+  muted,
+  duration = "00:00",
+  carriers,
+  entries,
+  notification,
+  administrator,
+  onNavigate,
+  onAccountAction,
+  onExploreSamples,
+  onViewCall,
+  onDismissNotification,
+  onNotificationAction,
+  ...actions
+}: CallLayoutProps) {
+  const status =
+    state === "ready"
+      ? "Ready when you are"
+      : state === "connected"
+        ? `${muted ? "Muted" : "Connected"} · ${duration}`
+        : `Call ended · ${duration}`;
+  return (
+    <ApplicationLayout
+      activePage="call"
+      signedIn={signedIn}
+      onNavigate={onNavigate}
+      onAccountAction={onAccountAction}
+    >
+      <PageHeader
+        title="Voice Call Demo"
+        subtitle="Play the carrier, find a load, and negotiate with the voice agent."
+      />
+      <div className="mt-8 grid min-w-0 items-start gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
+        <CallerBriefing carriers={carriers} className="xl:min-h-[492px]" />
+        <div className="grid min-w-0 overflow-hidden rounded-[10px] border border-border bg-surface md:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">
+          {state === "ready" ? (
+            <CallIntroduction
+              onExploreSamples={onExploreSamples}
+              className="min-h-[360px] md:min-h-[490px]"
+            />
+          ) : (
+            <div className="flex min-w-0 flex-col bg-muted md:h-[490px]">
+              <Transcript
+                entries={entries}
+                className="max-h-[490px] min-h-[360px] flex-1 rounded-none md:min-h-0"
+              />
+              {state === "ended" && (
+                <div className="px-6 pb-6">
+                  <button
+                    type="button"
+                    onClick={onViewCall}
+                    className="text-sm font-medium underline-offset-4 hover:underline"
+                  >
+                    View this call in dashboard →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          <section
+            className="flex min-w-0 flex-col items-center justify-between gap-8 p-6 md:min-h-[490px]"
+            aria-label="Call information"
+          >
+            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs leading-4">
+              {status}
+            </span>
+            <VoiceOrb connected={state === "connected"} />
+            <CallControls
+              state={state}
+              signedIn={signedIn}
+              muted={muted}
+              {...actions}
+            />
+          </section>
+        </div>
+      </div>
+      {notification && (
+        <div className="fixed top-4 right-4 left-4 z-40 flex justify-end md:left-auto">
+          <CallNotification
+            kind={notification}
+            administrator={administrator}
+            onDismiss={onDismissNotification}
+            onAction={onNotificationAction}
+          />
+        </div>
+      )}
+    </ApplicationLayout>
+  );
+}
