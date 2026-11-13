@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { renderCallHistory as CallHistory } from "./call-history";
 import { calls, longCalls } from "./call-history.fixtures";
+
 const meta = {
   title: "Dashboard/CallHistory",
   component: CallHistory,
@@ -20,10 +21,15 @@ const meta = {
     ),
   ],
 } satisfies Meta<typeof CallHistory>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Default: Story = {};
+
 export const Empty: Story = { args: { rows: [], pageLabel: "0 calls" } };
+
 export const LastPage: Story = {
   args: {
     pageLabel: "Showing 16–20 of 20 calls",
@@ -31,4 +37,5 @@ export const LastPage: Story = {
     nextDisabled: true,
   },
 };
+
 export const LongContent: Story = { args: { rows: longCalls } };

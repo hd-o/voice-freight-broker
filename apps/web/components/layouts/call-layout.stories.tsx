@@ -26,10 +26,15 @@ const meta = {
     onNotificationAction: fn(),
   },
 } satisfies Meta<typeof CallLayout>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const ReadySignedOut: Story = {};
+
 export const ReadySignedIn: Story = { args: { signedIn: true } };
+
 export const Connected: Story = {
   args: {
     state: "connected",
@@ -67,7 +72,9 @@ export const Connected: Story = {
     ],
   },
 };
+
 export const Muted: Story = { args: { ...Connected.args, muted: true } };
+
 export const Ended: Story = {
   args: {
     state: "ended",
@@ -77,24 +84,31 @@ export const Ended: Story = {
     notification: "analysis",
   },
 };
+
 export const MicrophoneBlocked: Story = {
   args: { signedIn: true, notification: "microphone" },
 };
+
 export const ConnectionFailure: Story = {
   args: { signedIn: true, notification: "connection" },
 };
+
 export const Interrupted: Story = {
   args: { ...Ended.args, notification: "interruption" },
 };
+
 export const AnalysisFailure: Story = {
   args: { ...Ended.args, notification: "analysisFailure" },
 };
+
 export const DailyLimit: Story = {
   args: { signedIn: true, notification: "dailyLimit" },
 };
+
 export const Inactivity: Story = {
   args: { ...Connected.args, notification: "inactivity" },
 };
+
 export const LongTranscript: Story = {
   args: {
     ...Connected.args,

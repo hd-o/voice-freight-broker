@@ -14,14 +14,21 @@ const meta = {
     onNewCall: fn(),
   },
 } satisfies Meta<typeof CallControls>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const SignedOut: Story = {};
+
 export const SignedIn: Story = { args: { signedIn: true } };
+
 export const Connected: Story = {
   args: { state: "connected", signedIn: true },
 };
+
 export const Muted: Story = {
   args: { state: "connected", signedIn: true, muted: true },
 };
+
 export const Ended: Story = { args: { state: "ended", signedIn: true } };

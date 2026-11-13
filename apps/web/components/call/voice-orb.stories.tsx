@@ -6,7 +6,11 @@ const meta = {
   component: VoiceOrb,
   args: { connected: false },
 } satisfies Meta<typeof VoiceOrb>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Disconnected: Story = {};
+
 export const Connected: Story = { args: { connected: true } };

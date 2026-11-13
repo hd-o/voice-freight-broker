@@ -1,18 +1,21 @@
-export type SentimentSegment = {
-  label: "Positive" | "Neutral" | "Negative" | "Unknown";
-  count: number;
-  percentage: number;
-};
-export type SentimentDistributionProps = {
-  segments: SentimentSegment[];
-  description: string;
-};
-const tones: Record<SentimentSegment["label"], string> = {
+const sentimentTones = {
   Positive: "bg-foreground",
   Neutral: "bg-muted-foreground",
   Negative: "bg-muted-foreground/65",
   Unknown: "bg-muted-foreground/30",
+} as const;
+
+export type SentimentSegment = {
+  label: keyof typeof sentimentTones;
+  count: number;
+  percentage: number;
 };
+
+export type SentimentDistributionProps = {
+  segments: readonly SentimentSegment[];
+  description: string;
+};
+
 export function renderSentimentDistribution({
   segments,
   description,
@@ -33,7 +36,7 @@ export function renderSentimentDistribution({
         {segments.map((segment) => (
           <span
             key={segment.label}
-            className={tones[segment.label]}
+            className={sentimentTones[segment.label]}
             style={{ width: `${segment.percentage}%` }}
           />
         ))}
@@ -44,7 +47,7 @@ export function renderSentimentDistribution({
             <li key={segment.label} className="flex items-center gap-2">
               <span
                 aria-hidden="true"
-                className={`size-2 shrink-0 rounded-full ${tones[segment.label]}`}
+                className={`size-2 shrink-0 rounded-full ${sentimentTones[segment.label]}`}
               />
               <span>
                 {segment.label} {segment.count} · {segment.percentage}%

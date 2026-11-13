@@ -9,13 +9,15 @@ export type NegotiationEntry = {
   value: string;
   emphasized?: boolean;
 };
+
 export type LoadDetails = {
   route: string;
   rate: string;
   comparison: string;
-  snapshot: string[];
-  negotiation: NegotiationEntry[];
+  snapshot: readonly string[];
+  negotiation: readonly NegotiationEntry[];
 };
+
 export type LoadSummaryProps = {
   outcome: string;
   eligibility: string;
@@ -24,6 +26,7 @@ export type LoadSummaryProps = {
   selector: LoadSelectorProps;
   load: LoadDetails | null;
 };
+
 export function renderLoadSummary({
   outcome,
   eligibility,

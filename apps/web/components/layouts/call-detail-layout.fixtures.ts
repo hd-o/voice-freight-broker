@@ -8,14 +8,16 @@ export function createCallDetail(
   onLoadChange: (value: string | null) => void,
   onRetry: () => void,
 ): CallDetail {
+  const carrier = "Summit Transport";
+
   return {
-    carrier: "Summit Transport",
+    carrier,
     source: "Sample",
     dateAndDuration: "Nov 11, 2026 · 10:42 AM CST · 3m 08s",
     loadSummary: {
       outcome: "Agreement Reached",
       eligibility: "Carrier Eligible",
-      carrier: "Summit Transport",
+      carrier,
       mcNumber: "123456",
       selector: {
         options: loadOptions,

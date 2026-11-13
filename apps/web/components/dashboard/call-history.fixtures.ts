@@ -1,17 +1,20 @@
 import type { CallRecord } from "./call-history";
+
+const summitCall: CallRecord = {
+  id: "summit-1042",
+  date: "Nov 11 · 10:42",
+  source: "Sample",
+  carrier: "Summit Transport",
+  load: "Dallas → Atlanta",
+  outcome: "Agreement reached",
+  agreements: "1",
+  rate: "$2,450",
+  sentiment: "Positive",
+  analysis: "Complete",
+};
+
 export const calls: CallRecord[] = [
-  {
-    id: "summit-1042",
-    date: "Nov 11 · 10:42",
-    source: "Sample",
-    carrier: "Summit Transport",
-    load: "Dallas → Atlanta",
-    outcome: "Agreement reached",
-    agreements: "1",
-    rate: "$2,450",
-    sentiment: "Positive",
-    analysis: "Complete",
-  },
+  summitCall,
   {
     id: "pine-ridge",
     date: "Nov 11 · 09:18",
@@ -61,9 +64,10 @@ export const calls: CallRecord[] = [
     analysis: "Pending",
   },
 ];
+
 export const longCalls: CallRecord[] = [
   {
-    ...calls[0]!,
+    ...summitCall,
     id: "long-carrier",
     carrier: "Summit Transport and Regional Distribution Partners",
     load: "San Bernardino, California → Jacksonville, Florida",

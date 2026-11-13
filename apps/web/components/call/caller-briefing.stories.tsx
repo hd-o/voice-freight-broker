@@ -7,9 +7,13 @@ const meta = {
   component: CallerBriefing,
   args: { carriers: demoCarriers, className: "w-full max-w-[392px]" },
 } satisfies Meta<typeof CallerBriefing>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Default: Story = {};
+
 export const LongCarrierName: Story = {
   args: {
     carriers: [

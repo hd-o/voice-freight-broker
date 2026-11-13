@@ -15,8 +15,9 @@ export type CallRecord = {
   sentiment: string;
   analysis: "Complete" | "Pending" | "Failed";
 };
+
 export type CallHistoryProps = {
-  rows: CallRecord[];
+  rows: readonly CallRecord[];
   pageLabel: string;
   nextDisabled?: boolean;
   previousVisible?: boolean;
@@ -24,6 +25,7 @@ export type CallHistoryProps = {
   onNext: () => void;
   onPrevious: () => void;
 };
+
 export function renderCallHistory({
   rows,
   pageLabel,
@@ -34,6 +36,7 @@ export function renderCallHistory({
   onPrevious,
 }: CallHistoryProps) {
   const headingId = useId();
+
   return (
     <section
       aria-labelledby={headingId}
@@ -81,9 +84,9 @@ export function renderCallHistory({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {rows.map((call) => (
                 <tr
-                  key={row.id}
+                  key={call.id}
                   className="h-14 border-b border-border hover:bg-muted/50 focus-within:bg-muted/50"
                 >
                   <th
@@ -93,24 +96,26 @@ export function renderCallHistory({
                     <button
                       type="button"
                       className="rounded text-left hover:underline"
-                      aria-label={`View call from ${row.carrier}, ${row.date}`}
-                      onClick={() => onCallSelect(row.id)}
+                      aria-label={`View call from ${call.carrier}, ${call.date}`}
+                      onClick={() => onCallSelect(call.id)}
                     >
-                      {row.date}
+                      {call.date}
                     </button>
                   </th>
-                  <td className="px-3 py-4">{row.source}</td>
+                  <td className="px-3 py-4">{call.source}</td>
                   <td className="max-w-56 px-3 py-4 break-words">
-                    {row.carrier}
+                    {call.carrier}
                   </td>
-                  <td className="max-w-60 px-3 py-4 break-words">{row.load}</td>
-                  <td className="px-3 py-4">{row.outcome}</td>
-                  <td className="px-3 py-4 tabular-nums">{row.agreements}</td>
+                  <td className="max-w-60 px-3 py-4 break-words">
+                    {call.load}
+                  </td>
+                  <td className="px-3 py-4">{call.outcome}</td>
+                  <td className="px-3 py-4 tabular-nums">{call.agreements}</td>
                   <td className="px-3 py-4 whitespace-nowrap tabular-nums">
-                    {row.rate}
+                    {call.rate}
                   </td>
-                  <td className="px-3 py-4">{row.sentiment}</td>
-                  <td className="px-3 py-4">{row.analysis}</td>
+                  <td className="px-3 py-4">{call.sentiment}</td>
+                  <td className="px-3 py-4">{call.analysis}</td>
                 </tr>
               ))}
             </tbody>

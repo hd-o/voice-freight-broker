@@ -3,12 +3,14 @@ import { fn } from "storybook/test";
 import { renderLoadSummary as LoadSummary } from "./load-summary";
 import { firstLoad, secondLoad } from "./load-summary.fixtures";
 import { loadOptions } from "./load-selector.fixtures";
+
 const selector = {
   options: loadOptions,
   value: "NS-1042",
   countLabel: "1 of 2",
   onValueChange: fn(),
 };
+
 const meta = {
   title: "Dashboard/LoadSummary",
   component: LoadSummary,
@@ -28,15 +30,20 @@ const meta = {
     ),
   ],
 } satisfies Meta<typeof LoadSummary>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Agreement: Story = {};
+
 export const SecondLoad: Story = {
   args: {
     load: secondLoad,
     selector: { ...selector, value: "NS-1048", countLabel: "2 of 2" },
   },
 };
+
 export const NoLoad: Story = {
   args: {
     outcome: "Carrier Ineligible",
@@ -53,6 +60,7 @@ export const NoLoad: Story = {
     },
   },
 };
+
 export const LongContent: Story = {
   args: {
     carrier: "Summit Transport and Regional Distribution Partners",

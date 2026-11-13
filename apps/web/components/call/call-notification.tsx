@@ -10,6 +10,7 @@ export type CallNotificationKind =
   | "analysisFailure"
   | "dailyLimit"
   | "inactivity";
+
 export type CallNotificationProps = {
   kind: CallNotificationKind;
   administrator?: boolean;
@@ -74,6 +75,7 @@ export function renderCallNotification({
     kind === "connection" ||
     kind === "interruption" ||
     kind === "analysisFailure";
+
   return (
     <aside
       role={failure ? "alert" : "status"}

@@ -3,18 +3,26 @@ import { fn } from "storybook/test";
 import { renderCallDetailLayout as CallDetailLayout } from "./call-detail-layout";
 import { createCallDetail } from "./call-detail-layout.fixtures";
 import { secondLoad } from "@/components/dashboard/load-summary.fixtures";
+
 const record = createCallDetail(fn(), fn());
+
 const meta = {
   title: "Layouts/CallDetail",
   component: CallDetailLayout,
   parameters: { layout: "fullscreen" },
   args: { signedIn: true, onNavigate: fn(), onAccountAction: fn(), record },
 } satisfies Meta<typeof CallDetailLayout>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Default: Story = {};
+
 export const Loading: Story = { args: { loading: true, record: null } };
+
 export const Empty: Story = { args: { record: null } };
+
 export const AnalysisPending: Story = {
   args: {
     record: {
@@ -28,6 +36,7 @@ export const AnalysisPending: Story = {
     },
   },
 };
+
 export const AnalysisFailed: Story = {
   args: {
     record: {
@@ -41,6 +50,7 @@ export const AnalysisFailed: Story = {
     },
   },
 };
+
 export const AdministratorRetry: Story = {
   args: {
     record: {
@@ -55,6 +65,7 @@ export const AdministratorRetry: Story = {
     },
   },
 };
+
 export const SecondLoad: Story = {
   args: {
     record: {
@@ -71,9 +82,11 @@ export const SecondLoad: Story = {
     },
   },
 };
+
 export const EmptyTranscript: Story = {
   args: { record: { ...record, transcript: [] } },
 };
+
 export const LongContent: Story = {
   args: {
     record: {

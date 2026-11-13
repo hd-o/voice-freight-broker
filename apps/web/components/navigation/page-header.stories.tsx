@@ -16,10 +16,15 @@ const meta = {
     ),
   ],
 } satisfies Meta<typeof PageHeader>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Call: Story = {};
+
 export const Dashboard: Story = {
   args: { title: "Dashboard", subtitle: "Review your calls and outcomes." },
 };
+
 export const TitleOnly: Story = { args: { subtitle: undefined } };

@@ -19,6 +19,7 @@ export function renderAccountAction({
 }: AccountActionProps) {
   const label = signedIn ? "Sign out" : "Sign in";
   const Icon = signedIn ? LogOut : LogIn;
+
   return (
     <Tooltip>
       <TooltipTrigger

@@ -1,4 +1,5 @@
 import type { LoadDetails } from "./load-summary";
+
 export const firstLoad: LoadDetails = {
   route: "Dallas → Atlanta",
   rate: "$2,450",
@@ -16,6 +17,7 @@ export const firstLoad: LoadDetails = {
     { label: "Accepted", value: "$2,450", emphasized: true },
   ],
 };
+
 export const secondLoad: LoadDetails = {
   route: "Memphis → Denver",
   rate: "No agreement",

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { renderAnalysisSummary as AnalysisSummary } from "./analysis-summary";
+
 const meta = {
   title: "Dashboard/AnalysisSummary",
   component: AnalysisSummary,
@@ -20,15 +21,21 @@ const meta = {
     ),
   ],
 } satisfies Meta<typeof AnalysisSummary>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Complete: Story = {};
+
 export const Pending: Story = {
   args: { sentiment: "Unknown", status: "pending", summary: undefined },
 };
+
 export const Failed: Story = {
   args: { sentiment: "Unknown", status: "failed", summary: undefined },
 };
+
 export const AdministratorRetry: Story = {
   args: {
     sentiment: "Unknown",
@@ -37,6 +44,7 @@ export const AdministratorRetry: Story = {
     summary: undefined,
   },
 };
+
 export const LongContent: Story = {
   args: {
     summary:

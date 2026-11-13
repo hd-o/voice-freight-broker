@@ -1,9 +1,11 @@
 "use client";
+
 import { useId } from "react";
 import { Select } from "@base-ui/react/select";
 import { Check, ChevronDown } from "lucide-react";
 
 export type LoadOption = { value: string; label: string };
+
 export type LoadSelectorProps = {
   options: LoadOption[];
   value: string | null;
@@ -13,6 +15,7 @@ export type LoadSelectorProps = {
   onValueChange: (value: string | null) => void;
   onOpenChange?: (open: boolean) => void;
 };
+
 export function renderLoadSelector({
   options,
   value,
@@ -23,6 +26,7 @@ export function renderLoadSelector({
   onOpenChange,
 }: LoadSelectorProps) {
   const labelId = useId();
+
   return (
     <div className="min-w-0 space-y-2">
       <span

@@ -10,10 +10,15 @@ const meta = {
     className: "w-full max-w-3xl max-h-[550px]",
   },
 } satisfies Meta<typeof Transcript>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Conversation: Story = {};
+
 export const Empty: Story = { args: { entries: [] } };
+
 export const LongConversation: Story = {
   args: {
     entries: Array.from({ length: 5 }, (_, index) =>
@@ -24,13 +29,12 @@ export const LongConversation: Story = {
     ).flat(),
   },
 };
+
 export const LongMessage: Story = {
   args: {
-    entries: [
-      {
-        ...transcriptEntries[0]!,
-        text: "Could you confirm the pickup window and the delivery appointment? I need to coordinate with my dispatcher before accepting this load. Please include any loading requirements and the shipper’s contact details.",
-      },
-    ],
+    entries: transcriptEntries.slice(0, 1).map((entry) => ({
+      ...entry,
+      text: "Could you confirm the pickup window and the delivery appointment? I need to coordinate with my dispatcher before accepting this load. Please include any loading requirements and the shipper’s contact details.",
+    })),
   },
 };

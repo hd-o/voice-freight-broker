@@ -27,8 +27,8 @@ import {
 export type CallLayoutProps = CallControlsProps & {
   signedIn: boolean;
   duration?: string;
-  carriers: DemoCarrier[];
-  entries: TranscriptEntry[];
+  carriers: readonly DemoCarrier[];
+  entries: readonly TranscriptEntry[];
   notification?: CallNotificationKind;
   administrator?: boolean;
   onNavigate: ApplicationLayoutProps["onNavigate"];
@@ -62,6 +62,7 @@ export function renderCallLayout({
       : state === "connected"
         ? `${muted ? "Muted" : "Connected"} · ${duration}`
         : `Call ended · ${duration}`;
+
   return (
     <ApplicationLayout
       activePage="call"

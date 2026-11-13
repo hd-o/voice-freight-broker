@@ -21,11 +21,12 @@ export type DashboardLayoutProps = Omit<
   ApplicationLayoutProps,
   "activePage" | "children"
 > & {
-  metrics: MetricCardProps[];
+  metrics: readonly MetricCardProps[];
   sentiment: SentimentDistributionProps;
   history: CallHistoryProps;
   loading?: boolean;
 };
+
 export function renderDashboardLayout({
   metrics,
   sentiment,

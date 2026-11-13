@@ -1,16 +1,23 @@
 "use client";
+
 import { LoaderCircle } from "lucide-react";
 import { renderButton as Button } from "@/components/ui/button";
+
+const analysisLabels = {
+  complete: "Complete",
+  pending: "Pending",
+  failed: "Failed",
+} as const;
 
 export type AnalysisSummaryProps = {
   sentiment: string;
   connection: string;
-  status: "complete" | "pending" | "failed";
+  status: keyof typeof analysisLabels;
   summary?: string;
   administrator?: boolean;
   onRetry?: () => void;
 };
-const labels = { complete: "Complete", pending: "Pending", failed: "Failed" };
+
 export function renderAnalysisSummary({
   sentiment,
   connection,
@@ -26,7 +33,7 @@ export function renderAnalysisSummary({
           {[
             { label: "Sentiment", value: sentiment },
             { label: "Connection", value: connection },
-            { label: "Analysis", value: labels[status] },
+            { label: "Analysis", value: analysisLabels[status] },
           ].map((item) => (
             <div
               key={item.label}

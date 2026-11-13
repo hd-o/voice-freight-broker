@@ -10,6 +10,9 @@ const meta = {
     className: "min-h-[490px] w-full max-w-[480px]",
   },
 } satisfies Meta<typeof CallIntroduction>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Default: Story = {};

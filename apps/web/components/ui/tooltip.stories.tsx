@@ -22,8 +22,13 @@ const meta = {
     </TooltipProvider>
   ),
 } satisfies Meta<typeof TooltipContent>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Default: Story = {};
+
 export const Right: Story = { args: { side: "right" } };
+
 export const Dark: Story = { globals: { theme: "dark" } };

@@ -2,6 +2,7 @@ const vertexSource = `
     attribute vec2 aPosition;
     void main() { gl_Position = vec4(aPosition, 0.0, 1.0); }
   `;
+
 const fragmentSource = `
     #ifdef GL_FRAGMENT_PRECISION_HIGH
       precision highp float;
@@ -18,7 +19,7 @@ const fragmentSource = `
     // Gentle local circulation keeps the clouds from forming long ribbons.
     const float CURL_STRENGTH = 0.30;
 
-    // Continuous value calculateNoise; all calculateHash operations stay in a small range.
+    // Continuous value noise; all hash operations stay in a small range.
     float calculateHash(vec2 p) {
       vec3 q = fract(vec3(p.xyx) * 0.1031);
       q += dot(q, q.yzx + 33.33);
@@ -31,7 +32,7 @@ const fragmentSource = `
       return mix(mix(calculateHash(i), calculateHash(i + vec2(1.0, 0.0)), f.x),
                  mix(calculateHash(i + vec2(0.0, 1.0)), calculateHash(i + 1.0), f.x), f.y);
     }
-    // Three broad calculateNoise layers; higher frequencies fade out quickly.
+    // Three broad noise layers; higher frequencies fade out quickly.
     float calculateLayers(vec2 p) {
       float value = 0.0, amplitude = 0.5, weight = 0.0;
       mat2 turn = mat2(0.8, -0.6, 0.6, 0.8);
@@ -41,7 +42,7 @@ const fragmentSource = `
         p = turn * p * 1.9 + vec2(17.1, 9.2);
         amplitude *= 0.35;
       }
-      // Preserve a 0..1 range when changing the number of calculateNoise layers.
+      // Preserve a 0..1 range when changing the number of noise layers.
       return value / weight;
     }
 
@@ -117,8 +118,9 @@ const fragmentSource = `
   `;
 
 /** Procedural cloud renderer adapted from the supplied voice-orb.html reference. */
+
 export function createOrbRenderer(canvas: HTMLCanvasElement) {
-  const context = canvas.getContext("webgl", {
+  const canvasContext = canvas.getContext("webgl", {
     alpha: true,
     premultipliedAlpha: true,
     antialias: false,
@@ -126,25 +128,41 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
     stencil: false,
     powerPreference: "low-power",
   });
-  if (!context) return undefined;
+
+  if (!canvasContext) {
+    return undefined;
+  }
+
+  const context = canvasContext;
   const program = context.createProgram();
   const buffer = context.createBuffer();
   const shaders: WebGLShader[] = [];
+
   if (!program || !buffer) {
     if (program) context.deleteProgram(program);
     if (buffer) context.deleteBuffer(buffer);
+
     return undefined;
   }
+
   function compileShader(type: number, source: string) {
-    const shader = context!.createShader(type);
-    if (!shader) throw new Error("Shader unavailable");
+    const shader = context.createShader(type);
+
+    if (!shader) {
+      throw new Error("Shader unavailable");
+    }
+
     shaders.push(shader);
-    context!.shaderSource(shader, source);
-    context!.compileShader(shader);
-    if (!context!.getShaderParameter(shader, context!.COMPILE_STATUS))
+    context.shaderSource(shader, source);
+    context.compileShader(shader);
+
+    if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
       throw new Error("Shader compilation failed");
+    }
+
     return shader;
   }
+
   try {
     context.attachShader(
       program,
@@ -155,14 +173,18 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
       compileShader(context.FRAGMENT_SHADER, fragmentSource),
     );
     context.linkProgram(program);
-    if (!context.getProgramParameter(program, context.LINK_STATUS))
+
+    if (!context.getProgramParameter(program, context.LINK_STATUS)) {
       throw new Error("Shader link failed");
+    }
   } catch {
     shaders.forEach((shader) => context.deleteShader(shader));
     context.deleteBuffer(buffer);
     context.deleteProgram(program);
+
     return undefined;
   }
+
   shaders.forEach((shader) => context.deleteShader(shader));
   context.useProgram(program);
   context.bindBuffer(context.ARRAY_BUFFER, buffer);
@@ -171,20 +193,27 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
     new Float32Array([-1, -1, 3, -1, -1, 3]),
     context.STATIC_DRAW,
   );
+
   const position = context.getAttribLocation(program, "aPosition");
   context.enableVertexAttribArray(position);
   context.vertexAttribPointer(position, 2, context.FLOAT, false, 0, 0);
+
   const resolution = context.getUniformLocation(program, "uResolution");
   const clock = context.getUniformLocation(program, "uTime");
   const flow = context.getUniformLocation(program, "uFlow");
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
   let frame = 0;
   let previous = 0;
   let elapsed = 0;
   let loss = false;
   let disposal = false;
+
   function drawFrame() {
-    if (loss || disposal) return;
+    if (loss || disposal) {
+      return;
+    }
+
     const bounds = canvas.getBoundingClientRect();
     const scale = Math.min(window.devicePixelRatio || 1, 2);
     const width = Math.max(1, Math.min(560, Math.round(bounds.width * scale)));
@@ -192,20 +221,27 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
       1,
       Math.min(560, Math.round(bounds.height * scale)),
     );
+
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
     }
-    context!.viewport(0, 0, width, height);
-    context!.uniform2f(resolution, width, height);
-    context!.uniform1f(clock, elapsed);
-    context!.uniform1f(flow, 0);
-    context!.drawArrays(context!.TRIANGLES, 0, 3);
+
+    context.viewport(0, 0, width, height);
+    context.uniform2f(resolution, width, height);
+    context.uniform1f(clock, elapsed);
+    context.uniform1f(flow, 0);
+    context.drawArrays(context.TRIANGLES, 0, 3);
     canvas.style.opacity = "1";
   }
+
   function advanceFrame(timestamp: number) {
     frame = 0;
-    if (motion.matches || document.hidden || loss || disposal) return;
+
+    if (motion.matches || document.hidden || loss || disposal) {
+      return;
+    }
+
     elapsed += previous
       ? Math.min((timestamp - previous) / 1000, 0.05) * 0.18
       : 0;
@@ -213,19 +249,25 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
     drawFrame();
     frame = requestAnimationFrame(advanceFrame);
   }
+
   function scheduleFrame() {
     cancelAnimationFrame(frame);
     previous = 0;
-    if (!motion.matches && !document.hidden && !loss && !disposal)
+
+    if (!motion.matches && !document.hidden && !loss && !disposal) {
       frame = requestAnimationFrame(advanceFrame);
-    else if (!document.hidden) drawFrame();
+    } else if (!document.hidden) {
+      drawFrame();
+    }
   }
+
   function handleContextLoss(event: Event) {
     event.preventDefault();
     loss = true;
     cancelAnimationFrame(frame);
     canvas.style.opacity = "0";
   }
+
   const observer = new ResizeObserver(drawFrame);
   observer.observe(canvas);
   motion.addEventListener("change", scheduleFrame);
@@ -233,6 +275,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
   canvas.addEventListener("webglcontextlost", handleContextLoss);
   drawFrame();
   scheduleFrame();
+
   return function destroyOrb() {
     disposal = true;
     cancelAnimationFrame(frame);

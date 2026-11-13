@@ -7,18 +7,22 @@ function renderTheme({
   theme,
   children,
 }: {
-  theme: string;
+  theme: "light" | "dark";
   children: ReactNode;
 }) {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+
     return () => {
       delete document.documentElement.dataset.theme;
     };
   }, [theme]);
+
   return <div data-theme={theme}>{children}</div>;
 }
+
 const Theme = renderTheme;
+
 const preview: Preview = {
   globalTypes: {
     theme: {
@@ -77,4 +81,5 @@ const preview: Preview = {
     },
   },
 };
+
 export default preview;

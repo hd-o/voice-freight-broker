@@ -23,11 +23,13 @@ export const metrics: MetricCardProps[] = [
     description: "9 final agreements",
   },
 ];
+
 export const unavailableMetric: MetricCardProps = {
   label: "Agreement rate",
   value: "Unavailable",
   description: "0 matched calls",
 };
+
 export const emptyMetrics: MetricCardProps[] = [
   { label: "Calls", value: "0", description: "No calls yet" },
   {

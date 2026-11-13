@@ -36,6 +36,7 @@ export function renderCallControls({
       </div>
     );
   }
+
   if (state === "ended") {
     return (
       <Button onClick={onNewCall} className="max-w-full whitespace-normal">
@@ -43,6 +44,7 @@ export function renderCallControls({
       </Button>
     );
   }
+
   return (
     <Button onClick={signedIn ? onStart : onSignIn}>
       {signedIn ? "Start call" : "Sign in to start a call"}

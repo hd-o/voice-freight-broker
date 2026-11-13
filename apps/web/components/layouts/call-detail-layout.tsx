@@ -25,8 +25,9 @@ export type CallDetail = {
   dateAndDuration: string;
   loadSummary: LoadSummaryProps;
   analysis: AnalysisSummaryProps;
-  transcript: TranscriptEntry[];
+  transcript: readonly TranscriptEntry[];
 };
+
 export type CallDetailLayoutProps = Omit<
   ApplicationLayoutProps,
   "activePage" | "children"
@@ -34,6 +35,7 @@ export type CallDetailLayoutProps = Omit<
   record: CallDetail | null;
   loading?: boolean;
 };
+
 export function renderCallDetailLayout({
   record,
   loading = false,

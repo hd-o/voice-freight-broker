@@ -15,15 +15,21 @@ const meta = {
     ),
   ],
 } satisfies Meta<typeof AccountAction>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const SignedOut: Story = {};
+
 export const SignedIn: Story = { args: { signedIn: true } };
+
 export const Callback: Story = {
   play: async ({ canvasElement, args }) => {
     await userEvent.click(
       within(canvasElement).getByRole("button", { name: "Sign in" }),
     );
+
     await expect(args.onAccountAction).toHaveBeenCalledOnce();
   },
 };

@@ -1,8 +1,9 @@
 import { mergeClasses } from "@/lib/classes";
 
 export type DemoCarrier = { name: string; mcNumber: string };
+
 export type CallerBriefingProps = {
-  carriers: DemoCarrier[];
+  carriers: readonly DemoCarrier[];
   className?: string;
 };
 

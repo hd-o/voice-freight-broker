@@ -1,8 +1,8 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-export function mergeClasses(...values: ClassValue[]) {
-  return twMerge(clsx(values));
+export function mergeClasses(...classValues: ClassValue[]) {
+  return twMerge(clsx(classValues));
 }
 
 // shadcn-generated components import this conventional alias.

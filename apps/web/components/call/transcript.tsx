@@ -9,7 +9,7 @@ export type TranscriptEntry = {
 };
 
 export type TranscriptProps = {
-  entries: TranscriptEntry[];
+  entries: readonly TranscriptEntry[];
   heading?: string;
   emptyMessage?: string;
   className?: string;

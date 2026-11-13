@@ -11,10 +11,15 @@ export function renderVoiceOrb({
   className,
 }: VoiceOrbProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
-    if (!connected || !canvas.current) return;
+    if (!connected || !canvas.current) {
+      return;
+    }
+
     return createOrbRenderer(canvas.current);
   }, [connected]);
+
   return (
     <div
       className={mergeClasses(

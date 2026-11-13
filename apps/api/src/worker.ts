@@ -10,6 +10,7 @@ app.get("/api/health", async (context) => {
     database: await checkDatabase(context.env.DB),
   });
   const tools = statusSchema.parse(await context.env.TOOLS.getStatus());
+
   return context.json({ ...status, tools });
 });
 

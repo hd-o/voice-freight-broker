@@ -20,9 +20,13 @@ const meta = {
     ),
   },
 } satisfies Meta<typeof ApplicationLayout>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const Call: Story = {};
+
 export const Dashboard: Story = {
   args: {
     activePage: "dashboard",
@@ -35,10 +39,13 @@ export const Dashboard: Story = {
     ),
   },
 };
+
 export const Phone: Story = {
   globals: { viewport: { value: "xs", isRotated: false } },
 };
+
 export const Dark: Story = { globals: { theme: "dark" } };
+
 export const LongContent: Story = {
   args: {
     children: (

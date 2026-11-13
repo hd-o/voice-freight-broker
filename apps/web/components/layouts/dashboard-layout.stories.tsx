@@ -7,6 +7,7 @@ import {
 } from "@/components/dashboard/metric-card.fixtures";
 import { sentiments } from "@/components/dashboard/sentiment-distribution.fixtures";
 import { calls, longCalls } from "@/components/dashboard/call-history.fixtures";
+
 const history = {
   rows: calls,
   pageLabel: "Showing 1–5 of 20 calls",
@@ -14,6 +15,7 @@ const history = {
   onNext: fn(),
   onPrevious: fn(),
 };
+
 const meta = {
   title: "Layouts/Dashboard",
   component: DashboardLayout,
@@ -30,11 +32,17 @@ const meta = {
     history,
   },
 } satisfies Meta<typeof DashboardLayout>;
+
 export default meta;
+
 type Story = StoryObj<typeof meta>;
+
 export const PublicSamples: Story = {};
+
 export const SignedIn: Story = { args: { signedIn: true } };
+
 export const Loading: Story = { args: { loading: true } };
+
 export const Empty: Story = {
   args: {
     metrics: emptyMetrics,
@@ -42,6 +50,7 @@ export const Empty: Story = {
     history: { ...history, rows: [], pageLabel: "0 calls" },
   },
 };
+
 export const LongContent: Story = {
   args: { history: { ...history, rows: longCalls } },
 };
