@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleGauge, Phone } from "lucide-react";
+import { LayoutGrid, Phone } from "lucide-react";
 import { renderButton as Button } from "@/components/ui/button";
 import { renderAccountAction as AccountAction } from "./account-action";
 
@@ -42,7 +42,7 @@ export function renderNavigation({
           aria-current={activePage === "dashboard" ? "page" : undefined}
           onClick={() => onNavigate("dashboard")}
         >
-          <CircleGauge size={20} strokeWidth={1.75} aria-hidden="true" />
+          <LayoutGrid size={20} strokeWidth={1.75} aria-hidden="true" />
         </Button>
       </div>
       <div className="md:absolute md:bottom-2.5">
