@@ -47,7 +47,7 @@ export function renderTranscript({
               </span>
               <p
                 className={mergeClasses(
-                  "w-fit max-w-[90%] whitespace-pre-wrap rounded-lg px-3 py-2 [overflow-wrap:anywhere]",
+                  "w-[90%] sm:w-[76%] whitespace-pre-wrap rounded-lg px-3 py-2 [overflow-wrap:anywhere]",
                   entry.speaker === "carrier"
                     ? "bg-primary text-primary-foreground"
                     : "bg-surface text-foreground",
