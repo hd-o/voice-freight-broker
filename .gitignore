@@ -147,3 +147,18 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Local development and generated artifacts
+.wrangler/
+.vite-plus/
+storybook-static/
+.playwright/*
+!.playwright/cli.config.json
+.playwright-cli/
+playwright-report/
+test-results/
+**/worker-configuration.d.ts
+**/next-env.d.ts
+.dev.vars
+.dev.vars.*
+!.dev.vars.example

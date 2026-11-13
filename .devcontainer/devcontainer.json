@@ -7,7 +7,9 @@
 		"ghcr.io/devcontainers/features/docker-in-docker:4": {
 			"moby": false
 		},
-		"ghcr.io/devcontainers/features/node:2": {},
+		"ghcr.io/devcontainers/features/node:2": {
+			"version": "24.22.3"
+		},
 		// SSH access for desktop coding agents
 		// 1. In container, run `sudo passwd $(whoami)` to set a password
 		// 2. Outside, run `ssh-copy-id -p 2222 vscode@localhost` to add keys
@@ -17,10 +19,17 @@
 	"mounts": [
 		"type=bind,src=/tmp,dst=/tmp"
 	],
-	"postCreateCommand": {
-		"install-playwright-cli": "npm install -g @playwright/cli@latest",
-		"install-playwright-deps": "playwright-cli install"
+	"postCreateCommand": "bash scripts/setup.sh",
+	"runArgs": ["--add-host=host.docker.internal:host-gateway"],
+	"remoteEnv": {
+		"VP_HOME": "/home/vscode/.vite-plus",
+		"PATH": "/home/vscode/.vite-plus/bin:${containerEnv:PATH}:/home/vscode/.vite-plus/fallback-bin"
 	},
-	"forwardPorts": [],
-	"portsAttributes": {}
+	"forwardPorts": [3000, 6006, 8787, 4173],
+	"portsAttributes": {
+		"3000": { "label": "vinext" },
+		"6006": { "label": "Storybook" },
+		"8787": { "label": "Workers API" },
+		"4173": { "label": "Static export preview" }
+	}
 }

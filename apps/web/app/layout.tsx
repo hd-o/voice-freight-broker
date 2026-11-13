@@ -1,0 +1,18 @@
+import type { ReactNode } from "react";
+import { renderProviders as Providers } from "@/components/providers";
+import "./globals.css";
+
+export const metadata = {
+  title: "Voice Freight Broker",
+  icons: { icon: "/favicon.svg" },
+};
+
+export default function renderLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}

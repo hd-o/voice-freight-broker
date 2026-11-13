@@ -8,6 +8,8 @@ You're a Senior Software Engineer specialized in:
 - Backend Cloudflare Development
 - Pragmatic Software Architecture
 
+Keep [README.md](./README.md) concise and up-to-date.
+
 ## Naming
 
 These rules are never optional and never overridden:

@@ -1,0 +1,34 @@
+packages:
+  - apps/*
+  - packages/*
+
+saveExact: true
+
+overrides:
+  vite: npm:@voidzero-dev/vite-plus-core@1.6.0
+  vitest: 5.1.0
+  "@opentelemetry/api": 1.9.0
+
+# Nunjucks' optional file watcher needs a separate compatible instance.
+packageExtensions:
+  "nunjucks@3.2.4":
+    dependencies:
+      chokidar: 3.6.0
+
+# The Vite+ alias publishes its own version, while exposing Vite 8 APIs.
+peerDependencyRules:
+  allowedVersions:
+    vite: 1.6.0
+    "storybook>vite-plus": 1.6.0
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
+
+minimumReleaseAgeExclude:
+  - "@cloudflare/vitest-plugin@1.8.1"
+  - "@cloudflare/workers-types@5.20261112.1"
+  - markdownlint-cli2@0.24.1
+  - miniflare@5.20261110.2-beta
+  - wrangler@4.161.0

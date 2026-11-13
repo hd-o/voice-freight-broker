@@ -1,0 +1,39 @@
+{
+  "name": "voice-freight-broker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp run --parallel --filter @voice-freight/web --filter @voice-freight/api dev",
+    "dev:web": "vp run @voice-freight/web#dev",
+    "dev:workers": "vp run @voice-freight/api#dev",
+    "storybook": "vp run @voice-freight/web#storybook",
+    "build": "vp run -r build",
+    "build:storybook": "vp run @voice-freight/web#build:storybook",
+    "preview": "vp run @voice-freight/web#preview",
+    "check": "vp check && vp run typecheck && markdownlint-cli2 README.md",
+    "format": "vp fmt",
+    "lint": "vp lint",
+    "typecheck": "vp run -r typecheck",
+    "test": "vp run @voice-freight/tools#build && vp run @voice-freight/api#test",
+    "test:browser": "playwright test",
+    "cf:types": "vp run @voice-freight/tools#cf:types && vp run @voice-freight/api#cf:types",
+    "db:check": "wrangler d1 execute DB --local --config apps/api/wrangler.jsonc --persist-to .wrangler/state --command \"SELECT 1 AS ready\"",
+    "db:generate": "vp run @voice-freight/backend#db:generate",
+    "eval:help": "promptfoo --help"
+  },
+  "devDependencies": {
+    "@playwright/cli": "0.1.24",
+    "@playwright/test": "1.65.0",
+    "@types/node": "24.19.2",
+    "markdownlint-cli2": "0.24.1",
+    "promptfoo": "0.125.1",
+    "typescript": "7.0.2",
+    "vite-plus": "1.6.0",
+    "wrangler": "4.161.0"
+  },
+  "engines": {
+    "node": ">=24.22.3 <25"
+  },
+  "packageManager": "pnpm@12.18.0"
+}

@@ -1,0 +1,30 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: "false"
+      STORYBOOK_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          version: 1.6.0
+          node-version-file: .node-version
+          run-install: false
+      - run: vp install --frozen-lockfile
+      - run: vp run cf:types
+      - run: vp run check
+      - run: vp run build
+      - run: vp run build:storybook
+      - run: vp run test
+      - run: vp exec playwright install --with-deps chromium
+      - run: vp run test:browser
