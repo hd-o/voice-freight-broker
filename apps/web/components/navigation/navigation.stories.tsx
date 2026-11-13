@@ -20,7 +20,7 @@ export const Dashboard: Story = {
   args: { activePage: "dashboard", signedIn: true },
 };
 export const Phone: Story = {
-  globals: { viewport: { value: "phone", isRotated: false } },
+  globals: { viewport: { value: "xs", isRotated: false } },
 };
 export const Callbacks: Story = {
   play: async ({ canvasElement, args }) => {

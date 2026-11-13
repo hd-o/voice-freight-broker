@@ -36,7 +36,7 @@ export const Dashboard: Story = {
   },
 };
 export const Phone: Story = {
-  globals: { viewport: { value: "phone", isRotated: false } },
+  globals: { viewport: { value: "xs", isRotated: false } },
 };
 export const Dark: Story = { globals: { theme: "dark" } };
 export const LongContent: Story = {

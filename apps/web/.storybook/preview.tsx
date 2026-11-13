@@ -52,14 +52,26 @@ const preview: Preview = {
     },
     viewport: {
       options: {
-        phone: { name: "Phone", styles: { width: "390px", height: "844px" } },
-        tablet: {
-          name: "Tablet",
+        xs: { name: "xs (390px)", styles: { width: "390px", height: "844px" } },
+        sm: {
+          name: "sm (640px)",
+          styles: { width: "640px", height: "1024px" },
+        },
+        md: {
+          name: "md (768px)",
           styles: { width: "768px", height: "1024px" },
         },
-        desktop: {
-          name: "FigCraft desktop",
-          styles: { width: "1440px", height: "1010px" },
+        lg: {
+          name: "lg (1024px)",
+          styles: { width: "1024px", height: "1024px" },
+        },
+        xl: {
+          name: "xl (1280px)",
+          styles: { width: "1280px", height: "1024px" },
+        },
+        "2xl": {
+          name: "2xl (1536px)",
+          styles: { width: "1536px", height: "1024px" },
         },
       },
     },
