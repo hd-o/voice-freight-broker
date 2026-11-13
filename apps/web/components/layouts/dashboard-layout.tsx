@@ -25,6 +25,7 @@ export type DashboardLayoutProps = Omit<
   sentiment: SentimentDistributionProps;
   history: CallHistoryProps;
   loading?: boolean;
+  notice?: string;
 };
 
 export function renderDashboardLayout({
@@ -32,6 +33,7 @@ export function renderDashboardLayout({
   sentiment,
   history,
   loading = false,
+  notice,
   ...navigation
 }: DashboardLayoutProps) {
   return (
@@ -41,6 +43,10 @@ export function renderDashboardLayout({
           title="Call Dashboard"
           subtitle="Explore sample conversations, agreements, and post-call analysis"
         />
+        <p className="text-sm text-muted-foreground">
+          Sample calls · Synthetic data · No sign-in required
+        </p>
+        {notice && <p role="status">{notice}</p>}
         {loading ? (
           <div
             role="status"

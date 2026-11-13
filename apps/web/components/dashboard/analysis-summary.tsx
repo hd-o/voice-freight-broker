@@ -28,25 +28,23 @@ export function renderAnalysisSummary({
 }: AnalysisSummaryProps) {
   return (
     <section aria-label="Call analysis" className="min-w-0 space-y-4">
-      {status !== "pending" ? (
-        <dl className="grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "Sentiment", value: sentiment },
-            { label: "Connection", value: connection },
-            { label: "Analysis", value: analysisLabels[status] },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className="min-w-0 space-y-1 rounded-lg bg-muted p-3"
-            >
-              <dt className="text-xs leading-4 text-muted-foreground">
-                {item.label}
-              </dt>
-              <dd className="break-words font-semibold">{item.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
+      <dl className="grid gap-3 sm:grid-cols-3">
+        {[
+          { label: "Connection", value: connection },
+          { label: "Analysis", value: analysisLabels[status] },
+          { label: "Sentiment", value: sentiment },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="min-w-0 space-y-1 rounded-lg bg-muted p-3"
+          >
+            <dt className="text-xs leading-4 text-muted-foreground">
+              {item.label}
+            </dt>
+            <dd className="break-words font-semibold">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
       {status === "complete" ? (
         <p className="[overflow-wrap:anywhere]">
           {summary || "No summary is available for this call."}

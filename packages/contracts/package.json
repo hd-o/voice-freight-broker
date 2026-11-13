@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/status.ts"
+    ".": "./src/status.ts",
+    "./calls": "./src/calls.ts",
+    "./reporting": "./src/reporting.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

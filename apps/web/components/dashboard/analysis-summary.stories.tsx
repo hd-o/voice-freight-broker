@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { sampleCalls } from "@/lib/samples";
 import { fn } from "storybook/test";
 import { renderAnalysisSummary as AnalysisSummary } from "./analysis-summary";
 
@@ -9,8 +10,7 @@ const meta = {
     sentiment: "Positive",
     connection: "Ended normally",
     status: "complete",
-    summary:
-      "The carrier asked about NS-1042, negotiated the rate, and explicitly accepted $2,450.",
+    summary: sampleCalls[0].analysis.summary ?? undefined,
     onRetry: fn(),
   },
   decorators: [

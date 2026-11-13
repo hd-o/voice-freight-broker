@@ -6,12 +6,14 @@ import {
   emptyMetrics,
 } from "@/components/dashboard/metric-card.fixtures";
 import { sentiments } from "@/components/dashboard/sentiment-distribution.fixtures";
+import { sampleCalls } from "@/lib/samples";
+import { createCallHref } from "@/lib/navigation";
 import { calls, longCalls } from "@/components/dashboard/call-history.fixtures";
 
 const history = {
   rows: calls,
-  pageLabel: "Showing 1–5 of 20 calls",
-  onCallSelect: fn(),
+  pageLabel: `Showing 1–5 of ${sampleCalls.length} sample calls`,
+  getCallHref: createCallHref,
   onNext: fn(),
   onPrevious: fn(),
 };
@@ -27,7 +29,7 @@ const meta = {
     metrics,
     sentiment: {
       segments: sentiments,
-      description: "20 calls · One rating per call",
+      description: `${sampleCalls.length} calls · One rating per call`,
     },
     history,
   },

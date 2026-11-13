@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGrid, Phone } from "lucide-react";
-import { renderButton as Button } from "@/components/ui/button";
+import { getButtonClasses } from "@/components/ui/button";
 import {
   renderTooltip as Tooltip,
   renderTooltipTrigger as TooltipTrigger,
@@ -41,14 +41,29 @@ export function renderNavigation({
             <Tooltip key={page}>
               <TooltipTrigger
                 render={
-                  <Button
-                    size="icon"
-                    variant={activePage === page ? "default" : "secondary"}
+                  <a
+                    href={`/${page}`}
+                    className={getButtonClasses({
+                      size: "icon",
+                      variant: activePage === page ? "default" : "secondary",
+                    })}
                   />
                 }
                 aria-label={label}
                 aria-current={activePage === page ? "page" : undefined}
-                onClick={() => onNavigate(page)}
+                onClick={(event) => {
+                  if (
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  )
+                    return;
+
+                  event.preventDefault();
+                  onNavigate(page);
+                }}
               >
                 <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
               </TooltipTrigger>

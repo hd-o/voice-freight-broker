@@ -21,7 +21,7 @@ export type CallHistoryProps = {
   pageLabel: string;
   nextDisabled?: boolean;
   previousVisible?: boolean;
-  onCallSelect: (id: string) => void;
+  getCallHref: (id: string) => string;
   onNext: () => void;
   onPrevious: () => void;
 };
@@ -31,7 +31,7 @@ export function renderCallHistory({
   pageLabel,
   nextDisabled = false,
   previousVisible = false,
-  onCallSelect,
+  getCallHref,
   onNext,
   onPrevious,
 }: CallHistoryProps) {
@@ -87,20 +87,19 @@ export function renderCallHistory({
               {rows.map((call) => (
                 <tr
                   key={call.id}
-                  className="h-14 border-b border-border hover:bg-muted/50 focus-within:bg-muted/50"
+                  className="relative h-14 border-b border-border hover:bg-muted/50 focus-within:bg-muted/50"
                 >
                   <th
                     scope="row"
                     className="px-3 py-4 font-normal whitespace-nowrap"
                   >
-                    <button
-                      type="button"
-                      className="rounded text-left hover:underline"
+                    <a
+                      href={getCallHref(call.id)}
+                      className="rounded text-left after:absolute after:inset-0"
                       aria-label={`View call from ${call.carrier}, ${call.date}`}
-                      onClick={() => onCallSelect(call.id)}
                     >
                       {call.date}
-                    </button>
+                    </a>
                   </th>
                   <td className="px-3 py-4">{call.source}</td>
                   <td className="max-w-56 px-3 py-4 break-words">

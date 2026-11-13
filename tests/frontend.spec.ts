@@ -32,8 +32,8 @@ test("application navigation supports keyboard access without changing fixtures"
 }) => {
   await openStory(page, "layouts-application--call");
 
-  const call = page.getByRole("button", { name: "Call", exact: true });
-  const dashboard = page.getByRole("button", {
+  const call = page.getByRole("link", { name: "Call", exact: true });
+  const dashboard = page.getByRole("link", {
     name: "Dashboard",
     exact: true,
   });

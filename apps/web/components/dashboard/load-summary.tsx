@@ -85,9 +85,13 @@ export function renderLoadSummary({
         </>
       ) : (
         <div className="mt-4 rounded-lg bg-muted p-4">
-          <h2 className="font-semibold">No load selected</h2>
+          <h2 className="font-semibold">
+            {selector.options.length ? "Load unavailable" : "No load selected"}
+          </h2>
           <p className="mt-2 text-muted-foreground">
-            No load details were recorded for this call.
+            {selector.options.length
+              ? "The selected load is not part of this call. Choose an available load above."
+              : "No load details were recorded for this call."}
           </p>
         </div>
       )}

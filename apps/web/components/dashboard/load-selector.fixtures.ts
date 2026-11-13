@@ -1,6 +1,6 @@
-import type { LoadOption } from "./load-selector";
+import { sampleCalls } from "@/lib/samples";
 
-export const loadOptions: LoadOption[] = [
-  { value: "NS-1042", label: "NS-1042" },
-  { value: "NS-1048", label: "NS-1048" },
-];
+export const loadOptions = sampleCalls[0].loads.map((load) => ({
+  value: load.id,
+  label: load.reference,
+}));

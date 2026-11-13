@@ -2,14 +2,16 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { renderCallHistory as CallHistory } from "./call-history";
 import { calls, longCalls } from "./call-history.fixtures";
+import { createCallHref } from "@/lib/navigation";
+import { sampleCalls } from "@/lib/samples";
 
 const meta = {
   title: "Dashboard/CallHistory",
   component: CallHistory,
   args: {
     rows: calls,
-    pageLabel: "Showing 1–5 of 20 calls",
-    onCallSelect: fn(),
+    pageLabel: `Showing 1–5 of ${sampleCalls.length} sample calls`,
+    getCallHref: createCallHref,
     onNext: fn(),
     onPrevious: fn(),
   },
@@ -32,7 +34,8 @@ export const Empty: Story = { args: { rows: [], pageLabel: "0 calls" } };
 
 export const LastPage: Story = {
   args: {
-    pageLabel: "Showing 16–20 of 20 calls",
+    rows: calls.slice(0, 3),
+    pageLabel: `Showing 6–8 of ${sampleCalls.length} sample calls`,
     previousVisible: true,
     nextDisabled: true,
   },

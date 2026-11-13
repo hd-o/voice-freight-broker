@@ -5,6 +5,7 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
     ignorePatterns: [
       "**/worker-configuration.d.ts",
+      "**/.vinext/**",
       ".devcontainer/**",
       ".vscode/**",
     ],
@@ -14,6 +15,7 @@ export default defineConfig({
     proseWrap: "always",
     ignorePatterns: [
       "**/worker-configuration.d.ts",
+      "**/.vinext/**",
       ".devcontainer/**",
       ".vscode/**",
       "AGENTS.md",

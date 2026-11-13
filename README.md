@@ -12,23 +12,22 @@ Open the repository in its devcontainer, or run the setup script:
 bash scripts/setup.sh
 ```
 
-Follow the script's instruction to load Vite+, then start development:
+Follow the script's instruction to load Vite+, then start the public app:
 
 ```sh
-vp run dev
+vp run dev:web
 ```
 
-For component and layout development, run `vp run storybook` in another
-terminal. Storybook contains fixture-backed call and dashboard screens,
-component states, light/dark themes, and phone/tablet/desktop viewports.
-Callbacks log actions; authentication, live audio, data fetching, and workflow
-transitions remain out of scope. The app route remains the development scaffold.
+
+Run `vp run dev` to include the local API and Tools workers. For isolated UI
+development, run `vp run storybook`; stories cover component and layout states,
+light/dark themes, and phone/tablet/desktop viewports.
 
 Use `vp run` without a task name to discover the other workspace tasks.
 
 UI components use shadcn's `base-nova` preset with Base UI primitives.
 
-Local scaffolding runs without Cloudflare or OpenAI credentials. The
+Local development runs without Cloudflare or OpenAI credentials. The
 [setup script](scripts/setup.sh) documents installation details; package
 manifests and the lockfile own dependency versions.
 
@@ -43,9 +42,17 @@ the development server when working with the API proxy. Storybook has a separate
 Vite configuration because its client renderer must not load vinext's
 server-component plugins.
 
-Browser integration checks manage their own servers; stop any existing Storybook
-or static preview process before running them. These checks cover the scaffold,
-fixture layouts, keyboard access, responsive behavior, and accessibility.
+Run `vp run check`, `vp run build`, `vp run build:storybook`, `vp run test`, and
+`vp run test:browser` for validation. Browser checks manage their own servers;
+stop existing Storybook/static previews first. Checks cover static sample
+browsing with the API unavailable, URL history, reporting denominators, keyboard
+access, responsive behavior, and accessibility.
+
+Public records live in `apps/web/data/calls.json`, validated by the browser-safe
+contracts package. Shared reporting counts each matched ended call once,
+excludes unresolved errors without a retained agreement, and uses only final
+effective agreements for rate variance. Unknown sentiment stays separate; dates
+show UTC.
 
 See the [CI workflow](.github/workflows/checks.yml) for the validation sequence
 and [AGENTS.md](AGENTS.md) for contributor conventions.
@@ -54,7 +61,7 @@ and [AGENTS.md](AGENTS.md) for contributor conventions.
 
 ## Architecture
 
-The current scaffold supports local development and static frontend preview:
+The application supports local development and static frontend preview:
 
 ```mermaid
 flowchart TD

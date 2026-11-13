@@ -7,8 +7,8 @@ test("navigation tooltips support hover, keyboard focus, and Escape", async ({
     "http://127.0.0.1:6006/iframe.html?id=navigation-navigation--call&viewMode=story",
   );
 
-  const call = page.getByRole("button", { name: "Call", exact: true });
-  const dashboard = page.getByRole("button", {
+  const call = page.getByRole("link", { name: "Call", exact: true });
+  const dashboard = page.getByRole("link", {
     name: "Dashboard",
     exact: true,
   });

@@ -151,6 +151,7 @@ vite.config.ts.timestamp-*
 # Local development and generated artifacts
 .wrangler/
 .vite-plus/
+.vinext/
 storybook-static/
 .playwright/*
 !.playwright/cli.config.json

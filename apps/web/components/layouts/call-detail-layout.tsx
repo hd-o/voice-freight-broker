@@ -26,6 +26,7 @@ export type CallDetail = {
   loadSummary: LoadSummaryProps;
   analysis: AnalysisSummaryProps;
   transcript: readonly TranscriptEntry[];
+  transcriptComplete?: boolean;
 };
 
 export type CallDetailLayoutProps = Omit<
@@ -34,78 +35,93 @@ export type CallDetailLayoutProps = Omit<
 > & {
   record: CallDetail | null;
   loading?: boolean;
+  unavailable?: boolean;
+  notice?: string;
 };
 
 export function renderCallDetailLayout({
   record,
   loading = false,
+  unavailable = false,
+  notice,
   ...navigation
 }: CallDetailLayoutProps) {
   return (
     <ApplicationLayout {...navigation} activePage="dashboard">
-      {loading ? (
-        <div
-          role="status"
-          aria-label="Loading call details"
-          aria-busy="true"
-          className="space-y-8"
-        >
-          <PageHeader title="Call details" subtitle="Loading the saved call" />
-          <span className="sr-only">Loading call details</span>
-          <div className="grid gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
-            <Skeleton className="h-[720px]" />
-            <Skeleton className="h-[720px]" />
-          </div>
-        </div>
-      ) : record ? (
-        <div className="space-y-8">
-          <header className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-[30px] leading-9 font-semibold tracking-[-0.75px] [overflow-wrap:anywhere]">
-                {record.carrier}
-              </h1>
-              <Badge>{record.source} Call</Badge>
-            </div>
-            <p className="mt-2 text-muted-foreground">
-              {record.dateAndDuration}
-            </p>
-          </header>
-          <div className="grid items-stretch gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
-            <LoadSummary {...record.loadSummary} />
-            <div className="flex min-w-0 flex-col gap-4 rounded-[10px] border border-border bg-surface p-6">
-              <AnalysisSummary {...record.analysis} />
-              <Transcript
-                entries={record.transcript}
-                emptyMessage="No transcript was recorded for this call."
-                className="min-h-[550px] flex-1"
-              />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-8">
+      <div className="space-y-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <PageHeader
             title="Call details"
             subtitle="Inspect a saved conversation and its analysis"
           />
-          <section
-            aria-label="No call selected"
-            className="rounded-[10px] border border-border bg-surface p-8 text-center"
+          <Button
+            variant="outline"
+            disabled={loading}
+            onClick={() => navigation.onNavigate("dashboard")}
           >
-            <h2 className="text-xl font-semibold">No call selected</h2>
-            <p className="mt-3 text-muted-foreground">
-              Choose a call from the dashboard to see its details.
-            </p>
-            <Button
-              className="mt-6"
-              variant="outline"
-              onClick={() => navigation.onNavigate("dashboard")}
-            >
-              Back to dashboard
-            </Button>
-          </section>
+            Back to dashboard
+          </Button>
         </div>
-      )}
+        {notice && <p role="status">{notice}</p>}
+        {loading ? (
+          <div
+            role="status"
+            aria-label="Loading call details"
+            aria-busy="true"
+            className="grid gap-8 xl:grid-cols-[392px_minmax(0,1fr)]"
+          >
+            <span className="sr-only">Loading call details</span>
+            <Skeleton className="h-[720px]" />
+            <Skeleton className="h-[720px]" />
+          </div>
+        ) : (
+          <section aria-label="Call details" className="space-y-6">
+            {record ? (
+              <>
+                <header className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-semibold [overflow-wrap:anywhere]">
+                      {record.carrier}
+                    </h2>
+                    <Badge>{record.source} Call</Badge>
+                  </div>
+                  <p className="mt-2 text-muted-foreground">
+                    {record.dateAndDuration}
+                  </p>
+                </header>
+                <div className="grid items-stretch gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
+                  <LoadSummary {...record.loadSummary} />
+                  <div className="flex min-w-0 flex-col gap-4 rounded-[10px] border border-border bg-surface p-6">
+                    <AnalysisSummary {...record.analysis} />
+                    {record.transcriptComplete === false && (
+                      <p className="text-sm text-muted-foreground">
+                        Partial transcript · The connection ended before the
+                        conversation was complete.
+                      </p>
+                    )}
+                    <Transcript
+                      entries={record.transcript}
+                      emptyMessage="No transcript was recorded for this call."
+                      className="min-h-[300px] flex-1"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-[10px] border border-border bg-surface p-8 text-center">
+                <h2 className="text-xl font-semibold">
+                  {unavailable ? "Call unavailable" : "No call selected"}
+                </h2>
+                <p className="mt-3 text-muted-foreground">
+                  {unavailable
+                    ? "This call is not in the available sample records. Return to the dashboard and choose an available call."
+                    : "Choose a call from the dashboard to see its details."}
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
     </ApplicationLayout>
   );
 }

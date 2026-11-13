@@ -6,7 +6,19 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: "list",
-  use: { ...devices["Desktop Chrome"], trace: "retain-on-failure" },
+  use: {
+    ...devices["Desktop Chrome"],
+    channel: "chromium",
+    trace: "retain-on-failure",
+  },
+  projects: [
+    { name: "static", use: { baseURL: "http://127.0.0.1:4173" } },
+    {
+      name: "development",
+      testMatch: "hydration.spec.ts",
+      use: { baseURL: "http://127.0.0.1:3000" },
+    },
+  ],
   webServer: [
     {
       command: "pnpm preview",
@@ -17,6 +29,12 @@ export default defineConfig({
       command: "pnpm storybook --ci",
       url: "http://127.0.0.1:6006",
       timeout: 60_000,
+    },
+    {
+      command: "pnpm dev:web",
+      url: "http://127.0.0.1:3000",
+      timeout: 60_000,
+      reuseExistingServer: !process.env.CI,
     },
   ],
 });

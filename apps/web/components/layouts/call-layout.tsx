@@ -37,6 +37,7 @@ export type CallLayoutProps = CallControlsProps & {
   onViewCall: () => void;
   onDismissNotification: () => void;
   onNotificationAction: () => void;
+  notice?: string;
 };
 
 export function renderCallLayout({
@@ -54,6 +55,7 @@ export function renderCallLayout({
   onViewCall,
   onDismissNotification,
   onNotificationAction,
+  notice,
   ...actions
 }: CallLayoutProps) {
   const status =
@@ -74,6 +76,11 @@ export function renderCallLayout({
         title="Voice Call Demo"
         subtitle="Play the carrier, find a load, and negotiate with the voice agent."
       />
+      {notice && (
+        <p role="status" className="mt-4 rounded-lg bg-muted p-4">
+          {notice}
+        </p>
+      )}
       <div className="mt-8 grid min-w-0 items-start gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
         <CallerBriefing carriers={carriers} className="xl:min-h-[492px]" />
         <div className="grid min-w-0 overflow-hidden rounded-[10px] border border-border bg-surface md:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">

@@ -1,8 +1,4 @@
-import type { SentimentSegment } from "./sentiment-distribution";
+import { summarizeCalls } from "@voice-freight/contracts/reporting";
+import { sampleCalls } from "@/lib/samples";
 
-export const sentiments: SentimentSegment[] = [
-  { label: "Positive", count: 10, percentage: 50 },
-  { label: "Neutral", count: 6, percentage: 30 },
-  { label: "Negative", count: 2, percentage: 10 },
-  { label: "Unknown", count: 2, percentage: 10 },
-];
+export const sentiments = summarizeCalls(sampleCalls).sentiments;

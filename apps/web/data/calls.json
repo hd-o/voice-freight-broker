@@ -1,0 +1,634 @@
+[
+  {
+    "id": "summit-1042",
+    "source": "Sample",
+    "startedAt": "2026-11-11T16:42:00Z",
+    "endedAt": "2026-11-11T16:45:08Z",
+    "carrier": {
+      "name": "Summit Transport",
+      "mcNumber": "123456"
+    },
+    "eligibility": "Eligible",
+    "matched": true,
+    "unresolvedError": false,
+    "connection": "Ended normally",
+    "outcomeReason": "No agreement",
+    "loads": [
+      {
+        "id": "NS-1042",
+        "reference": "NS-1042",
+        "origin": "Dallas",
+        "destination": "Atlanta",
+        "equipment": "53 ft dry van",
+        "miles": 781,
+        "pickupAt": "2026-11-13T14:00:00Z",
+        "deliveryAt": "2026-11-14T19:00:00Z",
+        "commodity": "General merchandise",
+        "weightPounds": 24000,
+        "postedRateCents": 230000,
+        "negotiation": [
+          {
+            "kind": "Carrier offer",
+            "rateCents": 260000
+          },
+          {
+            "kind": "Broker counter",
+            "rateCents": 245000
+          }
+        ]
+      },
+      {
+        "id": "NS-1048",
+        "reference": "NS-1048",
+        "origin": "Memphis",
+        "destination": "Denver",
+        "equipment": "53 ft dry van",
+        "miles": 1094,
+        "pickupAt": "2026-11-13T14:00:00Z",
+        "deliveryAt": "2026-11-14T19:00:00Z",
+        "commodity": "General merchandise",
+        "weightPounds": 24000,
+        "postedRateCents": 280000,
+        "negotiation": [
+          {
+            "kind": "Carrier offer",
+            "rateCents": 320000
+          },
+          {
+            "kind": "Broker counter",
+            "rateCents": 295000
+          }
+        ]
+      }
+    ],
+    "agreements": [
+      {
+        "id": "summit-dallas",
+        "loadId": "NS-1042",
+        "version": 1,
+        "status": "effective",
+        "rateCents": 245000
+      },
+      {
+        "id": "summit-memphis",
+        "loadId": "NS-1048",
+        "version": 1,
+        "status": "effective",
+        "rateCents": 295000
+      }
+    ],
+    "analysis": {
+      "status": "complete",
+      "sentiment": "Positive",
+      "summary": "Summit Transport confirmed two simulated agreements: NS-1042 at $2,450 and NS-1048 at $2,950 after negotiating each load."
+    },
+    "transcript": {
+      "complete": true,
+      "entries": [
+        {
+          "id": "entry-0",
+          "speaker": "carrier",
+          "offsetSeconds": 12,
+          "text": "My MC number is 123456. I’m calling about NS-1042."
+        },
+        {
+          "id": "entry-1",
+          "speaker": "broker",
+          "offsetSeconds": 25,
+          "text": "Summit Transport is eligible. NS-1042 runs Dallas to Atlanta. The posted rate is $2,300."
+        },
+        {
+          "id": "entry-2",
+          "speaker": "carrier",
+          "offsetSeconds": 41,
+          "text": "Could you do $2,600?"
+        },
+        {
+          "id": "entry-3",
+          "speaker": "broker",
+          "offsetSeconds": 58,
+          "text": "I can offer $2,450. Please confirm Summit Transport, NS-1042, Dallas to Atlanta, at $2,450."
+        },
+        {
+          "id": "entry-4",
+          "speaker": "carrier",
+          "offsetSeconds": 70,
+          "text": "Yes, I confirm Summit Transport accepts NS-1042 at $2,450."
+        },
+        {
+          "id": "entry-5",
+          "speaker": "broker",
+          "offsetSeconds": 80,
+          "text": "Your agreement is saved. This handoff is simulated."
+        },
+        {
+          "id": "entry-6",
+          "speaker": "carrier",
+          "offsetSeconds": 91,
+          "text": "I have another truck. What about NS-1048 from Memphis to Denver? Could you do $3,200?"
+        },
+        {
+          "id": "entry-7",
+          "speaker": "broker",
+          "offsetSeconds": 115,
+          "text": "The posted rate is $2,800. I can offer $2,950. Please confirm Summit Transport, NS-1048, Memphis to Denver, at $2,950."
+        },
+        {
+          "id": "entry-8",
+          "speaker": "carrier",
+          "offsetSeconds": 140,
+          "text": "Yes, I confirm NS-1048 for Summit Transport at $2,950."
+        },
+        {
+          "id": "entry-9",
+          "speaker": "broker",
+          "offsetSeconds": 160,
+          "text": "Both agreements are saved. Both handoffs are simulated."
+        }
+      ]
+    }
+  },
+  {
+    "id": "pine-ridge",
+    "source": "Sample",
+    "startedAt": "2026-11-11T15:18:00Z",
+    "endedAt": "2026-11-11T15:20:30Z",
+    "carrier": {
+      "name": "Pine Ridge Haul",
+      "mcNumber": "234567"
+    },
+    "eligibility": "Eligible",
+    "matched": true,
+    "unresolvedError": false,
+    "connection": "Ended normally",
+    "outcomeReason": "No agreement",
+    "loads": [
+      {
+        "id": "NS-1048",
+        "reference": "NS-1048",
+        "origin": "Memphis",
+        "destination": "Denver",
+        "equipment": "53 ft dry van",
+        "miles": 1094,
+        "pickupAt": "2026-11-13T14:00:00Z",
+        "deliveryAt": "2026-11-14T19:00:00Z",
+        "commodity": "General merchandise",
+        "weightPounds": 24000,
+        "postedRateCents": 280000,
+        "negotiation": [
+          {
+            "kind": "Carrier offer",
+            "rateCents": 320000
+          },
+          {
+            "kind": "Broker counter",
+            "rateCents": 295000
+          }
+        ]
+      }
+    ],
+    "agreements": [],
+    "analysis": {
+      "status": "complete",
+      "sentiment": "Neutral",
+      "summary": "Pine Ridge Haul reviewed NS-1048 but declined the $2,950 quote."
+    },
+    "transcript": {
+      "complete": true,
+      "entries": [
+        {
+          "id": "entry-0",
+          "speaker": "carrier",
+          "offsetSeconds": 10,
+          "text": "MC 234567, Pine Ridge Haul. I’m looking for Memphis to Denver."
+        },
+        {
+          "id": "entry-1",
+          "speaker": "broker",
+          "offsetSeconds": 30,
+          "text": "Your carrier is eligible. NS-1048 is posted at $2,800."
+        },
+        {
+          "id": "entry-2",
+          "speaker": "carrier",
+          "offsetSeconds": 50,
+          "text": "I would need $3,200."
+        },
+        {
+          "id": "entry-3",
+          "speaker": "broker",
+          "offsetSeconds": 80,
+          "text": "I can offer $2,950."
+        },
+        {
+          "id": "entry-4",
+          "speaker": "carrier",
+          "offsetSeconds": 110,
+          "text": "Thanks, I will pass on that load."
+        }
+      ]
+    }
+  },
+  {
+    "id": "harbor",
+    "source": "Sample",
+    "startedAt": "2026-11-10T22:05:00Z",
+    "endedAt": "2026-11-10T22:07:00Z",
+    "carrier": {
+      "name": "Harbor Logistics",
+      "mcNumber": "345678"
+    },
+    "eligibility": "Eligible",
+    "matched": true,
+    "unresolvedError": false,
+    "connection": "Ended normally",
+    "outcomeReason": "No agreement",
+    "loads": [
+      {
+        "id": "NS-1051",
+        "reference": "NS-1051",
+        "origin": "Chicago",
+        "destination": "Detroit",
+        "equipment": "53 ft dry van",
+        "miles": 283,
+        "pickupAt": "2026-11-13T14:00:00Z",
+        "deliveryAt": "2026-11-14T19:00:00Z",
+        "commodity": "General merchandise",
+        "weightPounds": 24000,
+        "postedRateCents": 110000,
+        "negotiation": [
+          {
+            "kind": "Carrier offer",
+            "rateCents": 118000
+          }
+        ]
+      },
+      {
+        "id": "NS-1052",
+        "reference": "NS-1052",
+        "origin": "Detroit",
+        "destination": "Columbus",
+        "equipment": "53 ft dry van",
+        "miles": 203,
+        "pickupAt": "2026-11-13T14:00:00Z",
+        "deliveryAt": "2026-11-14T19:00:00Z",
+        "commodity": "General merchandise",
+        "weightPounds": 24000,
+        "postedRateCents": 130000,
+        "negotiation": []
+      }
+    ],
+    "agreements": [
+      {
+        "id": "harbor-detroit",
+        "loadId": "NS-1051",
+        "version": 1,
+        "status": "superseded",
+        "rateCents": 110000
+      },
+      {
+        "id": "harbor-detroit",
+        "loadId": "NS-1051",
+        "version": 2,
+        "status": "effective",
+        "rateCents": 118000
+      },
+      {
+        "id": "harbor-columbus",
+        "loadId": "NS-1052",
+        "version": 1,
+        "status": "cancelled",
+        "rateCents": 130000
+      }
+    ],
+    "analysis": {
+      "status": "complete",
+      "sentiment": "Positive",
+      "summary": "Harbor replaced the NS-1051 agreement with a confirmed $1,180 rate and cancelled NS-1052. One agreement remained effective."
+    },
+    "transcript": {
+      "complete": true,
+      "entries": [
+        {
+          "id": "entry-0",
+          "speaker": "carrier",
+          "offsetSeconds": 5,
+          "text": "Harbor Logistics, MC 345678. I can take NS-1051 and NS-1052."
+        },
+        {
+          "id": "entry-1",
+          "speaker": "broker",
+          "offsetSeconds": 20,
+          "text": "Your carrier is eligible. Please confirm Harbor Logistics, NS-1051 at $1,100 and NS-1052 at $1,300."
+        },
+        {
+          "id": "entry-2",
+          "speaker": "carrier",
+          "offsetSeconds": 30,
+          "text": "I confirm both loads at those exact rates."
+        },
+        {
+          "id": "entry-3",
+          "speaker": "broker",
+          "offsetSeconds": 40,
+          "text": "Both simulated agreements are saved."
+        },
+        {
+          "id": "entry-4",
+          "speaker": "carrier",
+          "offsetSeconds": 50,
+          "text": "Can we replace the rate for NS-1051 with $1,180, and cancel NS-1052?"
+        },
+        {
+          "id": "entry-5",
+          "speaker": "broker",
+          "offsetSeconds": 70,
+          "text": "Please confirm replacing Harbor Logistics NS-1051 at $1,180 and cancelling Harbor Logistics NS-1052."
+        },
+        {
+          "id": "entry-6",
+          "speaker": "carrier",
+          "offsetSeconds": 90,
+          "text": "I confirm NS-1051 at $1,180 and cancellation of NS-1052."
+        },
+        {
+          "id": "entry-7",
+          "speaker": "broker",
+          "offsetSeconds": 100,
+          "text": "The replacement and cancellation are saved. One agreement remains."
+        }
+      ]
+    }
+  },
+  {
+    "id": "cedar",
+    "source": "Sample",
+    "startedAt": "2026-11-10T20:30:00Z",
+    "endedAt": "2026-11-10T20:30:45Z",
+    "carrier": {
+      "name": "Cedar Transport",
+      "mcNumber": "456789"
+    },
+    "eligibility": "Ineligible",
+    "matched": false,
+    "unresolvedError": false,
+    "connection": "Ended normally",
+    "outcomeReason": "Carrier ineligible",
+    "loads": [],
+    "agreements": [],
+    "analysis": {
+      "status": "complete",
+      "sentiment": "Negative",
+      "summary": "The synthetic carrier was ineligible. No load was quoted and no agreement was created."
+    },
+    "transcript": {
+      "complete": true,
+      "entries": [
+        {
+          "id": "entry-0",
+          "speaker": "carrier",
+          "offsetSeconds": 5,
+          "text": "Cedar Transport, MC 456789. I need a load."
+        },
+        {
+          "id": "entry-1",
+          "speaker": "broker",
+          "offsetSeconds": 15,
+          "text": "This demo carrier is ineligible because its synthetic authority is inactive. I cannot quote a load."
+        },
+        {
+          "id": "entry-2",
+          "speaker": "carrier",
+          "offsetSeconds": 30,
+          "text": "That is frustrating. Goodbye."
+        }
+      ]
+    }
+  },
+  {
+    "id": "mesa",
+    "source": "Sample",
+    "startedAt": "2026-11-09T17:12:00Z",
+    "endedAt": "2026-11-09T17:13:30Z",
+    "carrier": {
+      "name": "Mesa Freight",
+      "mcNumber": "567890"
+    },
+    "eligibility": "Eligible",
+    "matched": true,
+    "unresolvedError": false,
+    "connection": "Interrupted",
+    "outcomeReason": "Caller ended",
+    "loads": [
+      {
+        "id": "NS-1055",
+        "reference": "NS-1055",
+        "origin": "Phoenix",
+        "destination": "Dallas",
+        "equipment": "53 ft dry van",
+        "miles": 1064,
+        "pickupAt": "2026-11-13T14:00:00Z",
+        "deliveryAt": "2026-11-14T19:00:00Z",
+        "commodity": "General merchandise",
+        "weightPounds": 24000,
+        "postedRateCents": 200000,
+        "negotiation": []
+      }
+    ],
+    "agreements": [],
+    "analysis": {
+      "status": "pending",
+      "sentiment": "Unknown",
+      "summary": null
+    },
+    "transcript": {
+      "complete": false,
+      "entries": [
+        {
+          "id": "entry-0",
+          "speaker": "carrier",
+          "offsetSeconds": 10,
+          "text": "Mesa Freight, MC 567890. Any Phoenix to Dallas loads?"
+        },
+        {
+          "id": "entry-1",
+          "speaker": "broker",
+          "offsetSeconds": 30,
+          "text": "Your carrier is eligible. NS-1055 runs Phoenix to Dallas, posted at $2,000."
+        },
+        {
+          "id": "entry-2",
+          "speaker": "carrier",
+          "offsetSeconds": 65,
+          "text": "Let me check with my driver."
+        }
+      ]
+    }
+  },
+  {
+    "id": "retained",
+    "source": "Sample",
+    "startedAt": "2026-11-09T15:00:00Z",
+    "endedAt": "2026-11-09T15:02:40Z",
+    "carrier": {
+      "name": "Summit Transport",
+      "mcNumber": "123456"
+    },
+    "eligibility": "Eligible",
+    "matched": true,
+    "unresolvedError": true,
+    "connection": "Interrupted",
+    "outcomeReason": "No agreement",
+    "loads": [
+      {
+        "id": "NS-1055",
+        "reference": "NS-1055",
+        "origin": "Phoenix",
+        "destination": "Dallas",
+        "equipment": "53 ft dry van",
+        "miles": 1064,
+        "pickupAt": "2026-11-13T14:00:00Z",
+        "deliveryAt": "2026-11-14T19:00:00Z",
+        "commodity": "General merchandise",
+        "weightPounds": 24000,
+        "postedRateCents": 200000,
+        "negotiation": []
+      }
+    ],
+    "agreements": [
+      {
+        "id": "retained-dallas",
+        "loadId": "NS-1055",
+        "version": 1,
+        "status": "effective",
+        "rateCents": 200000
+      }
+    ],
+    "analysis": {
+      "status": "complete",
+      "sentiment": "Positive",
+      "summary": "Summit confirmed NS-1055 at the posted $2,000 rate. A later connection interruption did not change the saved agreement."
+    },
+    "transcript": {
+      "complete": false,
+      "entries": [
+        {
+          "id": "entry-0",
+          "speaker": "carrier",
+          "offsetSeconds": 5,
+          "text": "Summit Transport, MC 123456. I can take NS-1055 at the posted rate."
+        },
+        {
+          "id": "entry-1",
+          "speaker": "broker",
+          "offsetSeconds": 30,
+          "text": "Your carrier is eligible. Please confirm Summit Transport, NS-1055, Phoenix to Dallas, at $2,000."
+        },
+        {
+          "id": "entry-2",
+          "speaker": "carrier",
+          "offsetSeconds": 50,
+          "text": "Yes, I confirm Summit Transport accepts NS-1055 at $2,000."
+        },
+        {
+          "id": "entry-3",
+          "speaker": "broker",
+          "offsetSeconds": 65,
+          "text": "The agreement is saved. This handoff is simulated."
+        },
+        {
+          "id": "entry-4",
+          "speaker": "carrier",
+          "offsetSeconds": 100,
+          "text": "Can we discuss another load?"
+        }
+      ]
+    }
+  },
+  {
+    "id": "error",
+    "source": "Sample",
+    "startedAt": "2026-11-08T16:00:00Z",
+    "endedAt": "2026-11-08T16:01:00Z",
+    "carrier": {
+      "name": "Pine Ridge Haul",
+      "mcNumber": "234567"
+    },
+    "eligibility": "Eligible",
+    "matched": true,
+    "unresolvedError": true,
+    "connection": "Interrupted",
+    "outcomeReason": "System error",
+    "loads": [
+      {
+        "id": "NS-1048",
+        "reference": "NS-1048",
+        "origin": "Memphis",
+        "destination": "Denver",
+        "equipment": "53 ft dry van",
+        "miles": 1094,
+        "pickupAt": "2026-11-13T14:00:00Z",
+        "deliveryAt": "2026-11-14T19:00:00Z",
+        "commodity": "General merchandise",
+        "weightPounds": 24000,
+        "postedRateCents": 280000,
+        "negotiation": [
+          {
+            "kind": "Carrier offer",
+            "rateCents": 320000
+          },
+          {
+            "kind": "Broker counter",
+            "rateCents": 295000
+          }
+        ]
+      }
+    ],
+    "agreements": [],
+    "analysis": {
+      "status": "failed",
+      "sentiment": "Unknown",
+      "summary": null
+    },
+    "transcript": {
+      "complete": false,
+      "entries": [
+        {
+          "id": "entry-0",
+          "speaker": "carrier",
+          "offsetSeconds": 5,
+          "text": "Pine Ridge Haul, MC 234567, calling for NS-1048."
+        },
+        {
+          "id": "entry-1",
+          "speaker": "broker",
+          "offsetSeconds": 25,
+          "text": "Your carrier is eligible and I found that load. I am unable to complete the quote right now."
+        }
+      ]
+    }
+  },
+  {
+    "id": "connection",
+    "source": "Sample",
+    "startedAt": "2026-11-08T14:00:00Z",
+    "endedAt": "2026-11-08T14:00:00Z",
+    "carrier": null,
+    "eligibility": "Unknown",
+    "matched": false,
+    "unresolvedError": true,
+    "connection": "Connection failed",
+    "outcomeReason": "System error",
+    "loads": [],
+    "agreements": [],
+    "analysis": {
+      "status": "failed",
+      "sentiment": "Unknown",
+      "summary": null
+    },
+    "transcript": {
+      "complete": false,
+      "entries": []
+    }
+  }
+]

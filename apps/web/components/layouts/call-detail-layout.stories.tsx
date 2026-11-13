@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { renderCallDetailLayout as CallDetailLayout } from "./call-detail-layout";
 import { createCallDetail } from "./call-detail-layout.fixtures";
+import { sampleCalls } from "@/lib/samples";
+import { createCallDetail as createDetail } from "@/lib/reporting";
 import { secondLoad } from "@/components/dashboard/load-summary.fixtures";
 
 const record = createCallDetail(fn(), fn());
@@ -102,4 +105,28 @@ export const LongContent: Story = {
       })),
     },
   },
+};
+
+export const MultipleLoads: Story = {
+  render: function renderDetails(args) {
+    const [loadId, setLoadId] = useState<string | null>(null);
+
+    return (
+      <CallDetailLayout
+        {...args}
+        record={createDetail(sampleCalls[0], loadId, setLoadId)}
+      />
+    );
+  },
+};
+
+export const Unavailable: Story = { args: { record: null, unavailable: true } };
+export const UnavailableLoad: Story = {
+  args: { record: createDetail(sampleCalls[0], "missing", fn()) },
+};
+export const NoLoad: Story = {
+  args: { record: createDetail(sampleCalls[3], null, fn()) },
+};
+export const UnknownCarrier: Story = {
+  args: { record: createDetail(sampleCalls[7], null, fn()) },
 };
