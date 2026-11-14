@@ -51,6 +51,12 @@ export function confirmHandoff(
   );
   const load = call.record.loads.find((load) => load.id === quote.loadId)!;
   const agreement: Agreement = {
+    evidenceAfterMs: Math.max(
+      0,
+      ...state.transcriptFragments
+        .filter((entry) => entry.callId === callId)
+        .map((entry) => entry.endMs),
+    ),
     id: crypto.randomUUID(),
     callId,
     ownerId: call.ownerId,

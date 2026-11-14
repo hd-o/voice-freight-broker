@@ -45,6 +45,12 @@ export function issueQuote(
   for (const quote of state.quotes.filter((quote) => quote.callId === callId))
     quote.valid = false;
   const quote: Quote = {
+    evidenceAfterMs: Math.max(
+      0,
+      ...state.transcriptFragments
+        .filter((entry) => entry.callId === callId)
+        .map((entry) => entry.endMs),
+    ),
     id: crypto.randomUUID(),
     callId,
     carrierId: pair.carrierId,

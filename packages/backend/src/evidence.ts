@@ -89,12 +89,13 @@ export async function recordEvidence(
       callId: call.id,
       recordedAt: now,
     });
-    call.record.transcript.entries.push({
-      id: event.id,
-      speaker: event.speaker,
-      offsetSeconds: event.offsetSeconds,
-      text: event.text,
-    });
+    if (!state.liveSessions.some((entry) => entry.id === call.id))
+      call.record.transcript.entries.push({
+        id: event.id,
+        speaker: event.speaker,
+        offsetSeconds: event.offsetSeconds,
+        text: event.text,
+      });
     return { id: event.id };
   });
 }

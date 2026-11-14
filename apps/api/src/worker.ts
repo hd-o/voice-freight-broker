@@ -20,8 +20,18 @@ import { restockInventory, seedDatabase } from "@voice-freight/backend/seeding";
 import { BusinessError, requireCondition } from "@voice-freight/backend/model";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { ZodError, z } from "zod";
+import { liveStartSchema } from "@voice-freight/contracts/live";
+import {
+  reserveLiveCall,
+  queryLiveStatus,
+  prepareBudgetFixture,
+} from "@voice-freight/backend/live";
+import { readState } from "@voice-freight/backend/repository";
+import { resolveUsageLimits } from "@voice-freight/backend/spending";
+import type { LiveBindings } from "./bindings";
+export { LiveCall } from "./live-call";
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env & LiveBindings }>();
 
 app.use("/api/*", async (context, next) => {
   context.header("Cache-Control", "private, no-store");
@@ -34,6 +44,9 @@ app.use("/api/*", async (context, next) => {
       context.env.AUTH_MODE === "local"
     ) {
       origins.push("http://localhost:3000", "http://127.0.0.1:3000");
+      if (context.env.LOCAL_ALLOWED_ORIGIN) {
+        origins.push(context.env.LOCAL_ALLOWED_ORIGIN);
+      }
     }
     requireCondition(
       origin && origins.includes(origin),
@@ -69,7 +82,9 @@ app.onError((error, context) => {
   );
 });
 
-async function resolveUser(context: import("hono").Context<{ Bindings: Env }>) {
+async function resolveUser(
+  context: import("hono").Context<{ Bindings: Env & LiveBindings }>,
+) {
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
   const user = await queryIdentity(
     context.env.DB,
@@ -137,8 +152,80 @@ app.post("/api/calls", async (context) => {
   z.strictObject({}).parse(await context.req.json());
   return context.json(await createCall(context.env.DB, user.id), 201);
 });
+app.post("/api/live/calls", async (context) => {
+  const user = await resolveUser(context);
+  const input = liveStartSchema.parse(await context.req.json());
+  if (
+    context.env.ENVIRONMENT === "local" &&
+    context.env.VOICE_PROVIDER === "stub"
+  )
+    await prepareBudgetFixture(
+      context.env.DB,
+      context.env.VOICE_STUB_SCENARIO ?? "",
+    );
+  const { id } = await reserveLiveCall(
+    context.env.DB,
+    user.id,
+    input.operationId,
+    new Date().toISOString(),
+    resolveUsageLimits(context.env),
+  );
+  const result = await context.env.CALLS.get(
+    context.env.CALLS.idFromName(id),
+  ).start({ userId: user.id, callId: id }, input.offerSdp);
+  return context.json(result, 201);
+});
+app.get("/api/live/configuration", async (context) => {
+  await resolveUser(context);
+  return context.json({
+    provider:
+      context.env.ENVIRONMENT === "local" &&
+      context.env.VOICE_PROVIDER === "stub"
+        ? "stub"
+        : "openai",
+  });
+});
+app.get("/api/calls/:callId/live", async (context) => {
+  const user = await resolveUser(context);
+  return context.json(
+    await queryLiveStatus(context.env.DB, {
+      userId: user.id,
+      callId: context.req.param("callId"),
+    }),
+  );
+});
+app.post("/api/calls/:callId/connected", async (context) => {
+  const user = await resolveUser(context);
+  z.strictObject({}).parse(await context.req.json());
+  const callId = context.req.param("callId");
+  await queryLiveStatus(context.env.DB, { userId: user.id, callId });
+  await context.env.CALLS.get(
+    context.env.CALLS.idFromName(callId),
+  ).connectAudio();
+  return context.json({ id: callId });
+});
+app.post("/api/calls/:callId/hangup", async (context) => {
+  const user = await resolveUser(context);
+  const input = z
+    .strictObject({ interrupted: z.boolean().optional() })
+    .parse(await context.req.json());
+  const callId = context.req.param("callId");
+  await queryLiveStatus(context.env.DB, { userId: user.id, callId });
+  await context.env.CALLS.get(context.env.CALLS.idFromName(callId)).end(
+    input.interrupted ? "Interrupted" : "Ended normally",
+  );
+  return context.json({ id: callId });
+});
 app.post("/api/calls/:callId/end", async (context) => {
   const user = await resolveUser(context);
+  const { state } = await readState(context.env.DB);
+  requireCondition(
+    !state.liveSessions.some(
+      (entry) => entry.id === context.req.param("callId"),
+    ),
+    "coordinator_required",
+    "Use the live call hang-up action.",
+  );
   return context.json(
     await finalizeCall(
       context.env.DB,
@@ -149,6 +236,14 @@ app.post("/api/calls/:callId/end", async (context) => {
 });
 app.post("/api/calls/:callId/tools/:name", async (context) => {
   const user = await resolveUser(context);
+  const { state } = await readState(context.env.DB);
+  requireCondition(
+    !state.liveSessions.some(
+      (entry) => entry.id === context.req.param("callId"),
+    ),
+    "coordinator_required",
+    "Live business actions belong to the voice coordinator.",
+  );
   return context.json(
     await executeTool(
       context.env.DB,

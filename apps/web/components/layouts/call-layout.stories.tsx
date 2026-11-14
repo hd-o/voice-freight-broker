@@ -34,6 +34,17 @@ type Story = StoryObj<typeof meta>;
 export const ReadySignedOut: Story = {};
 
 export const ReadySignedIn: Story = { args: { signedIn: true } };
+export const Connecting: Story = {
+  args: { signedIn: true, state: "connecting" },
+};
+export const Saving: Story = { args: { signedIn: true, state: "ending" } };
+export const BudgetExhausted: Story = {
+  args: {
+    signedIn: true,
+    notice:
+      "The shared $25 monthly allowance cannot cover another call. It renews at 00:00 UTC on the first day.",
+  },
+};
 
 export const Connected: Story = {
   args: {

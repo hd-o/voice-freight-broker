@@ -18,6 +18,17 @@
         },
       ],
     },
+    "stub": {
+      "name": "voice-freight-tools-stub",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "voice-freight-stub",
+          "database_id": "00000000-0000-0000-0000-000000000002",
+          "migrations_dir": "../../packages/backend/migrations",
+        },
+      ],
+    },
   },
   "d1_databases": [
     {

@@ -91,3 +91,63 @@ export const analysis = sqliteTable("analysis", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["analysis"][number]>().notNull(),
 });
+
+export const spendingPeriods = sqliteTable(
+  "spendingPeriods",
+  {
+    id: text().primaryKey(),
+    data: text({ mode: "json" })
+      .$type<State["spendingPeriods"][number]>()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "spending_microdollars",
+      sql`json_extract(${table.data}, '$.spentMicrodollars') >= 0 AND typeof(json_extract(${table.data}, '$.spentMicrodollars')) = 'integer'`,
+    ),
+  ],
+);
+export const reservations = sqliteTable(
+  "reservations",
+  {
+    id: text().primaryKey(),
+    data: text({ mode: "json" })
+      .$type<State["reservations"][number]>()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "reservation_microdollars",
+      sql`json_extract(${table.data}, '$.reservedMicrodollars') >= 0 AND typeof(json_extract(${table.data}, '$.reservedMicrodollars')) = 'integer' AND json_extract(${table.data}, '$.chargedMicrodollars') >= 0 AND typeof(json_extract(${table.data}, '$.chargedMicrodollars')) = 'integer'`,
+    ),
+    uniqueIndex("reservation_operation").on(
+      sql`json_extract(${table.data}, '$.ownerId')`,
+      sql`json_extract(${table.data}, '$.operationId')`,
+    ),
+  ],
+);
+export const providerUsage = sqliteTable(
+  "providerUsage",
+  {
+    id: text().primaryKey(),
+    data: text({ mode: "json" })
+      .$type<State["providerUsage"][number]>()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "usage_microdollars",
+      sql`json_extract(${table.data}, '$.costMicrodollars') >= 0 AND typeof(json_extract(${table.data}, '$.costMicrodollars')) = 'integer'`,
+    ),
+  ],
+);
+export const liveSessions = sqliteTable("liveSessions", {
+  id: text().primaryKey(),
+  data: text({ mode: "json" }).$type<State["liveSessions"][number]>().notNull(),
+});
+export const transcriptFragments = sqliteTable("transcriptFragments", {
+  id: text().primaryKey(),
+  data: text({ mode: "json" })
+    .$type<State["transcriptFragments"][number]>()
+    .notNull(),
+});

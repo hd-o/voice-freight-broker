@@ -25,7 +25,8 @@ const notifications: Record<
 > = {
   analysis: {
     title: "Analyzing call",
-    description: "Summary and sentiment analysis will soon be in Dashboard",
+    description:
+      "Your call is saved. Summary and sentiment analysis are pending.",
   },
   microphone: {
     title: "Microphone access blocked",
@@ -57,8 +58,7 @@ const notifications: Record<
   inactivity: {
     title: "Are you still there?",
     description:
-      "This call ends in 30 seconds. Speak or select Keep call active",
-    action: "Keep call active",
+      "This call ends in 15 seconds without caller speech. Speak to keep it active.",
   },
 };
 

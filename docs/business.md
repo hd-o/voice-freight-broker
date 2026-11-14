@@ -45,8 +45,10 @@ days later, with delivery one day after pickup. Repeated seeding preserves the
 original dates.
 
 Weight is pounds, distance is miles, dimensions are inches, and money is integer
-USD cents. Load details and posted rates are public; maximum rates stay private
-in the backend.
+USD cents for freight rates. Provider spending uses integer USD microdollars;
+all corresponding amount names include `Microdollars`, and price names also
+include their denominator. Load details and posted rates are public; maximum
+rates stay private in the backend.
 
 ## Commands and negotiation
 
@@ -87,6 +89,30 @@ action, target quote or agreement, transcript position, and whether the caller
 confirmed. The caller event must reference a preceding matching read-back and
 confirm unambiguously. Browser and model tool arguments cannot create evidence.
 Integration tests exercise this boundary through the exported recorder and RPC.
+
+For live calls, the Durable Object records every provider transcript fragment
+and executes `executeObserved` through Tools RPC. That path derives evidence
+inside the same transaction as the business command. Broker speech must name the
+current carrier, load reference, and exact rate. Caller speech must follow
+without overlap and clearly affirm; ambiguity, corrections, mismatched cents,
+and stale context require another read-back. New quotes establish a transcript
+boundary so an earlier read-back cannot confirm a later quote. Transcripts have
+no completed-turn marker; interpretation remains fallible. A short collection
+delay permits trailing fragments to arrive before confirmation is checked.
+
+The browser cannot invoke the direct business or finalization REST adapters for
+provider-managed calls. It uses authenticated SDP creation, status, audio-ready,
+and hang-up actions. The Durable Object resolves its trusted owner and invokes
+the same business engine; model arguments cannot choose that owner.
+
+Finalization freezes agreement facts immediately. Late transcript fragments
+update the retained transcript separately; reporting combines it with the
+immutable final snapshot. Final usage settles a reservation only after known
+delegated responses also have recorded usage. Missing usage, failed startup
+after a provider attempt, and unrecoverable connections retain money for later
+reconciliation. Unconfirmed provider termination also retains concurrency
+capacity. Recovery attempts to attach and close a known provider session are
+bounded; a missing provider ID cannot establish termination.
 
 Agreement commits claim inventory exclusively. Replacement supersedes the old
 version and inserts its replacement in one batch while retaining the allocation.

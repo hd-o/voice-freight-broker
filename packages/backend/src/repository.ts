@@ -17,6 +17,11 @@ export async function readState(binding: D1Database) {
     receipts,
     events,
     analysis,
+    spendingPeriods,
+    reservations,
+    providerUsage,
+    liveSessions,
+    transcriptFragments,
   ] = await database.batch([
     database.select().from(tables.revision),
     database.select().from(tables.users),
@@ -30,6 +35,11 @@ export async function readState(binding: D1Database) {
     database.select().from(tables.receipts),
     database.select().from(tables.events),
     database.select().from(tables.analysis),
+    database.select().from(tables.spendingPeriods),
+    database.select().from(tables.reservations),
+    database.select().from(tables.providerUsage),
+    database.select().from(tables.liveSessions),
+    database.select().from(tables.transcriptFragments),
   ]);
 
   return {
@@ -46,6 +56,11 @@ export async function readState(binding: D1Database) {
       receipts: receipts.map((row) => row.data),
       events: events.map((row) => row.data),
       analysis: analysis.map((row) => row.data),
+      spendingPeriods: spendingPeriods.map((row) => row.data),
+      reservations: reservations.map((row) => row.data),
+      providerUsage: providerUsage.map((row) => row.data),
+      liveSessions: liveSessions.map((row) => row.data),
+      transcriptFragments: transcriptFragments.map((row) => row.data),
     } satisfies State,
   };
 }

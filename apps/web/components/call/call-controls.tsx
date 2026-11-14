@@ -1,7 +1,7 @@
 import { renderButton as Button } from "@/components/ui/button";
 
 export type CallControlsProps = {
-  state: "ready" | "connected" | "ended";
+  state: "ready" | "connecting" | "connected" | "ending" | "ended";
   signedIn?: boolean;
   accountPending?: boolean;
   muted?: boolean;
@@ -23,6 +23,16 @@ export function renderCallControls({
   onHangUp,
   onNewCall,
 }: CallControlsProps) {
+  if (state === "connecting")
+    return (
+      <div className="flex flex-wrap justify-center gap-3">
+        <Button disabled>Connecting…</Button>
+        <Button variant="outline" onClick={onHangUp}>
+          Cancel call
+        </Button>
+      </div>
+    );
+  if (state === "ending") return <Button disabled>Saving call…</Button>;
   if (state === "connected") {
     return (
       <div

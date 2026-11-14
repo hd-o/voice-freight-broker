@@ -7,6 +7,7 @@
     "dev": "vp run --parallel --filter @voice-freight/web --filter @voice-freight/api dev",
     "dev:web": "vp run @voice-freight/web#dev",
     "dev:workers": "vp run @voice-freight/api#dev",
+    "dev:stub:workers": "bash scripts/start-stub.sh",
     "storybook": "vp run @voice-freight/web#storybook",
     "build": "vp run -r build",
     "build:storybook": "vp run @voice-freight/web#build:storybook",

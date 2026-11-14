@@ -64,9 +64,13 @@ export function renderCallLayout({
   const status =
     state === "ready"
       ? "Ready when you are"
-      : state === "connected"
-        ? `${muted ? "Muted" : "Connected"} · ${duration}`
-        : `Call ended · ${duration}`;
+      : state === "connecting"
+        ? "Connecting…"
+        : state === "ending"
+          ? "Saving call…"
+          : state === "connected"
+            ? `${muted ? "Muted" : "Connected"} · ${duration}`
+            : `Call ended · ${duration}`;
 
   return (
     <ApplicationLayout

@@ -47,6 +47,7 @@ export type Negotiation = {
   prices: number[];
 };
 export type Quote = {
+  evidenceAfterMs?: number;
   id: string;
   callId: string;
   carrierId: string;
@@ -58,6 +59,7 @@ export type Quote = {
   valid: boolean;
 };
 export type Agreement = {
+  evidenceAfterMs?: number;
   id: string;
   callId: string;
   ownerId: string;
@@ -106,6 +108,11 @@ export type Analysis = {
 };
 export type Session = { id: string; userId: string; expiresAt: string };
 export type State = {
+  spendingPeriods: SpendingPeriod[];
+  reservations: Reservation[];
+  providerUsage: ProviderUsage[];
+  liveSessions: LiveSession[];
+  transcriptFragments: TranscriptFragment[];
   users: Identity[];
   sessions: Session[];
   calls: CallRecord[];
@@ -117,6 +124,66 @@ export type State = {
   receipts: Receipt[];
   events: NegotiationEvent[];
   analysis: Analysis[];
+};
+
+export type SpendingPeriod = {
+  id: string;
+  spentMicrodollars: number;
+};
+export type Reservation = {
+  id: string;
+  ownerId: string;
+  operationId: string;
+  createdAt: string;
+  reservedMicrodollars: number;
+  chargedMicrodollars: number;
+  settled: boolean;
+  prices: ModelPrices;
+};
+export type ModelPrices = {
+  version: string;
+  voiceMicrodollarsPerMinute: number;
+  inputMicrodollarsPerMillionTokens: number;
+  cachedInputMicrodollarsPerMillionTokens: number;
+  outputMicrodollarsPerMillionTokens: number;
+};
+export type ProviderUsage = {
+  id: string;
+  callId: string;
+  periodId: string;
+  costMicrodollars: number;
+};
+export type LiveSession = {
+  closingAt: string | null;
+  maximumCallSeconds: number;
+  inactivitySeconds: number;
+  id: string;
+  providerId: string | null;
+  state: "connecting" | "connected" | "ending" | "ended";
+  notice: string | null;
+  providerAttempted: boolean;
+  providerClosed: boolean;
+  usageConfirmed: boolean;
+  voiceSeconds: number;
+  lastInputAt: string;
+  warned: boolean;
+  gap: boolean;
+  responseIds: string[];
+  completedResponseIds: string[];
+  continuations: Record<string, number>;
+  processedEventIds: string[];
+  submittedCallIds: string[];
+  delegationCallIds: Record<string, string[]>;
+  answerSdp: string | null;
+};
+export type TranscriptFragment = {
+  sequence: number;
+  id: string;
+  callId: string;
+  speaker: "carrier" | "broker";
+  startMs: number;
+  endMs: number;
+  text: string;
 };
 
 export class BusinessError extends Error {

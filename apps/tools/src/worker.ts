@@ -13,6 +13,32 @@ import { recordEvidence } from "@voice-freight/backend/evidence";
 import { BusinessError } from "@voice-freight/backend/model";
 
 export class Tools extends WorkerEntrypoint<Env> {
+  async executeObserved(
+    context: CallContext,
+    name: ToolName,
+    invocation: { invocationId: string; arguments: unknown },
+  ) {
+    try {
+      return await executeTool(
+        this.env.DB,
+        callContextSchema.parse(context),
+        name,
+        invocation,
+        new Date().toISOString(),
+        true,
+      );
+    } catch (error) {
+      if (error instanceof BusinessError)
+        return { error: { code: error.code, message: error.message } };
+      return {
+        error: {
+          code: "unavailable",
+          message: "Tool execution is unavailable. Ask the caller to retry.",
+        },
+      };
+    }
+  }
+
   async execute(
     context: CallContext,
     name: ToolName,

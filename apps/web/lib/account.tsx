@@ -40,6 +40,7 @@ export async function requestApi(path: string, method = "GET", body?: unknown) {
       body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
   }).catch(() => {
     throw new Error(
       "Local API unavailable. Start the local workers and apply migrations, then try again.",
@@ -54,7 +55,7 @@ export async function requestApi(path: string, method = "GET", body?: unknown) {
     throw new Error(
       response.status === 401
         ? "Session expired. Sign in again."
-        : error.success && response.status < 500
+        : error.success
           ? error.data.error.message
           : "Local API unavailable. Start the local workers and apply migrations, then try again.",
     );

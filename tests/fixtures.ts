@@ -4,6 +4,7 @@ import { createTestHarness, type TestHarness } from "wrangler";
 import { createBrowserServer } from "./server";
 
 type WorkerFixtures = {
+  voiceScenario: string;
   backend: TestHarness;
   browserServer: Awaited<ReturnType<typeof createBrowserServer>>;
 };
@@ -12,7 +13,7 @@ type TestFixtures = {
   database: void;
 };
 
-export function createTestBackend() {
+export function createTestBackend(voiceScenario = "workflow") {
   return createTestHarness({
     root: resolve(import.meta.dirname, ".."),
     workers: [
@@ -20,6 +21,8 @@ export function createTestBackend() {
         configPath: "apps/api/wrangler.jsonc",
         env: "local",
         prebuiltWorkerDir: "apps/api/dist-test",
+        vars: { VOICE_PROVIDER: "stub", VOICE_STUB_SCENARIO: voiceScenario },
+        secrets: { OPENAI_API_KEY: "unused-stub-key" },
       },
       {
         configPath: "apps/tools/wrangler.jsonc",
@@ -31,11 +34,10 @@ export function createTestBackend() {
 }
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
+  voiceScenario: ["workflow", { scope: "worker", option: true }],
   backend: [
-    // Playwright reads fixture dependencies from the destructured parameter.
-    // oxlint-disable-next-line no-empty-pattern
-    async ({}, use) => {
-      const backend = createTestBackend();
+    async ({ voiceScenario }, use) => {
+      const backend = createTestBackend(voiceScenario);
 
       try {
         await backend.listen();
@@ -50,7 +52,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     async ({ backend }, use) => {
       const browserServer = await createBrowserServer(
         backend,
-        "http://127.0.0.1:3000",
+        "http://127.0.0.1:4173",
       );
 
       try {

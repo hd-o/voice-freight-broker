@@ -24,6 +24,10 @@ export const SignedOut: Story = {};
 export const SignedIn: Story = { args: { signedIn: true } };
 
 export const AccountPending: Story = { args: { accountPending: true } };
+export const Connecting: Story = {
+  args: { signedIn: true, state: "connecting" },
+};
+export const Saving: Story = { args: { signedIn: true, state: "ending" } };
 
 export const Connected: Story = {
   args: { state: "connected", signedIn: true },

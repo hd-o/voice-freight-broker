@@ -6,10 +6,25 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
-  "vars": { "ENVIRONMENT": "hosted", "AUTH_MODE": "access" },
+  "vars": {
+    "ENVIRONMENT": "hosted",
+    "AUTH_MODE": "access",
+    "VOICE_PROVIDER": "openai",
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "CALLS", "class_name": "LiveCall" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveCall"] }],
   "env": {
     "local": {
-      "vars": { "ENVIRONMENT": "local", "AUTH_MODE": "local" },
+      "vars": {
+        "ENVIRONMENT": "local",
+        "AUTH_MODE": "local",
+        "VOICE_PROVIDER": "openai",
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "CALLS", "class_name": "LiveCall" }],
+      },
       "d1_databases": [
         {
           "binding": "DB",
@@ -22,6 +37,32 @@
         {
           "binding": "TOOLS",
           "service": "voice-freight-tools",
+          "entrypoint": "Tools",
+        },
+      ],
+    },
+    "stub": {
+      "vars": {
+        "ENVIRONMENT": "local",
+        "AUTH_MODE": "local",
+        "VOICE_PROVIDER": "stub",
+        "VOICE_STUB_SCENARIO": "workflow",
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "CALLS", "class_name": "LiveCall" }],
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "voice-freight-stub",
+          "database_id": "00000000-0000-0000-0000-000000000002",
+          "migrations_dir": "../../packages/backend/migrations",
+        },
+      ],
+      "services": [
+        {
+          "binding": "TOOLS",
+          "service": "voice-freight-tools-stub",
           "entrypoint": "Tools",
         },
       ],

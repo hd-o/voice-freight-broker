@@ -15,32 +15,36 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "static",
-      testIgnore: ["identity.spec.ts", "isolation.spec.ts"],
+      name: "public",
+      testIgnore: [
+        "identity.spec.ts",
+        "isolation.spec.ts",
+        "live.spec.ts",
+        "budget-*.spec.ts",
+      ],
       use: { baseURL: "http://127.0.0.1:4173" },
     },
     {
-      name: "development",
-      testMatch: ["identity.spec.ts", "isolation.spec.ts"],
-      use: { baseURL: "http://127.0.0.1:3000" },
+      name: "integration",
+      testMatch: [
+        "identity.spec.ts",
+        "isolation.spec.ts",
+        "live.spec.ts",
+        "budget-*.spec.ts",
+      ],
+      use: { baseURL: "http://127.0.0.1:4173" },
     },
   ],
   webServer: [
     {
-      command: "pnpm preview",
+      command: "pnpm --filter @voice-freight/web build && pnpm preview",
       url: "http://127.0.0.1:4173",
-      timeout: 60_000,
+      timeout: 120_000,
     },
     {
       command: "pnpm storybook --ci",
       url: "http://127.0.0.1:6006",
       timeout: 60_000,
-    },
-    {
-      command: "pnpm dev:web",
-      url: "http://127.0.0.1:3000",
-      timeout: 60_000,
-      reuseExistingServer: !process.env.CI,
     },
   ],
 });

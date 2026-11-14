@@ -17,6 +17,7 @@ import {
   cancelAgreement,
 } from "./agreements";
 import { transact } from "./repository";
+import { captureConfirmation } from "./confirmation";
 
 export type ToolResult =
   | ReturnType<typeof verifyCarrier>
@@ -32,11 +33,22 @@ export async function executeTool(
   name: ToolName,
   invocation: { invocationId: string; arguments: unknown },
   now = new Date().toISOString(),
+  observed = false,
 ): Promise<ToolResult> {
   callContextSchema.parse(context);
   toolNameSchema.parse(name);
   invocationSchema.parse(invocation);
-  const argumentsData = toolArguments[name].parse(invocation.arguments);
+  const argumentsData = toolArguments[name].parse(
+    observed && (name === "confirm_handoff" || name === "cancel_agreement")
+      ? {
+          ...parseObservedArguments(invocation.arguments),
+          evidence: {
+            readbackId: "server-observed",
+            callerId: "server-observed",
+          },
+        }
+      : invocation.arguments,
+  );
   const fingerprint = JSON.stringify({ name, arguments: argumentsData });
 
   const outcome = await transact<ReceiptOutcome>(binding, (state) => {
@@ -102,7 +114,9 @@ export async function executeTool(
             draft,
             context.callId,
             input.quoteId,
-            input.evidence,
+            observed
+              ? captureConfirmation(draft, context, "handoff", input.quoteId)
+              : input.evidence,
           );
           break;
         }
@@ -112,7 +126,9 @@ export async function executeTool(
             draft,
             context.callId,
             input.agreementId,
-            input.evidence,
+            observed
+              ? captureConfirmation(draft, context, "cancel", input.agreementId)
+              : input.evidence,
           );
           break;
         }
@@ -145,4 +161,10 @@ export async function executeTool(
       outcome.error.status,
     );
   return outcome.result;
+}
+
+function parseObservedArguments(input: unknown) {
+  return input && typeof input === "object" && !Array.isArray(input)
+    ? input
+    : {};
 }
