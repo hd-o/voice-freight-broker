@@ -19,14 +19,10 @@ export type CallNotificationProps = {
   className?: string;
 };
 
-const notifications: Record<
-  CallNotificationKind,
-  { title: string; description: string; action?: string }
-> = {
+const notifications: Record<CallNotificationKind, { title: string; description: string; action?: string }> = {
   analysis: {
     title: "Analyzing call",
-    description:
-      "Your call is saved. Summary and sentiment analysis are pending.",
+    description: "Your call is saved. Summary and sentiment analysis are pending.",
   },
   microphone: {
     title: "Microphone access blocked",
@@ -35,8 +31,7 @@ const notifications: Record<
   },
   connection: {
     title: "Couldn’t connect",
-    description:
-      "We couldn’t reach the voice service. Check your connection and try again.",
+    description: "We couldn’t reach the voice service. Check your connection and try again.",
     action: "Retry connection",
   },
   interruption: {
@@ -51,14 +46,12 @@ const notifications: Record<
   },
   dailyLimit: {
     title: "Daily call limit reached",
-    description:
-      "6 calls made today. Try again tomorrow or browse sample calls",
+    description: "6 calls made today. Try again tomorrow or browse sample calls",
     action: "Browse sample calls",
   },
   inactivity: {
     title: "Are you still there?",
-    description:
-      "This call ends in 15 seconds without caller speech. Speak to keep it active.",
+    description: "This call ends in 15 seconds without caller speech. Speak to keep it active.",
   },
 };
 
@@ -71,10 +64,7 @@ export function renderCallNotification({
 }: CallNotificationProps) {
   const notification = notifications[kind];
   const failure =
-    kind === "microphone" ||
-    kind === "connection" ||
-    kind === "interruption" ||
-    kind === "analysisFailure";
+    kind === "microphone" || kind === "connection" || kind === "interruption" || kind === "analysisFailure";
 
   return (
     <aside
@@ -86,18 +76,12 @@ export function renderCallNotification({
     >
       <div className="flex items-start gap-2.5">
         {kind === "analysis" ? (
-          <LoaderCircle
-            className="mt-0.5 size-5 shrink-0 motion-safe:animate-spin"
-            aria-hidden
-          />
+          <LoaderCircle className="mt-0.5 size-5 shrink-0 motion-safe:animate-spin" aria-hidden />
         ) : kind === "inactivity" ? (
           <CircleHelp className="mt-0.5 size-5 shrink-0" aria-hidden />
         ) : (
           <AlertCircle
-            className={mergeClasses(
-              "mt-0.5 size-5 shrink-0",
-              failure && "text-destructive-foreground",
-            )}
+            className={mergeClasses("mt-0.5 size-5 shrink-0", failure && "text-destructive-foreground")}
             aria-hidden
           />
         )}
@@ -111,15 +95,11 @@ export function renderCallNotification({
           <X size={16} aria-hidden />
         </button>
       </div>
-      <p className="mt-2.5 text-xs leading-[18px] text-muted-foreground">
-        {notification.description}
-      </p>
+      <p className="mt-2.5 text-xs leading-[18px] text-muted-foreground">{notification.description}</p>
       {notification.action && (
         <div className="mt-2.5 flex flex-wrap items-center justify-end gap-3">
           {kind === "analysisFailure" && (
-            <span className="text-xs leading-4 text-muted-foreground">
-              Administrator only
-            </span>
+            <span className="text-xs leading-4 text-muted-foreground">Administrator only</span>
           )}
           {(kind !== "analysisFailure" || administrator) && (
             <Button variant="outline" size="small" onClick={onAction}>

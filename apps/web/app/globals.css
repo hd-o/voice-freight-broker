@@ -14,19 +14,10 @@
   --color-ring: var(--ring);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-success: light-dark(
-    var(--color-emerald-100),
-    var(--color-emerald-950)
-  );
-  --color-success-foreground: light-dark(
-    var(--color-emerald-800),
-    var(--color-emerald-200)
-  );
+  --color-success: light-dark(var(--color-emerald-100), var(--color-emerald-950));
+  --color-success-foreground: light-dark(var(--color-emerald-800), var(--color-emerald-200));
   --color-warning: light-dark(var(--color-amber-100), var(--color-amber-950));
-  --color-warning-foreground: light-dark(
-    var(--color-amber-900),
-    var(--color-amber-200)
-  );
+  --color-warning-foreground: light-dark(var(--color-amber-900), var(--color-amber-200));
 }
 :root {
   color-scheme: light dark;

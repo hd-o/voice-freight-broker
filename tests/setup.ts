@@ -8,16 +8,7 @@ export default async function prepareTestWorkers() {
 
   await promisify(execFile)(
     "pnpm",
-    [
-      "exec",
-      "vp",
-      "run",
-      "--filter",
-      "@voice-freight/api",
-      "--filter",
-      "@voice-freight/tools",
-      "build:test",
-    ],
+    ["exec", "vp", "run", "--filter", "@voice-freight/api", "--filter", "@voice-freight/tools", "build:test"],
     { cwd: root, timeout: 60_000 },
   );
 
@@ -29,8 +20,11 @@ export default async function prepareTestWorkers() {
   process.env.TMPDIR = temporaryDirectory;
 
   return async () => {
-    if (previousDirectory === undefined) delete process.env.TMPDIR;
-    else process.env.TMPDIR = previousDirectory;
+    if (previousDirectory === undefined) {
+      delete process.env.TMPDIR;
+    } else {
+      process.env.TMPDIR = previousDirectory;
+    }
 
     await rm(temporaryDirectory, { recursive: true, force: true });
   };

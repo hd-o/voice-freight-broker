@@ -1,9 +1,5 @@
 import type { Call, Load } from "@voice-freight/contracts/calls";
-import {
-  describeOutcome,
-  listFinalAgreements,
-  summarizeCalls,
-} from "@voice-freight/contracts/reporting";
+import { describeOutcome, listFinalAgreements, summarizeCalls } from "@voice-freight/contracts/reporting";
 import type { CallDetail } from "@/components/layouts/call-detail-layout";
 import type { LoadDetails } from "@/components/dashboard/load-summary";
 
@@ -44,21 +40,13 @@ export function createHistory(calls: readonly Call[]) {
       source: call.source,
       carrier: call.carrier?.name ?? "Unknown carrier",
       load:
-        call.loads
-          .map(
-            (load) => `${load.reference}: ${load.origin} → ${load.destination}`,
-          )
-          .join("; ") || "No load selected",
+        call.loads.map((load) => `${load.reference}: ${load.origin} → ${load.destination}`).join("; ") ||
+        "No load selected",
       outcome: describeOutcome(call),
       agreements: String(agreements.length),
-      rate:
-        agreements
-          .map((agreement) => formatMoney(agreement.rateCents))
-          .join(" / ") || "No final rate",
+      rate: agreements.map((agreement) => formatMoney(agreement.rateCents)).join(" / ") || "No final rate",
       sentiment: call.analysis.sentiment,
-      analysis: (
-        { complete: "Complete", pending: "Pending", failed: "Failed" } as const
-      )[call.analysis.status],
+      analysis: ({ complete: "Complete", pending: "Pending", failed: "Failed" } as const)[call.analysis.status],
     };
   });
 }
@@ -74,18 +62,12 @@ export function createMetrics(calls: readonly Call[]) {
     },
     {
       label: "Avg. duration",
-      value:
-        report.averageDurationSeconds === null
-          ? "Unavailable"
-          : formatDuration(report.averageDurationSeconds),
+      value: report.averageDurationSeconds === null ? "Unavailable" : formatDuration(report.averageDurationSeconds),
       description: `${report.durationCount} ended calls`,
     },
     {
       label: "Agreement rate",
-      value:
-        report.agreementRate === null
-          ? "Unavailable"
-          : `${Math.round(report.agreementRate * 100)}%`,
+      value: report.agreementRate === null ? "Unavailable" : `${Math.round(report.agreementRate * 100)}%`,
       description: `${report.agreementCallCount} of ${report.matchedCallCount} matched calls`,
     },
     {
@@ -105,12 +87,8 @@ export function createMetrics(calls: readonly Call[]) {
 }
 
 export function createLoadDetails(call: Call, load: Load): LoadDetails {
-  const agreement = listFinalAgreements(call).find(
-    (agreement) => agreement.loadId === load.id,
-  );
-  const variance = agreement
-    ? agreement.rateCents - load.postedRateCents
-    : null;
+  const agreement = listFinalAgreements(call).find((agreement) => agreement.loadId === load.id);
+  const variance = agreement ? agreement.rateCents - load.postedRateCents : null;
   const agreementLabels = {
     effective: "Accepted",
     cancelled: "Cancelled",
@@ -158,16 +136,11 @@ export function createCallDetail(
   loadId: string | null,
   onLoadChange: (value: string | null) => void,
 ): CallDetail {
-  const load =
-    loadId === null
-      ? call.loads[0]
-      : call.loads.find((load) => load.id === loadId);
+  const load = loadId === null ? call.loads[0] : call.loads.find((load) => load.id === loadId);
   const duration =
     call.endedAt === null
       ? "Duration unavailable"
-      : formatDuration(
-          (Date.parse(call.endedAt) - Date.parse(call.startedAt)) / 1000,
-        );
+      : formatDuration((Date.parse(call.endedAt) - Date.parse(call.startedAt)) / 1000);
 
   return {
     carrier: call.carrier?.name ?? "Unknown carrier",
@@ -184,9 +157,7 @@ export function createCallDetail(
           label: load.reference,
         })),
         value: load?.id ?? null,
-        countLabel: load
-          ? `${call.loads.indexOf(load) + 1} of ${call.loads.length}`
-          : `0 of ${call.loads.length}`,
+        countLabel: load ? `${call.loads.indexOf(load) + 1} of ${call.loads.length}` : `0 of ${call.loads.length}`,
         disabled: call.loads.length === 0,
         onValueChange: onLoadChange,
       },

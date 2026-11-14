@@ -78,14 +78,9 @@ export function renderNavigation({
                 aria-label={label}
                 aria-current={activePage === page ? "page" : undefined}
                 onClick={(event) => {
-                  if (
-                    event.button !== 0 ||
-                    event.metaKey ||
-                    event.ctrlKey ||
-                    event.shiftKey ||
-                    event.altKey
-                  )
+                  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
                     return;
+                  }
 
                   event.preventDefault();
                   onNavigate(page);
@@ -98,11 +93,7 @@ export function renderNavigation({
           ))}
         </div>
         <div className="md:absolute md:bottom-2.5">
-          <AccountAction
-            signedIn={signedIn}
-            pending={accountPending}
-            onAccountAction={onAccountAction}
-          />
+          <AccountAction signedIn={signedIn} pending={accountPending} onAccountAction={onAccountAction} />
         </div>
       </nav>
     </TooltipProvider>

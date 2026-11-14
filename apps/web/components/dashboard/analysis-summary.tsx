@@ -34,31 +34,20 @@ export function renderAnalysisSummary({
           { label: "Analysis", value: analysisLabels[status] },
           { label: "Sentiment", value: sentiment },
         ].map((item) => (
-          <div
-            key={item.label}
-            className="min-w-0 space-y-1 rounded-lg bg-muted p-3"
-          >
-            <dt className="text-xs leading-4 text-muted-foreground">
-              {item.label}
-            </dt>
+          <div key={item.label} className="min-w-0 space-y-1 rounded-lg bg-muted p-3">
+            <dt className="text-xs leading-4 text-muted-foreground">{item.label}</dt>
             <dd className="break-words font-semibold">{item.value}</dd>
           </div>
         ))}
       </dl>
       {status === "complete" ? (
-        <p className="[overflow-wrap:anywhere]">
-          {summary || "No summary is available for this call."}
-        </p>
+        <p className="[overflow-wrap:anywhere]">{summary || "No summary is available for this call."}</p>
       ) : (
         <div role="status" className="rounded-lg bg-muted p-4">
           <p className="flex items-center gap-2 font-medium">
             {status === "pending" ? (
               <>
-                <LoaderCircle
-                  aria-hidden="true"
-                  size={16}
-                  className="animate-spin"
-                />
+                <LoaderCircle aria-hidden="true" size={16} className="animate-spin" />
                 Analyzing call
               </>
             ) : (
@@ -71,12 +60,7 @@ export function renderAnalysisSummary({
               : "The call transcript is saved. An administrator can retry the analysis."}
           </p>
           {status === "failed" && administrator ? (
-            <Button
-              className="mt-3"
-              variant="outline"
-              disabled={!onRetry}
-              onClick={onRetry}
-            >
+            <Button className="mt-3" variant="outline" disabled={!onRetry} onClick={onRetry}>
               Retry analysis
             </Button>
           ) : null}

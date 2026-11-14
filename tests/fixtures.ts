@@ -50,10 +50,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   ],
   browserServer: [
     async ({ backend }, use) => {
-      const browserServer = await createBrowserServer(
-        backend,
-        "http://127.0.0.1:4173",
-      );
+      const browserServer = await createBrowserServer(backend, "http://127.0.0.1:4173");
 
       try {
         await use(browserServer);
@@ -72,7 +69,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         await backend.getWorker().applyD1Migrations("DB");
         await use();
       } finally {
-        if (testInfo.status !== testInfo.expectedStatus) backend.debug();
+        if (testInfo.status !== testInfo.expectedStatus) {
+          backend.debug();
+        }
         await backend.reset();
       }
     },

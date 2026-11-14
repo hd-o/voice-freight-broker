@@ -34,14 +34,10 @@ export const backendInstructions = `
 `;
 
 const descriptions = {
-  verify_carrier:
-    "Verify a synthetic MC number. The first eligible carrier permanently binds this call.",
-  search_loads:
-    "Find available loads by reference or route/equipment within this call's fixed inventory.",
-  select_load:
-    "Select a load and obtain its fresh posted or resumed quote and remaining bargaining allowance.",
-  evaluate_offer:
-    "Evaluate a carrier offer in integer USD cents against the current quote.",
+  verify_carrier: "Verify a synthetic MC number. The first eligible carrier permanently binds this call.",
+  search_loads: "Find available loads by reference or route/equipment within this call's fixed inventory.",
+  select_load: "Select a load and obtain its fresh posted or resumed quote and remaining bargaining allowance.",
+  evaluate_offer: "Evaluate a carrier offer in integer USD cents against the current quote.",
   begin_renegotiation:
     "Start replacement of an effective agreement in this call. The original stays effective until replacement commits.",
   confirm_handoff:
@@ -69,10 +65,7 @@ export function createSessionConfiguration() {
     store: false,
     client: {
       data_channel: {
-        allowed_client_events: [
-          "session.input_audio.mute",
-          "session.input_audio.unmute",
-        ],
+        allowed_client_events: ["session.input_audio.mute", "session.input_audio.unmute"],
         allowed_server_events: [
           "session.started",
           "session.closed",

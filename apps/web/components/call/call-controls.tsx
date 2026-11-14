@@ -23,7 +23,7 @@ export function renderCallControls({
   onHangUp,
   onNewCall,
 }: CallControlsProps) {
-  if (state === "connecting")
+  if (state === "connecting") {
     return (
       <div className="flex flex-wrap justify-center gap-3">
         <Button disabled>Connecting…</Button>
@@ -32,13 +32,13 @@ export function renderCallControls({
         </Button>
       </div>
     );
-  if (state === "ending") return <Button disabled>Saving call…</Button>;
+  }
+  if (state === "ending") {
+    return <Button disabled>Saving call…</Button>;
+  }
   if (state === "connected") {
     return (
-      <div
-        className="flex flex-wrap justify-center gap-3"
-        aria-label="Call controls"
-      >
+      <div className="flex flex-wrap justify-center gap-3" aria-label="Call controls">
         <Button variant="outline" aria-pressed={muted} onClick={onMute}>
           {muted ? "Unmute" : "Mute"}
         </Button>

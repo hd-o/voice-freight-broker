@@ -104,10 +104,7 @@
       "indexes": {
         "distinct_price": {
           "name": "distinct_price",
-          "columns": [
-            "json_extract(\"data\", '$.pairId')",
-            "json_extract(\"data\", '$.amountCents')"
-          ],
+          "columns": ["json_extract(\"data\", '$.pairId')", "json_extract(\"data\", '$.amountCents')"],
           "isUnique": true,
           "where": "json_extract(\"events\".\"data\", '$.consumed') = 1"
         }
@@ -239,10 +236,7 @@
       "indexes": {
         "negotiation_pair": {
           "name": "negotiation_pair",
-          "columns": [
-            "json_extract(\"data\", '$.carrierId')",
-            "json_extract(\"data\", '$.loadId')"
-          ],
+          "columns": ["json_extract(\"data\", '$.carrierId')", "json_extract(\"data\", '$.loadId')"],
           "isUnique": true
         }
       },
@@ -349,10 +343,7 @@
       "indexes": {
         "reservation_operation": {
           "name": "reservation_operation",
-          "columns": [
-            "json_extract(\"data\", '$.ownerId')",
-            "json_extract(\"data\", '$.operationId')"
-          ],
+          "columns": ["json_extract(\"data\", '$.ownerId')", "json_extract(\"data\", '$.operationId')"],
           "isUnique": true
         }
       },

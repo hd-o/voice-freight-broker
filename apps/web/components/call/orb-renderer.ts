@@ -139,8 +139,12 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
   const shaders: WebGLShader[] = [];
 
   if (!program || !buffer) {
-    if (program) context.deleteProgram(program);
-    if (buffer) context.deleteBuffer(buffer);
+    if (program) {
+      context.deleteProgram(program);
+    }
+    if (buffer) {
+      context.deleteBuffer(buffer);
+    }
 
     return undefined;
   }
@@ -164,14 +168,8 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
   }
 
   try {
-    context.attachShader(
-      program,
-      compileShader(context.VERTEX_SHADER, vertexSource),
-    );
-    context.attachShader(
-      program,
-      compileShader(context.FRAGMENT_SHADER, fragmentSource),
-    );
+    context.attachShader(program, compileShader(context.VERTEX_SHADER, vertexSource));
+    context.attachShader(program, compileShader(context.FRAGMENT_SHADER, fragmentSource));
     context.linkProgram(program);
 
     if (!context.getProgramParameter(program, context.LINK_STATUS)) {
@@ -188,11 +186,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
   shaders.forEach((shader) => context.deleteShader(shader));
   context.useProgram(program);
   context.bindBuffer(context.ARRAY_BUFFER, buffer);
-  context.bufferData(
-    context.ARRAY_BUFFER,
-    new Float32Array([-1, -1, 3, -1, -1, 3]),
-    context.STATIC_DRAW,
-  );
+  context.bufferData(context.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), context.STATIC_DRAW);
 
   const position = context.getAttribLocation(program, "aPosition");
   context.enableVertexAttribArray(position);
@@ -217,10 +211,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
     const bounds = canvas.getBoundingClientRect();
     const scale = Math.min(window.devicePixelRatio || 1, 2);
     const width = Math.max(1, Math.min(560, Math.round(bounds.width * scale)));
-    const height = Math.max(
-      1,
-      Math.min(560, Math.round(bounds.height * scale)),
-    );
+    const height = Math.max(1, Math.min(560, Math.round(bounds.height * scale)));
 
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
@@ -242,9 +233,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
       return;
     }
 
-    elapsed += previous
-      ? Math.min((timestamp - previous) / 1000, 0.05) * 0.18
-      : 0;
+    elapsed += previous ? Math.min((timestamp - previous) / 1000, 0.05) * 0.18 : 0;
     previous = timestamp;
     drawFrame();
     frame = requestAnimationFrame(advanceFrame);

@@ -24,10 +24,7 @@ export function renderTranscript({
   return (
     <section
       aria-label={heading}
-      className={mergeClasses(
-        "min-w-0 overflow-y-auto rounded-lg bg-muted p-6",
-        className,
-      )}
+      className={mergeClasses("min-w-0 overflow-y-auto rounded-lg bg-muted p-6", className)}
     >
       <h2 className="mb-4 text-sm font-medium">{heading}</h2>
       {entries.length === 0 ? (
@@ -37,10 +34,7 @@ export function renderTranscript({
           {entries.map((entry) => (
             <li
               key={entry.id}
-              className={mergeClasses(
-                "flex flex-col gap-1",
-                entry.speaker === "carrier" && "items-end",
-              )}
+              className={mergeClasses("flex flex-col gap-1", entry.speaker === "carrier" && "items-end")}
             >
               <span className="text-[11px] leading-4 text-muted-foreground">
                 {entry.time} · {entry.label}
@@ -48,9 +42,7 @@ export function renderTranscript({
               <p
                 className={mergeClasses(
                   "w-[90%] sm:w-[76%] whitespace-pre-wrap rounded-lg px-3 py-2 [overflow-wrap:anywhere]",
-                  entry.speaker === "carrier"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-surface text-foreground",
+                  entry.speaker === "carrier" ? "bg-primary text-primary-foreground" : "bg-surface text-foreground",
                 )}
               >
                 {entry.text}

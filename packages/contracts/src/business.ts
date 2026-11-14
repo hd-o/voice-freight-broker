@@ -5,16 +5,20 @@ export const identitySchema = z.object({
   name: z.string().min(1),
   role: z.enum(["reviewer", "administrator"]),
 });
+
 export type Identity = z.infer<typeof identitySchema>;
+
 export const errorSchema = z.object({
   error: z.object({ code: z.string(), message: z.string() }),
 });
 
 const referenceSchema = z.string().min(1).max(160);
+
 export const evidenceReferencesSchema = z.object({
   readbackId: referenceSchema,
   callerId: referenceSchema,
 });
+
 export const toolArguments = {
   verify_carrier: z.strictObject({ mcNumber: z.string().regex(/^\d{6,7}$/) }),
   search_loads: z
@@ -24,13 +28,9 @@ export const toolArguments = {
       destination: z.string().trim().min(1).max(100).optional(),
       equipment: z.string().trim().min(1).max(100).optional(),
     })
-    .refine(
-      (query) =>
-        query.reference || query.origin || query.destination || query.equipment,
-      {
-        message: "Provide a reference or route/equipment preference",
-      },
-    ),
+    .refine((query) => query.reference || query.origin || query.destination || query.equipment, {
+      message: "Provide a reference or route/equipment preference",
+    }),
   select_load: z.strictObject({ loadId: referenceSchema }),
   evaluate_offer: z.strictObject({
     quoteId: referenceSchema,
@@ -46,6 +46,7 @@ export const toolArguments = {
     evidence: evidenceReferencesSchema,
   }),
 };
+
 export const toolNameSchema = z.enum([
   "verify_carrier",
   "search_loads",
@@ -55,16 +56,21 @@ export const toolNameSchema = z.enum([
   "confirm_handoff",
   "cancel_agreement",
 ]);
+
 export type ToolName = z.infer<typeof toolNameSchema>;
+
 export const invocationSchema = z.strictObject({
   invocationId: referenceSchema,
   arguments: z.unknown(),
 });
+
 export const callContextSchema = z.strictObject({
   userId: referenceSchema,
   callId: referenceSchema,
 });
+
 export type CallContext = z.infer<typeof callContextSchema>;
+
 export const finalizationSchema = z.strictObject({
   connection: z.enum(["Ended normally", "Interrupted", "Connection failed"]),
   transcriptComplete: z.boolean(),
@@ -81,4 +87,5 @@ export const evidenceSchema = z.strictObject({
   readbackId: referenceSchema.optional(),
   confirmed: z.boolean(),
 });
+
 export type EvidenceInput = z.infer<typeof evidenceSchema>;

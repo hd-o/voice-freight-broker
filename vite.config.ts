@@ -3,22 +3,14 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   lint: {
     options: { typeAware: true, typeCheck: true },
-    ignorePatterns: [
-      "**/worker-configuration.d.ts",
-      "**/.vinext/**",
-      ".devcontainer/**",
-      ".vscode/**",
-    ],
+    ignorePatterns: ["**/worker-configuration.d.ts", "**/.vinext/**", ".devcontainer/**", ".vscode/**"],
+    rules: {
+      curly: "error",
+    },
   },
   fmt: {
-    printWidth: 80,
+    printWidth: 120,
     proseWrap: "always",
-    ignorePatterns: [
-      "**/worker-configuration.d.ts",
-      "**/.vinext/**",
-      ".devcontainer/**",
-      ".vscode/**",
-      "AGENTS.md",
-    ],
+    ignorePatterns: ["**/worker-configuration.d.ts", "**/.vinext/**", ".devcontainer/**", ".vscode/**", "AGENTS.md"],
   },
 });

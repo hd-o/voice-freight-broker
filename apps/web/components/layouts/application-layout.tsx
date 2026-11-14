@@ -1,10 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-  renderNavigation as Navigation,
-  type NavigationPage,
-} from "@/components/navigation/navigation";
+import { renderNavigation as Navigation, type NavigationPage } from "@/components/navigation/navigation";
 
 export type ApplicationLayoutProps = {
   activePage: NavigationPage;

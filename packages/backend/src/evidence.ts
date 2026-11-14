@@ -1,22 +1,14 @@
-import {
-  evidenceSchema,
-  type CallContext,
-  type EvidenceInput,
-} from "@voice-freight/contracts/business";
+import { evidenceSchema, type CallContext, type EvidenceInput } from "@voice-freight/contracts/business";
 import type { State } from "./model";
 import { requireCondition } from "./model";
 import { authorizeCall } from "./authorization";
 import { requireQuote } from "./negotiations";
 import { transact } from "./repository";
 
-export function resolveTarget(
-  state: State,
-  callId: string,
-  action: "handoff" | "cancel",
-  targetId: string,
-) {
+export function resolveTarget(state: State, callId: string, action: "handoff" | "cancel", targetId: string) {
   if (action === "handoff") {
     const { quote } = requireQuote(state, callId, targetId);
+
     return {
       carrierId: quote.carrierId,
       loadId: quote.loadId,
@@ -24,17 +16,13 @@ export function resolveTarget(
       contextVersion: quote.id,
     };
   }
+
   const agreement = state.agreements.find(
-    (agreement) =>
-      agreement.id === targetId &&
-      agreement.callId === callId &&
-      agreement.status === "effective",
+    (agreement) => agreement.id === targetId && agreement.callId === callId && agreement.status === "effective",
   );
-  requireCondition(
-    agreement,
-    "agreement_unavailable",
-    "Agreement is not effective in this call.",
-  );
+
+  requireCondition(agreement, "agreement_unavailable", "Agreement is not effective in this call.");
+
   return {
     carrierId: agreement.carrierId,
     loadId: agreement.load.id,
@@ -50,10 +38,12 @@ export async function recordEvidence(
   now = new Date().toISOString(),
 ) {
   const event = evidenceSchema.parse(input);
+
   return transact(binding, (state) => {
     const call = authorizeCall(state, context);
     const target = resolveTarget(state, call.id, event.action, event.targetId);
     const existing = state.evidence.find((entry) => entry.id === event.id);
+
     if (existing) {
       requireCondition(
         existing.callId === call.id &&
@@ -66,8 +56,10 @@ export async function recordEvidence(
         "evidence_conflict",
         "Event identity was already used.",
       );
+
       return { id: event.id };
     }
+
     if (event.speaker === "carrier") {
       const readback = state.evidence.find(
         (entry) =>
@@ -77,25 +69,30 @@ export async function recordEvidence(
           entry.contextVersion === target.contextVersion &&
           entry.action === event.action,
       );
+
       requireCondition(
         readback && event.offsetSeconds >= readback.offsetSeconds,
         "evidence_required",
         "Caller confirmation must follow the matching read-back.",
       );
     }
+
     state.evidence.push({
       ...event,
       ...target,
       callId: call.id,
       recordedAt: now,
     });
-    if (!state.liveSessions.some((entry) => entry.id === call.id))
+
+    if (!state.liveSessions.some((entry) => entry.id === call.id)) {
       call.record.transcript.entries.push({
         id: event.id,
         speaker: event.speaker,
         offsetSeconds: event.offsetSeconds,
         text: event.text,
       });
+    }
+
     return { id: event.id };
   });
 }
@@ -108,12 +105,11 @@ export function requireEvidence(
   references: { readbackId: string; callerId: string },
 ) {
   const target = resolveTarget(state, callId, action, targetId);
-  const readback = state.evidence.find(
-    (entry) => entry.id === references.readbackId && entry.callId === callId,
-  );
-  const caller = state.evidence.find(
-    (entry) => entry.id === references.callerId && entry.callId === callId,
-  );
+
+  const readback = state.evidence.find((entry) => entry.id === references.readbackId && entry.callId === callId);
+
+  const caller = state.evidence.find((entry) => entry.id === references.callerId && entry.callId === callId);
+
   requireCondition(
     readback?.speaker === "broker" &&
       caller?.speaker === "carrier" &&

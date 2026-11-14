@@ -28,8 +28,9 @@ export class Tools extends WorkerEntrypoint<Env> {
         true,
       );
     } catch (error) {
-      if (error instanceof BusinessError)
+      if (error instanceof BusinessError) {
         return { error: { code: error.code, message: error.message } };
+      }
       return {
         error: {
           code: "unavailable",
@@ -39,28 +40,21 @@ export class Tools extends WorkerEntrypoint<Env> {
     }
   }
 
-  async execute(
-    context: CallContext,
-    name: ToolName,
-    invocation: { invocationId: string; arguments: unknown },
-  ) {
+  async execute(context: CallContext, name: ToolName, invocation: { invocationId: string; arguments: unknown }) {
     try {
-      return await executeTool(
-        this.env.DB,
-        callContextSchema.parse(context),
-        name,
-        invocation,
-      );
+      return await executeTool(this.env.DB, callContextSchema.parse(context), name, invocation);
     } catch (error) {
-      if (error instanceof BusinessError)
+      if (error instanceof BusinessError) {
         return { error: { code: error.code, message: error.message } };
-      if (error instanceof Error && error.name === "ZodError")
+      }
+      if (error instanceof Error && error.name === "ZodError") {
         return {
           error: {
             code: "invalid_input",
             message: "Request validation failed.",
           },
         };
+      }
       return {
         error: {
           code: "unavailable",
@@ -71,53 +65,28 @@ export class Tools extends WorkerEntrypoint<Env> {
   }
 
   async recordEvidence(context: CallContext, evidence: EvidenceInput) {
-    return recordEvidence(
-      this.env.DB,
-      callContextSchema.parse(context),
-      evidenceSchema.parse(evidence),
-    );
+    return recordEvidence(this.env.DB, callContextSchema.parse(context), evidenceSchema.parse(evidence));
   }
 
-  async verify_carrier(
-    context: CallContext,
-    invocation: { invocationId: string; arguments: unknown },
-  ) {
+  async verify_carrier(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
     return this.execute(context, "verify_carrier", invocation);
   }
-  async search_loads(
-    context: CallContext,
-    invocation: { invocationId: string; arguments: unknown },
-  ) {
+  async search_loads(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
     return this.execute(context, "search_loads", invocation);
   }
-  async select_load(
-    context: CallContext,
-    invocation: { invocationId: string; arguments: unknown },
-  ) {
+  async select_load(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
     return this.execute(context, "select_load", invocation);
   }
-  async evaluate_offer(
-    context: CallContext,
-    invocation: { invocationId: string; arguments: unknown },
-  ) {
+  async evaluate_offer(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
     return this.execute(context, "evaluate_offer", invocation);
   }
-  async begin_renegotiation(
-    context: CallContext,
-    invocation: { invocationId: string; arguments: unknown },
-  ) {
+  async begin_renegotiation(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
     return this.execute(context, "begin_renegotiation", invocation);
   }
-  async confirm_handoff(
-    context: CallContext,
-    invocation: { invocationId: string; arguments: unknown },
-  ) {
+  async confirm_handoff(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
     return this.execute(context, "confirm_handoff", invocation);
   }
-  async cancel_agreement(
-    context: CallContext,
-    invocation: { invocationId: string; arguments: unknown },
-  ) {
+  async cancel_agreement(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
     return this.execute(context, "cancel_agreement", invocation);
   }
 

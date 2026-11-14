@@ -3,6 +3,7 @@ name: typescript-conventions
 description: "Use when writing to TypeScript `.ts(x)` files"
 paths: ["**/*.ts", "**/*.tsx"]
 ---
+
 # TypeScript Conventions
 
 ## General
@@ -42,27 +43,24 @@ paths: ["**/*.ts", "**/*.tsx"]
 
 ## Multiline Readability
 
-Separate logical stages with whitespace.
+Separate intermediate multiline statements and logical stages with whitespace.
 
 Avoid:
 
 ```typescript
 function doSomething(): string | null {
-    span.setAttribute(
-        ATTRIBUTE,
-        getDefaultValue(),
-    );
-    const running = update.context;
-    // Some comment explaining why
-    if (!running) {
-        return null;
-    }
-    if (!checkValidity(running)) {
-        logger.error("Not valid");
-        persistValidity(running);
-        return null;
-    }
-    return running;
+  span.setAttribute(ATTRIBUTE, getDefaultValue());
+  const running = update.context;
+  // Some comment explaining why
+  if (!running) {
+    return null;
+  }
+  if (!checkValidity(running)) {
+    logger.error("Not valid");
+    persistValidity(running);
+    return null;
+  }
+  return running;
 }
 ```
 
@@ -70,24 +68,21 @@ Prefer:
 
 ```typescript
 function doSomething(): string | null {
-    span.setAttribute(
-        ATTRIBUTE,
-        getDefaultValue(),
-    );
+  span.setAttribute(ATTRIBUTE, getDefaultValue());
 
-    const running = update.context;
+  const running = update.context;
 
-    // Some comment explaining why
-    if (!running) {
-        return null;
-    }
+  // Some comment explaining why
+  if (!running) {
+    return null;
+  }
 
-    if (!checkValidity(running)) {
-        logger.error("Not valid");
-        persistValidity(running);
-        return null;
-    }
+  if (!checkValidity(running)) {
+    logger.error("Not valid");
+    persistValidity(running);
+    return null;
+  }
 
-    return running;
+  return running;
 }
 ```

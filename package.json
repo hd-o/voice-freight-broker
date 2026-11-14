@@ -14,7 +14,7 @@
     "preview": "vp run @voice-freight/web#preview",
     "check": "vp check && vp run typecheck && markdownlint-cli2 README.md",
     "format": "vp fmt",
-    "lint": "vp lint",
+    "lint": "vp lint --fix",
     "typecheck": "tsc --noEmit && vp run -r typecheck",
     "test": "vp run @voice-freight/tools#build && vp run @voice-freight/api#test",
     "test:browser": "playwright test",

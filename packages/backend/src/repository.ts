@@ -4,6 +4,7 @@ import { BusinessError, type State } from "./model";
 
 export async function readState(binding: D1Database) {
   const database = drizzle(binding);
+
   const [
     revision,
     users,
@@ -67,29 +68,25 @@ export async function readState(binding: D1Database) {
 
 // A revision guard serializes the small demo inventory across both Workers.
 // Its CHECK failure rolls back the entire D1 batch, including dependent writes.
-export async function transact<T>(
-  binding: D1Database,
-  command: (state: State) => T,
-): Promise<T> {
+export async function transact<T>(binding: D1Database, command: (state: State) => T): Promise<T> {
   for (let attempt = 0; attempt < 8; attempt++) {
     const { state, version } = await readState(binding);
     const originals = structuredClone(state);
     const result = command(state);
     const token = crypto.randomUUID();
+
     const statements = [
       binding
-        .prepare(
-          "INSERT INTO guard (id, valid) VALUES (?, (SELECT version = ? FROM revision WHERE id = 1))",
-        )
+        .prepare("INSERT INTO guard (id, valid) VALUES (?, (SELECT version = ? FROM revision WHERE id = 1))")
         .bind(token, version),
     ];
 
     for (const name of Object.keys(state) as (keyof State)[]) {
-      const previous = new Map(
-        originals[name].map((row) => [row.id, JSON.stringify(row)]),
-      );
+      const previous = new Map(originals[name].map((row) => [row.id, JSON.stringify(row)]));
+
       for (const row of state[name]) {
         const data = JSON.stringify(row);
+
         if (previous.get(row.id) !== data) {
           statements.push(
             binding
@@ -99,34 +96,29 @@ export async function transact<T>(
               .bind(row.id, data),
           );
         }
+
         previous.delete(row.id);
       }
-      for (const id of previous.keys())
-        statements.push(
-          binding.prepare(`DELETE FROM ${name} WHERE id = ?`).bind(id),
-        );
+
+      for (const id of previous.keys()) {
+        statements.push(binding.prepare(`DELETE FROM ${name} WHERE id = ?`).bind(id));
+      }
     }
-    statements.push(
-      binding.prepare("UPDATE revision SET version = version + 1 WHERE id = 1"),
-    );
-    statements.push(
-      binding.prepare("DELETE FROM guard WHERE id = ?").bind(token),
-    );
+
+    statements.push(binding.prepare("UPDATE revision SET version = version + 1 WHERE id = 1"));
+
+    statements.push(binding.prepare("DELETE FROM guard WHERE id = ?").bind(token));
 
     try {
       await binding.batch(statements);
+
       return result;
     } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        !error.message.includes("revision_conflict")
-      )
+      if (!(error instanceof Error) || !error.message.includes("revision_conflict")) {
         throw error;
+      }
     }
   }
-  throw new BusinessError(
-    "busy",
-    "Inventory is busy. Retry this operation.",
-    503,
-  );
+
+  throw new BusinessError("busy", "Inventory is busy. Retry this operation.", 503);
 }

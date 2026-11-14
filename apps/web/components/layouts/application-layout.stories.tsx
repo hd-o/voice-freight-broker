@@ -12,12 +12,7 @@ const meta = {
     signedIn: false,
     onNavigate: fn(),
     onAccountAction: fn(),
-    children: (
-      <PageHeader
-        title="Voice Freight Broker"
-        subtitle="Talk to your AI freight broker."
-      />
-    ),
+    children: <PageHeader title="Voice Freight Broker" subtitle="Talk to your AI freight broker." />,
   },
 } satisfies Meta<typeof ApplicationLayout>;
 
@@ -31,12 +26,7 @@ export const Dashboard: Story = {
   args: {
     activePage: "dashboard",
     signedIn: true,
-    children: (
-      <PageHeader
-        title="Dashboard"
-        subtitle="Review your calls and outcomes."
-      />
-    ),
+    children: <PageHeader title="Dashboard" subtitle="Review your calls and outcomes." />,
   },
 };
 
@@ -50,10 +40,7 @@ export const LongContent: Story = {
   args: {
     children: (
       <>
-        <PageHeader
-          title="Voice Freight Broker"
-          subtitle="Long content remains clear of the navigation."
-        />
+        <PageHeader title="Voice Freight Broker" subtitle="Long content remains clear of the navigation." />
         <section
           aria-label="Example content"
           className="mt-8 flex min-h-[120vh] flex-col justify-between rounded-xl border border-border p-6"

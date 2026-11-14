@@ -1,13 +1,6 @@
 import { expect, it } from "vitest";
-import {
-  callSchema,
-  callsSchema,
-  loadSchema,
-} from "@voice-freight/contracts/calls";
-import {
-  describeOutcome,
-  summarizeCalls,
-} from "@voice-freight/contracts/reporting";
+import { callSchema, callsSchema, loadSchema } from "@voice-freight/contracts/calls";
+import { describeOutcome, summarizeCalls } from "@voice-freight/contracts/reporting";
 import records from "../../web/data/calls.json";
 
 const calls = callsSchema.parse(records);
@@ -46,9 +39,7 @@ it("validates timestamp chronology independently of ISO fractional precision", (
 });
 
 it("validates the bundled public sample records and their references", () => {
-  expect(
-    calls.every((call) => call.source === "Sample" && call.endedAt !== null),
-  ).toBe(true);
+  expect(calls.every((call) => call.source === "Sample" && call.endedAt !== null)).toBe(true);
   expect(callsSchema.safeParse([...records, records[0]]).success).toBe(false);
   expect(
     callSchema.safeParse({
@@ -77,9 +68,7 @@ it("uses the same call population for history, duration, sentiment and agreement
     finalAgreementCount: 4,
     averageVarianceCents: 9500,
   });
-  expect(
-    report.sentiments.map(({ label, count }) => ({ label, count })),
-  ).toEqual([
+  expect(report.sentiments.map(({ label, count }) => ({ label, count }))).toEqual([
     { label: "Positive", count: 3 },
     { label: "Neutral", count: 1 },
     { label: "Negative", count: 1 },
@@ -91,8 +80,9 @@ it("counts calls once and excludes unresolved errors only when no agreement surv
   const retainedCall = calls.find((call) => call.id === "retained");
   const error = calls.find((call) => call.id === "error");
 
-  if (!retainedCall || !error)
+  if (!retainedCall || !error) {
     throw new Error("Required error fixtures are missing");
+  }
 
   expect(describeOutcome(retainedCall)).toBe("Agreement reached");
   expect(summarizeCalls([retainedCall, error])).toMatchObject({
@@ -110,7 +100,9 @@ it("counts calls once and excludes unresolved errors only when no agreement surv
 it("excludes cancelled and superseded agreements and preserves signed variance", () => {
   const harbor = calls.find((call) => call.id === "harbor");
 
-  if (!harbor) throw new Error("Required agreement history fixture is missing");
+  if (!harbor) {
+    throw new Error("Required agreement history fixture is missing");
+  }
 
   expect(summarizeCalls([harbor])).toMatchObject({
     finalAgreementCount: 1,

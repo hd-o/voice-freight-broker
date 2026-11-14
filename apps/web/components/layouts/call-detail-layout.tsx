@@ -1,23 +1,14 @@
-import {
-  renderApplicationLayout as ApplicationLayout,
-  type ApplicationLayoutProps,
-} from "./application-layout";
+import { renderApplicationLayout as ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
 import { renderPageHeader as PageHeader } from "@/components/navigation/page-header";
 import { renderBadge as Badge } from "@/components/ui/badge";
 import { renderButton as Button } from "@/components/ui/button";
 import { renderSkeleton as Skeleton } from "@/components/ui/skeleton";
-import {
-  renderLoadSummary as LoadSummary,
-  type LoadSummaryProps,
-} from "@/components/dashboard/load-summary";
+import { renderLoadSummary as LoadSummary, type LoadSummaryProps } from "@/components/dashboard/load-summary";
 import {
   renderAnalysisSummary as AnalysisSummary,
   type AnalysisSummaryProps,
 } from "@/components/dashboard/analysis-summary";
-import {
-  renderTranscript as Transcript,
-  type TranscriptEntry,
-} from "@/components/call/transcript";
+import { renderTranscript as Transcript, type TranscriptEntry } from "@/components/call/transcript";
 
 export type CallDetail = {
   carrier: string;
@@ -29,10 +20,7 @@ export type CallDetail = {
   transcriptComplete?: boolean;
 };
 
-export type CallDetailLayoutProps = Omit<
-  ApplicationLayoutProps,
-  "activePage" | "children"
-> & {
+export type CallDetailLayoutProps = Omit<ApplicationLayoutProps, "activePage" | "children"> & {
   record: CallDetail | null;
   loading?: boolean;
   unavailable?: boolean;
@@ -50,15 +38,8 @@ export function renderCallDetailLayout({
     <ApplicationLayout {...navigation} activePage="dashboard">
       <div className="space-y-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <PageHeader
-            title="Call details"
-            subtitle="Inspect a saved conversation and its analysis"
-          />
-          <Button
-            variant="outline"
-            disabled={loading}
-            onClick={() => navigation.onNavigate("dashboard")}
-          >
+          <PageHeader title="Call details" subtitle="Inspect a saved conversation and its analysis" />
+          <Button variant="outline" disabled={loading} onClick={() => navigation.onNavigate("dashboard")}>
             Back to dashboard
           </Button>
         </div>
@@ -80,14 +61,10 @@ export function renderCallDetailLayout({
               <>
                 <header className="min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-semibold [overflow-wrap:anywhere]">
-                      {record.carrier}
-                    </h2>
+                    <h2 className="text-2xl font-semibold [overflow-wrap:anywhere]">{record.carrier}</h2>
                     <Badge>{record.source} Call</Badge>
                   </div>
-                  <p className="mt-2 text-muted-foreground">
-                    {record.dateAndDuration}
-                  </p>
+                  <p className="mt-2 text-muted-foreground">{record.dateAndDuration}</p>
                 </header>
                 <div className="grid items-stretch gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
                   <LoadSummary {...record.loadSummary} />
@@ -95,8 +72,7 @@ export function renderCallDetailLayout({
                     <AnalysisSummary {...record.analysis} />
                     {record.transcriptComplete === false && (
                       <p className="text-sm text-muted-foreground">
-                        Partial transcript · The connection ended before the
-                        conversation was complete.
+                        Partial transcript · The connection ended before the conversation was complete.
                       </p>
                     )}
                     <Transcript
@@ -109,9 +85,7 @@ export function renderCallDetailLayout({
               </>
             ) : (
               <div className="rounded-[10px] border border-border bg-surface p-8 text-center">
-                <h2 className="text-xl font-semibold">
-                  {unavailable ? "Call unavailable" : "No call selected"}
-                </h2>
+                <h2 className="text-xl font-semibold">{unavailable ? "Call unavailable" : "No call selected"}</h2>
                 <p className="mt-3 text-muted-foreground">
                   {unavailable
                     ? "This call is unavailable to this account. Return to the dashboard and choose an available call."

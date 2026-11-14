@@ -11,11 +11,7 @@ import { BusinessError, requireCondition, type ReceiptOutcome } from "./model";
 import { verifyCarrier } from "./carriers";
 import { searchLoads } from "./inventory";
 import { issueQuote, evaluateOffer } from "./negotiations";
-import {
-  beginRenegotiation,
-  confirmHandoff,
-  cancelAgreement,
-} from "./agreements";
+import { beginRenegotiation, confirmHandoff, cancelAgreement } from "./agreements";
 import { transact } from "./repository";
 import { captureConfirmation } from "./confirmation";
 
@@ -38,6 +34,7 @@ export async function executeTool(
   callContextSchema.parse(context);
   toolNameSchema.parse(name);
   invocationSchema.parse(invocation);
+
   const argumentsData = toolArguments[name].parse(
     observed && (name === "confirm_handoff" || name === "cancel_agreement")
       ? {
@@ -49,25 +46,31 @@ export async function executeTool(
         }
       : invocation.arguments,
   );
+
   const fingerprint = JSON.stringify({ name, arguments: argumentsData });
 
   const outcome = await transact<ReceiptOutcome>(binding, (state) => {
     authorizeCall(state, context, false);
     const id = `${context.callId}:${invocation.invocationId}`;
     const receipt = state.receipts.find((receipt) => receipt.id === id);
+
     if (receipt) {
       requireCondition(
         receipt.fingerprint === fingerprint,
         "invocation_conflict",
         "Invocation identity was already used with different arguments.",
       );
+
       return receipt;
     }
+
     const draft = structuredClone(state);
     let outcome: ReceiptOutcome;
+
     try {
       authorizeCall(draft, context);
       let result: ToolResult;
+
       switch (name) {
         case "verify_carrier":
           result = verifyCarrier(
@@ -78,27 +81,15 @@ export async function executeTool(
           );
           break;
         case "search_loads":
-          result = searchLoads(
-            draft,
-            context.callId,
-            toolArguments.search_loads.parse(argumentsData),
-          );
+          result = searchLoads(draft, context.callId, toolArguments.search_loads.parse(argumentsData));
           break;
         case "select_load":
-          result = issueQuote(
-            draft,
-            context.callId,
-            toolArguments.select_load.parse(argumentsData).loadId,
-          );
+          result = issueQuote(draft, context.callId, toolArguments.select_load.parse(argumentsData).loadId);
           break;
         case "evaluate_offer": {
           const input = toolArguments.evaluate_offer.parse(argumentsData);
-          result = evaluateOffer(
-            draft,
-            context.callId,
-            input.quoteId,
-            input.amountCents,
-          );
+
+          result = evaluateOffer(draft, context.callId, input.quoteId, input.amountCents);
           break;
         }
         case "begin_renegotiation":
@@ -110,33 +101,35 @@ export async function executeTool(
           break;
         case "confirm_handoff": {
           const input = toolArguments.confirm_handoff.parse(argumentsData);
+
           result = confirmHandoff(
             draft,
             context.callId,
             input.quoteId,
-            observed
-              ? captureConfirmation(draft, context, "handoff", input.quoteId)
-              : input.evidence,
+            observed ? captureConfirmation(draft, context, "handoff", input.quoteId) : input.evidence,
           );
           break;
         }
         case "cancel_agreement": {
           const input = toolArguments.cancel_agreement.parse(argumentsData);
+
           result = cancelAgreement(
             draft,
             context.callId,
             input.agreementId,
-            observed
-              ? captureConfirmation(draft, context, "cancel", input.agreementId)
-              : input.evidence,
+            observed ? captureConfirmation(draft, context, "cancel", input.agreementId) : input.evidence,
           );
           break;
         }
       }
+
       outcome = { result };
       Object.assign(state, draft);
     } catch (error) {
-      if (!(error instanceof BusinessError) || error.status >= 500) throw error;
+      if (!(error instanceof BusinessError) || error.status >= 500) {
+        throw error;
+      }
+
       outcome = {
         error: {
           code: error.code,
@@ -145,26 +138,24 @@ export async function executeTool(
         },
       };
     }
+
     state.receipts.push({
       id,
       callId: context.callId,
       fingerprint,
       ...outcome,
     });
+
     return outcome;
   });
 
-  if ("error" in outcome)
-    throw new BusinessError(
-      outcome.error.code,
-      outcome.error.message,
-      outcome.error.status,
-    );
+  if ("error" in outcome) {
+    throw new BusinessError(outcome.error.code, outcome.error.message, outcome.error.status);
+  }
+
   return outcome.result;
 }
 
 function parseObservedArguments(input: unknown) {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? input
-    : {};
+  return input && typeof input === "object" && !Array.isArray(input) ? input : {};
 }

@@ -6,24 +6,15 @@ export type CallIntroductionProps = {
   className?: string;
 };
 
-export function renderCallIntroduction({
-  onExploreSamples,
-  className,
-}: CallIntroductionProps) {
+export function renderCallIntroduction({ onExploreSamples, className }: CallIntroductionProps) {
   return (
     <section
-      className={mergeClasses(
-        "flex flex-col justify-center bg-muted p-6",
-        className,
-      )}
+      className={mergeClasses("flex flex-col justify-center bg-muted p-6", className)}
       aria-label="Call introduction"
     >
-      <h2 className="text-2xl leading-8 font-semibold">
-        Call Northstar Freight
-      </h2>
+      <h2 className="text-2xl leading-8 font-semibold">Call Northstar Freight</h2>
       <p className="mt-5 text-muted-foreground">
-        Use your microphone to talk naturally. You can interrupt, ask about the
-        load, or make a counteroffer.
+        Use your microphone to talk naturally. You can interrupt, ask about the load, or make a counteroffer.
       </p>
       <ol className="mt-5 space-y-2">
         <li>
@@ -36,9 +27,7 @@ export function renderCallIntroduction({
           <span className="mr-2">03</span>Agree a rate
         </li>
       </ol>
-      <p className="mt-5 text-xs leading-4 text-muted-foreground">
-        Your transcript is saved. Audio is not recorded.
-      </p>
+      <p className="mt-5 text-xs leading-4 text-muted-foreground">Your transcript is saved. Audio is not recorded.</p>
       <Button
         variant="outline"
         size="small"

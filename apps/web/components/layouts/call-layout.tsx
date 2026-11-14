@@ -1,24 +1,12 @@
 "use client";
 
-import {
-  renderApplicationLayout as ApplicationLayout,
-  type ApplicationLayoutProps,
-} from "./application-layout";
+import { renderApplicationLayout as ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
 import { renderPageHeader as PageHeader } from "@/components/navigation/page-header";
-import {
-  renderCallerBriefing as CallerBriefing,
-  type DemoCarrier,
-} from "@/components/call/caller-briefing";
+import { renderCallerBriefing as CallerBriefing, type DemoCarrier } from "@/components/call/caller-briefing";
 import { renderCallIntroduction as CallIntroduction } from "@/components/call/call-introduction";
-import {
-  renderCallControls as CallControls,
-  type CallControlsProps,
-} from "@/components/call/call-controls";
+import { renderCallControls as CallControls, type CallControlsProps } from "@/components/call/call-controls";
 import { renderVoiceOrb as VoiceOrb } from "@/components/call/voice-orb";
-import {
-  renderTranscript as Transcript,
-  type TranscriptEntry,
-} from "@/components/call/transcript";
+import { renderTranscript as Transcript, type TranscriptEntry } from "@/components/call/transcript";
 import {
   renderCallNotification as CallNotification,
   type CallNotificationKind,
@@ -94,16 +82,10 @@ export function renderCallLayout({
         <CallerBriefing carriers={carriers} className="xl:min-h-[492px]" />
         <div className="grid min-w-0 overflow-hidden rounded-[10px] border border-border bg-surface md:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">
           {state === "ready" ? (
-            <CallIntroduction
-              onExploreSamples={onExploreSamples}
-              className="min-h-[360px] md:min-h-[490px]"
-            />
+            <CallIntroduction onExploreSamples={onExploreSamples} className="min-h-[360px] md:min-h-[490px]" />
           ) : (
             <div className="flex min-w-0 flex-col bg-muted md:h-[490px]">
-              <Transcript
-                entries={entries}
-                className="max-h-[490px] min-h-[360px] flex-1 rounded-none md:min-h-0"
-              />
+              <Transcript entries={entries} className="max-h-[490px] min-h-[360px] flex-1 rounded-none md:min-h-0" />
               {state === "ended" && (
                 <div className="px-6 pb-6">
                   <button
@@ -121,9 +103,7 @@ export function renderCallLayout({
             className="flex min-w-0 flex-col items-center justify-between gap-8 p-6 md:min-h-[490px]"
             aria-label="Call information"
           >
-            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs leading-4">
-              {status}
-            </span>
+            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs leading-4">{status}</span>
             <VoiceOrb connected={state === "connected"} />
             <CallControls
               state={state}

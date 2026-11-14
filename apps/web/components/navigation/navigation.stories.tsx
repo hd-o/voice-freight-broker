@@ -42,8 +42,6 @@ export const Callbacks: Story = {
     await userEvent.click(canvas.getByRole("button", { name: /^Call$/ }));
     await expect(args.onNavigate).toHaveBeenLastCalledWith("call");
     await expect(args.onNavigate).toHaveBeenCalledTimes(2);
-    await expect(
-      canvas.getByRole("button", { name: /^Call$/ }),
-    ).toHaveAttribute("aria-current", "page");
+    await expect(canvas.getByRole("button", { name: /^Call$/ })).toHaveAttribute("aria-current", "page");
   },
 };

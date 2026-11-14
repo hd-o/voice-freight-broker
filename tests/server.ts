@@ -3,10 +3,7 @@ import { arrayBuffer as readBody } from "node:stream/consumers";
 import type { Socket } from "node:net";
 import type { TestHarness } from "wrangler";
 
-export async function createBrowserServer(
-  backend: TestHarness,
-  frontendURL: string,
-) {
+export async function createBrowserServer(backend: TestHarness, frontendURL: string) {
   const sockets = new Set<Socket>();
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
@@ -47,19 +44,20 @@ export async function createBrowserServer(
       const incoming = await backend.fetch(url.href, {
         method: request.method,
         headers: Array.from(headers),
-        body:
-          request.method === "GET" || request.method === "HEAD"
-            ? undefined
-            : await readBody(request),
+        body: request.method === "GET" || request.method === "HEAD" ? undefined : await readBody(request),
       });
 
       for (const [name, value] of incoming.headers) {
-        if (name !== "set-cookie") response.setHeader(name, value);
+        if (name !== "set-cookie") {
+          response.setHeader(name, value);
+        }
       }
 
       const cookies = incoming.headers.getSetCookie();
 
-      if (cookies.length) response.setHeader("set-cookie", cookies);
+      if (cookies.length) {
+        response.setHeader("set-cookie", cookies);
+      }
 
       response.writeHead(incoming.status);
       response.end(Buffer.from(await incoming.arrayBuffer()));
@@ -81,14 +79,16 @@ export async function createBrowserServer(
       socket.write("HTTP/1.1 101 Switching Protocols\r\n");
 
       for (let index = 0; index < incoming.rawHeaders.length; index += 2) {
-        socket.write(
-          `${incoming.rawHeaders[index]}: ${incoming.rawHeaders[index + 1]}\r\n`,
-        );
+        socket.write(`${incoming.rawHeaders[index]}: ${incoming.rawHeaders[index + 1]}\r\n`);
       }
 
       socket.write("\r\n");
-      if (data.length) socket.write(data);
-      if (head.length) connection.write(head);
+      if (data.length) {
+        socket.write(data);
+      }
+      if (head.length) {
+        connection.write(head);
+      }
 
       socket.on("error", () => connection.destroy());
       connection.on("error", () => socket.destroy());
@@ -118,7 +118,9 @@ export async function createBrowserServer(
   return {
     url: `http://127.0.0.1:${address.port}`,
     async close() {
-      for (const socket of sockets) socket.destroy();
+      for (const socket of sockets) {
+        socket.destroy();
+      }
 
       await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));

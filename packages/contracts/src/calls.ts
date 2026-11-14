@@ -43,9 +43,7 @@ export const callSchema = z
     source: z.enum(["Sample", "Live"]),
     startedAt: z.iso.datetime(),
     endedAt: z.iso.datetime().nullable(),
-    carrier: z
-      .object({ name: z.string().min(1), mcNumber: z.string().min(1) })
-      .nullable(),
+    carrier: z.object({ name: z.string().min(1), mcNumber: z.string().min(1) }).nullable(),
     eligibility: z.enum(["Eligible", "Ineligible", "Unknown", "Unavailable"]),
     matched: z.boolean(),
     unresolvedError: z.boolean(),
@@ -78,10 +76,7 @@ export const callSchema = z
     }),
   })
   .superRefine((call, context) => {
-    if (
-      call.endedAt !== null &&
-      Date.parse(call.endedAt) < Date.parse(call.startedAt)
-    ) {
+    if (call.endedAt !== null && Date.parse(call.endedAt) < Date.parse(call.startedAt)) {
       context.addIssue({ code: "custom", message: "Call end precedes start" });
     }
 
@@ -117,10 +112,7 @@ export const callSchema = z
       context.addIssue({ code: "custom", message: "Duplicate load identity" });
     }
 
-    if (
-      call.analysis.status !== "complete" &&
-      call.analysis.sentiment !== "Unknown"
-    ) {
+    if (call.analysis.status !== "complete" && call.analysis.sentiment !== "Unknown") {
       context.addIssue({
         code: "custom",
         message: "Unfinished analysis has unknown sentiment",
@@ -130,10 +122,9 @@ export const callSchema = z
 
 export const callsSchema = z
   .array(callSchema)
-  .refine(
-    (calls) => new Set(calls.map((call) => call.id)).size === calls.length,
-    { message: "Duplicate call identity" },
-  );
+  .refine((calls) => new Set(calls.map((call) => call.id)).size === calls.length, {
+    message: "Duplicate call identity",
+  });
 
 export type Call = z.infer<typeof callSchema>;
 export type Load = z.infer<typeof loadSchema>;

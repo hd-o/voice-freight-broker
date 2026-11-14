@@ -9,12 +9,7 @@ import { renderDashboardControls as DashboardControls } from "@/components/dashb
 import { sampleCalls } from "@/lib/samples";
 import { createHistory, createMetrics } from "@/lib/reporting";
 import { useAccount, requestApi } from "@/lib/account";
-import {
-  changeQuery,
-  createCallHref,
-  navigatePage,
-  useQueryParameters,
-} from "@/lib/navigation";
+import { changeQuery, createCallHref, navigatePage, useQueryParameters } from "@/lib/navigation";
 
 const pageSize = 5;
 
@@ -30,24 +25,18 @@ export default function renderDashboardPage() {
     enabled: !!account.user,
     retry: false,
     queryFn: async () => {
-      const data: { calls: unknown } = await (
-        await requestApi("/dashboard")
-      ).json();
+      const data: { calls: unknown } = await (await requestApi("/dashboard")).json();
       return callsSchema.parse(data.calls);
     },
   });
-  const calls = [
-    ...sampleCalls,
-    ...(account.user ? (live.data ?? []) : []),
-  ].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  const calls = [...sampleCalls, ...(account.user ? (live.data ?? []) : [])].sort((a, b) =>
+    b.startedAt.localeCompare(a.startedAt),
+  );
   const history = createHistory(calls);
   const report = summarizeCalls(calls);
   const pageNumber = Number(parameters.get("page") ?? 1);
   const lastPage = Math.max(1, Math.ceil(history.length / pageSize));
-  const currentPage =
-    Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= lastPage
-      ? pageNumber
-      : 1;
+  const currentPage = Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= lastPage ? pageNumber : 1;
   const offset = (currentPage - 1) * pageSize;
 
   function selectPage(page: number) {
@@ -71,11 +60,7 @@ export default function renderDashboardPage() {
       );
       setOperationId(undefined);
     } catch (error) {
-      setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Restocking failed. Try again.",
-      );
+      setFeedback(error instanceof Error ? error.message : "Restocking failed. Try again.");
       setFailure(true);
     } finally {
       setRestocking(false);
@@ -90,9 +75,7 @@ export default function renderDashboardPage() {
       onNavigate={navigatePage}
       onAccountAction={account.performAccountAction}
       notice={account.notice ?? live.error?.message}
-      loading={
-        !readiness || account.loading || (!!account.user && live.isPending)
-      }
+      loading={!readiness || account.loading || (!!account.user && live.isPending)}
       controls={
         account.user?.role === "administrator" && (
           <DashboardControls

@@ -7,12 +7,7 @@ type DatabaseBindings = {
   };
 };
 
-async function requestApi(
-  backend: TestHarness,
-  path: string,
-  cookie?: string,
-  body?: unknown,
-) {
+async function requestApi(backend: TestHarness, path: string, cookie?: string, body?: unknown) {
   const { url } = await backend.listen();
 
   return backend.fetch(new URL(`/api${path}`, url), {
@@ -34,14 +29,14 @@ async function signIn(backend: TestHarness) {
 
   const cookie = response.headers.get("set-cookie");
 
-  if (!cookie) throw new Error("Sign-in must set a session cookie");
+  if (!cookie) {
+    throw new Error("Sign-in must set a session cookie");
+  }
 
   return cookie.split(";")[0];
 }
 
-test("backends isolate fixed accounts and reset storage across both Workers", async ({
-  backend,
-}) => {
+test("backends isolate fixed accounts and reset storage across both Workers", async ({ backend }) => {
   const otherBackend = createTestBackend();
 
   try {
@@ -69,30 +64,18 @@ test("backends isolate fixed accounts and reset storage across both Workers", as
       [backend, 1],
       [otherBackend, 0],
     ] as const) {
-      const tools = await server
-        .getWorker<DatabaseBindings>("voice-freight-tools")
-        .getEnv();
-      expect(
-        await tools.DB.prepare("SELECT COUNT(*) AS count FROM calls").first(
-          "count",
-        ),
-      ).toBe(count);
-      expect(
-        await tools.DB.prepare(
-          "SELECT id FROM users WHERE id = 'administrator'",
-        ).first("id"),
-      ).toBe("administrator");
+      const tools = await server.getWorker<DatabaseBindings>("voice-freight-tools").getEnv();
+      expect(await tools.DB.prepare("SELECT COUNT(*) AS count FROM calls").first("count")).toBe(count);
+      expect(await tools.DB.prepare("SELECT id FROM users WHERE id = 'administrator'").first("id")).toBe(
+        "administrator",
+      );
     }
 
     const dashboard = await requestApi(backend, "/dashboard", cookie);
     expect(await dashboard.json()).toMatchObject({
       calls: [expect.anything()],
     });
-    const otherDashboard = await requestApi(
-      otherBackend,
-      "/dashboard",
-      otherCookie,
-    );
+    const otherDashboard = await requestApi(otherBackend, "/dashboard", otherCookie);
     expect(await otherDashboard.json()).toMatchObject({ calls: [] });
     const otherIdentity = await requestApi(otherBackend, "/identity", cookie);
     expect(await otherIdentity.json()).toMatchObject({ user: null });
@@ -104,19 +87,9 @@ test("backends isolate fixed accounts and reset storage across both Workers", as
     const newCookie = await signIn(backend);
     const emptyDashboard = await requestApi(backend, "/dashboard", newCookie);
     expect(await emptyDashboard.json()).toMatchObject({ calls: [] });
-    const resetTools = await backend
-      .getWorker<DatabaseBindings>("voice-freight-tools")
-      .getEnv();
-    expect(
-      await resetTools.DB.prepare("SELECT COUNT(*) AS count FROM calls").first(
-        "count",
-      ),
-    ).toBe(0);
-    const remainingIdentity = await requestApi(
-      otherBackend,
-      "/identity",
-      otherCookie,
-    );
+    const resetTools = await backend.getWorker<DatabaseBindings>("voice-freight-tools").getEnv();
+    expect(await resetTools.DB.prepare("SELECT COUNT(*) AS count FROM calls").first("count")).toBe(0);
+    const remainingIdentity = await requestApi(otherBackend, "/identity", otherCookie);
     expect(await remainingIdentity.json()).toMatchObject({
       user: { id: "administrator" },
     });

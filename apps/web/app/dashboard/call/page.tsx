@@ -4,11 +4,7 @@ import { renderCallDetailLayout as CallDetailLayout } from "@/components/layouts
 import type { NavigationPage } from "@/components/navigation/navigation";
 import { sampleCalls } from "@/lib/samples";
 import { createCallDetail } from "@/lib/reporting";
-import {
-  changeQuery,
-  navigatePage,
-  useQueryParameters,
-} from "@/lib/navigation";
+import { changeQuery, navigatePage, useQueryParameters } from "@/lib/navigation";
 import { useAccount, requestApi } from "@/lib/account";
 import { useQuery } from "@tanstack/react-query";
 import { callSchema } from "@voice-freight/contracts/calls";
@@ -23,12 +19,7 @@ export default function renderCallDetailsPage() {
     queryKey: ["private", account.user?.id, "call", selection],
     enabled: privateSelection && !!account.user,
     retry: false,
-    queryFn: async () =>
-      callSchema.parse(
-        await (
-          await requestApi(`/calls/${encodeURIComponent(selection!)}`)
-        ).json(),
-      ),
+    queryFn: async () => callSchema.parse(await (await requestApi(`/calls/${encodeURIComponent(selection!)}`)).json()),
   });
   const call = sample ?? (account.user ? live.data : undefined);
 
@@ -66,19 +57,11 @@ export default function renderCallDetailsPage() {
       onAccountAction={account.performAccountAction}
       notice={
         account.notice ??
-        (privateSelection && !account.user
-          ? "Sign in to view this private call."
-          : live.error?.message)
+        (privateSelection && !account.user ? "Sign in to view this private call." : live.error?.message)
       }
-      loading={
-        !readiness ||
-        account.loading ||
-        (privateSelection && !!account.user && live.isPending)
-      }
+      loading={!readiness || account.loading || (privateSelection && !!account.user && live.isPending)}
       unavailable={selection !== null && !call}
-      record={
-        call ? createCallDetail(call, parameters.get("load"), selectLoad) : null
-      }
+      record={call ? createCallDetail(call, parameters.get("load"), selectLoad) : null}
     />
   );
 }

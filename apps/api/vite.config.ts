@@ -11,20 +11,14 @@ export default defineConfig({
           LOCAL_ALLOWED_ORIGIN: "http://localhost:49245",
           VOICE_PROVIDER: "stub",
           VOICE_STUB_SCENARIO: "idle",
-          TEST_MIGRATIONS: await readD1Migrations(
-            "../../packages/backend/migrations",
-          ),
+          TEST_MIGRATIONS: await readD1Migrations("../../packages/backend/migrations"),
         },
         workers: [
           {
             name: "voice-freight-tools",
             modules: true,
-            scriptPath: fileURLToPath(
-              new URL("../tools/dist/worker.js", import.meta.url),
-            ),
-            modulesRoot: fileURLToPath(
-              new URL("../tools/dist/", import.meta.url),
-            ),
+            scriptPath: fileURLToPath(new URL("../tools/dist/worker.js", import.meta.url)),
+            modulesRoot: fileURLToPath(new URL("../tools/dist/", import.meta.url)),
             compatibilityDate: "2026-11-12",
             compatibilityFlags: ["nodejs_compat"],
             d1Databases: { DB: "00000000-0000-0000-0000-000000000001" },

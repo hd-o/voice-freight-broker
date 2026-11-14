@@ -1,10 +1,4 @@
-import {
-  check,
-  integer,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { State } from "./model";
 
@@ -12,34 +6,36 @@ export const revision = sqliteTable("revision", {
   id: integer().primaryKey(),
   version: integer().notNull(),
 });
-export const guard = sqliteTable(
-  "guard",
-  { id: text().primaryKey(), valid: integer().notNull() },
-  (table) => [check("revision_conflict", sql`${table.valid} = 1`)],
-);
+
+export const guard = sqliteTable("guard", { id: text().primaryKey(), valid: integer().notNull() }, (table) => [
+  check("revision_conflict", sql`${table.valid} = 1`),
+]);
+
 export const users = sqliteTable("users", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["users"][number]>().notNull(),
 });
+
 export const sessions = sqliteTable("sessions", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["sessions"][number]>().notNull(),
 });
+
 export const calls = sqliteTable("calls", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["calls"][number]>().notNull(),
 });
+
 export const inventory = sqliteTable("inventory", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["inventory"][number]>().notNull(),
 });
+
 export const negotiations = sqliteTable(
   "negotiations",
   {
     id: text().primaryKey(),
-    data: text({ mode: "json" })
-      .$type<State["negotiations"][number]>()
-      .notNull(),
+    data: text({ mode: "json" }).$type<State["negotiations"][number]>().notNull(),
   },
   (table) => [
     uniqueIndex("negotiation_pair").on(
@@ -48,10 +44,12 @@ export const negotiations = sqliteTable(
     ),
   ],
 );
+
 export const quotes = sqliteTable("quotes", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["quotes"][number]>().notNull(),
 });
+
 export const agreements = sqliteTable(
   "agreements",
   {
@@ -64,14 +62,17 @@ export const agreements = sqliteTable(
       .where(sql`json_extract(${table.data}, '$.status') = 'effective'`),
   ],
 );
+
 export const evidence = sqliteTable("evidence", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["evidence"][number]>().notNull(),
 });
+
 export const receipts = sqliteTable("receipts", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["receipts"][number]>().notNull(),
 });
+
 export const events = sqliteTable(
   "events",
   {
@@ -80,13 +81,11 @@ export const events = sqliteTable(
   },
   (table) => [
     uniqueIndex("distinct_price")
-      .on(
-        sql`json_extract(${table.data}, '$.pairId')`,
-        sql`json_extract(${table.data}, '$.amountCents')`,
-      )
+      .on(sql`json_extract(${table.data}, '$.pairId')`, sql`json_extract(${table.data}, '$.amountCents')`)
       .where(sql`json_extract(${table.data}, '$.consumed') = 1`),
   ],
 );
+
 export const analysis = sqliteTable("analysis", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["analysis"][number]>().notNull(),
@@ -96,9 +95,7 @@ export const spendingPeriods = sqliteTable(
   "spendingPeriods",
   {
     id: text().primaryKey(),
-    data: text({ mode: "json" })
-      .$type<State["spendingPeriods"][number]>()
-      .notNull(),
+    data: text({ mode: "json" }).$type<State["spendingPeriods"][number]>().notNull(),
   },
   (table) => [
     check(
@@ -107,13 +104,12 @@ export const spendingPeriods = sqliteTable(
     ),
   ],
 );
+
 export const reservations = sqliteTable(
   "reservations",
   {
     id: text().primaryKey(),
-    data: text({ mode: "json" })
-      .$type<State["reservations"][number]>()
-      .notNull(),
+    data: text({ mode: "json" }).$type<State["reservations"][number]>().notNull(),
   },
   (table) => [
     check(
@@ -126,13 +122,12 @@ export const reservations = sqliteTable(
     ),
   ],
 );
+
 export const providerUsage = sqliteTable(
   "providerUsage",
   {
     id: text().primaryKey(),
-    data: text({ mode: "json" })
-      .$type<State["providerUsage"][number]>()
-      .notNull(),
+    data: text({ mode: "json" }).$type<State["providerUsage"][number]>().notNull(),
   },
   (table) => [
     check(
@@ -141,13 +136,13 @@ export const providerUsage = sqliteTable(
     ),
   ],
 );
+
 export const liveSessions = sqliteTable("liveSessions", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["liveSessions"][number]>().notNull(),
 });
+
 export const transcriptFragments = sqliteTable("transcriptFragments", {
   id: text().primaryKey(),
-  data: text({ mode: "json" })
-    .$type<State["transcriptFragments"][number]>()
-    .notNull(),
+  data: text({ mode: "json" }).$type<State["transcriptFragments"][number]>().notNull(),
 });

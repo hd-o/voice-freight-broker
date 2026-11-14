@@ -41,8 +41,7 @@ export const Saving: Story = { args: { signedIn: true, state: "ending" } };
 export const BudgetExhausted: Story = {
   args: {
     signedIn: true,
-    notice:
-      "The shared $25 monthly allowance cannot cover another call. It renews at 00:00 UTC on the first day.",
+    notice: "The shared $25 monthly allowance cannot cover another call. It renews at 00:00 UTC on the first day.",
   },
 };
 

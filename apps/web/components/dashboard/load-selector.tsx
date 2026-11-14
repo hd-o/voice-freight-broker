@@ -29,10 +29,7 @@ export function renderLoadSelector({
 
   return (
     <div className="min-w-0 space-y-2">
-      <span
-        id={labelId}
-        className="block text-xs leading-4 text-muted-foreground"
-      >
+      <span id={labelId} className="block text-xs leading-4 text-muted-foreground">
         Load
       </span>
       <Select.Root<string>
@@ -47,14 +44,8 @@ export function renderLoadSelector({
           aria-labelledby={labelId}
           className="flex min-h-10 w-full items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2 text-left data-disabled:opacity-50"
         >
-          <Select.Value
-            className="min-w-0 flex-1 truncate"
-            placeholder="No load selected"
-          />
-          <span
-            aria-hidden="true"
-            className="shrink-0 text-xs text-muted-foreground"
-          >
+          <Select.Value className="min-w-0 flex-1 truncate" placeholder="No load selected" />
+          <span aria-hidden="true" className="shrink-0 text-xs text-muted-foreground">
             {countLabel}
           </span>
           <Select.Icon>
@@ -62,11 +53,7 @@ export function renderLoadSelector({
           </Select.Icon>
         </Select.Trigger>
         <Select.Portal>
-          <Select.Positioner
-            sideOffset={4}
-            className="z-50 outline-none"
-            alignItemWithTrigger={false}
-          >
+          <Select.Positioner sideOffset={4} className="z-50 outline-none" alignItemWithTrigger={false}>
             <Select.Popup className="max-h-[var(--available-height)] w-[var(--anchor-width)] overflow-y-auto rounded-lg border border-border bg-surface p-1 text-foreground shadow-lg">
               <Select.List>
                 {options.map((option) => (
@@ -75,9 +62,7 @@ export function renderLoadSelector({
                     value={option.value}
                     className="flex min-h-10 cursor-pointer items-center gap-3 rounded-md px-3 py-2 outline-none data-highlighted:bg-muted"
                   >
-                    <Select.ItemText className="min-w-0 flex-1 break-words">
-                      {option.label}
-                    </Select.ItemText>
+                    <Select.ItemText className="min-w-0 flex-1 break-words">{option.label}</Select.ItemText>
                     <Select.ItemIndicator>
                       <Check size={16} />
                     </Select.ItemIndicator>

@@ -10,15 +10,9 @@ export type TooltipProps = TooltipPrimitive.Root.Props;
 export type TooltipTriggerProps = TooltipPrimitive.Trigger.Props;
 
 export type TooltipContentProps = TooltipPrimitive.Popup.Props &
-  Pick<
-    TooltipPrimitive.Positioner.Props,
-    "side" | "sideOffset" | "align" | "alignOffset"
-  >;
+  Pick<TooltipPrimitive.Positioner.Props, "side" | "sideOffset" | "align" | "alignOffset">;
 
-export function renderTooltipProvider({
-  delay = 300,
-  ...props
-}: TooltipProviderProps) {
+export function renderTooltipProvider({ delay = 300, ...props }: TooltipProviderProps) {
   return <TooltipPrimitive.Provider delay={delay} {...props} />;
 }
 

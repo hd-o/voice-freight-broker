@@ -9,10 +9,7 @@ export function renderAlertDialog(props: AlertDialogPrimitive.Root.Props) {
   return <AlertDialogPrimitive.Root {...props} />;
 }
 
-export function renderAlertDialogContent({
-  className,
-  ...props
-}: AlertDialogPrimitive.Popup.Props) {
+export function renderAlertDialogContent({ className, ...props }: AlertDialogPrimitive.Popup.Props) {
   return (
     <AlertDialogPrimitive.Portal>
       <AlertDialogPrimitive.Backdrop
@@ -33,26 +30,17 @@ export function renderAlertDialogContent({
   );
 }
 
-export function renderAlertDialogHeader({
-  className,
-  ...props
-}: ComponentProps<"div">) {
+export function renderAlertDialogHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-dialog-header"
-      className={mergeClasses(
-        "grid gap-1.5 text-center sm:text-left",
-        className,
-      )}
+      className={mergeClasses("grid gap-1.5 text-center sm:text-left", className)}
       {...props}
     />
   );
 }
 
-export function renderAlertDialogFooter({
-  className,
-  ...props
-}: ComponentProps<"div">) {
+export function renderAlertDialogFooter({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-dialog-footer"
@@ -65,28 +53,19 @@ export function renderAlertDialogFooter({
   );
 }
 
-export function renderAlertDialogTitle({
-  className,
-  ...props
-}: AlertDialogPrimitive.Title.Props) {
+export function renderAlertDialogTitle({ className, ...props }: AlertDialogPrimitive.Title.Props) {
   return (
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
       className={(state) =>
-        mergeClasses(
-          "text-base font-medium",
-          typeof className === "function" ? className(state) : className,
-        )
+        mergeClasses("text-base font-medium", typeof className === "function" ? className(state) : className)
       }
       {...props}
     />
   );
 }
 
-export function renderAlertDialogDescription({
-  className,
-  ...props
-}: AlertDialogPrimitive.Description.Props) {
+export function renderAlertDialogDescription({ className, ...props }: AlertDialogPrimitive.Description.Props) {
   return (
     <AlertDialogPrimitive.Description
       data-slot="alert-dialog-description"
@@ -105,14 +84,8 @@ export function renderAlertDialogAction(props: ComponentProps<typeof Button>) {
   return <Button data-slot="alert-dialog-action" {...props} />;
 }
 
-export function renderAlertDialogCancel(
-  props: AlertDialogPrimitive.Close.Props,
-) {
+export function renderAlertDialogCancel(props: AlertDialogPrimitive.Close.Props) {
   return (
-    <AlertDialogPrimitive.Close
-      data-slot="alert-dialog-cancel"
-      render={<Button variant="outline" />}
-      {...props}
-    />
+    <AlertDialogPrimitive.Close data-slot="alert-dialog-cancel" render={<Button variant="outline" />} {...props} />
   );
 }

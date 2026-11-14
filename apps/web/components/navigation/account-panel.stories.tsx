@@ -33,8 +33,7 @@ export const Loading: Story = { args: { pending: true, identities: [] } };
 export const Waiting: Story = {
   args: {
     pending: true,
-    progress:
-      "Another account change is finishing. Try again when it completes.",
+    progress: "Another account change is finishing. Try again when it completes.",
   },
 };
 export const Failure: Story = {

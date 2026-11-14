@@ -10,12 +10,10 @@ export const getButtonClasses = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:opacity-90",
-        outline:
-          "border border-border bg-surface text-foreground hover:bg-muted",
+        outline: "border border-border bg-surface text-foreground hover:bg-muted",
         secondary: "bg-muted text-foreground hover:opacity-80",
         ghost: "bg-transparent text-foreground hover:bg-muted",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:opacity-80",
+        destructive: "bg-destructive text-destructive-foreground hover:opacity-80",
       },
       size: {
         default: "min-h-10 px-4 py-2",
@@ -27,15 +25,9 @@ export const getButtonClasses = cva(
   },
 );
 
-export type ButtonProps = ButtonPrimitive.Props &
-  VariantProps<typeof getButtonClasses>;
+export type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof getButtonClasses>;
 
-export function renderButton({
-  className,
-  variant,
-  size,
-  ...props
-}: ButtonProps) {
+export function renderButton({ className, variant, size, ...props }: ButtonProps) {
   return (
     <ButtonPrimitive
       data-slot="button"

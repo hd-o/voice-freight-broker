@@ -1,9 +1,6 @@
 import type { Call, Load } from "@voice-freight/contracts/calls";
 import type { ToolResult } from "./business";
-import type {
-  EvidenceInput,
-  Identity,
-} from "@voice-freight/contracts/business";
+import type { EvidenceInput, Identity } from "@voice-freight/contracts/business";
 
 export type Verification = {
   carrierId: string | null;
@@ -21,6 +18,7 @@ export type Verification = {
   } | null;
   verifiedAt: string;
 };
+
 export type CallRecord = {
   id: string;
   ownerId: string;
@@ -31,12 +29,14 @@ export type CallRecord = {
   record: Call;
   finalSnapshot: Call | null;
 };
+
 export type Inventory = {
   id: string;
   batchId: string;
   maximumCents: number;
   load: Load;
 };
+
 export type Negotiation = {
   id: string;
   carrierId: string;
@@ -46,6 +46,7 @@ export type Negotiation = {
   rateCents: number;
   prices: number[];
 };
+
 export type Quote = {
   evidenceAfterMs?: number;
   id: string;
@@ -58,6 +59,7 @@ export type Quote = {
   replacementId: string | null;
   valid: boolean;
 };
+
 export type Agreement = {
   evidenceAfterMs?: number;
   id: string;
@@ -72,6 +74,7 @@ export type Agreement = {
   evidence: { readbackId: string; callerId: string };
   cancellationEvidence?: { readbackId: string; callerId: string };
 };
+
 export type Evidence = EvidenceInput & {
   callId: string;
   contextVersion: string;
@@ -80,14 +83,15 @@ export type Evidence = EvidenceInput & {
   rateCents: number;
   recordedAt: string;
 };
-export type ReceiptOutcome =
-  | { result: ToolResult }
-  | { error: Pick<BusinessError, "code" | "message" | "status"> };
+
+export type ReceiptOutcome = { result: ToolResult } | { error: Pick<BusinessError, "code" | "message" | "status"> };
+
 export type Receipt = {
   id: string;
   callId: string;
   fingerprint: string;
 } & ReceiptOutcome;
+
 export type NegotiationEvent = {
   id: string;
   callId: string;
@@ -97,6 +101,7 @@ export type NegotiationEvent = {
   decision: string;
   quoteId: string;
 };
+
 export type Analysis = {
   id: string;
   callId: string;
@@ -106,7 +111,9 @@ export type Analysis = {
   attempts: number;
   createdAt: string;
 };
+
 export type Session = { id: string; userId: string; expiresAt: string };
+
 export type State = {
   spendingPeriods: SpendingPeriod[];
   reservations: Reservation[];
@@ -130,6 +137,7 @@ export type SpendingPeriod = {
   id: string;
   spentMicrodollars: number;
 };
+
 export type Reservation = {
   id: string;
   ownerId: string;
@@ -140,6 +148,7 @@ export type Reservation = {
   settled: boolean;
   prices: ModelPrices;
 };
+
 export type ModelPrices = {
   version: string;
   voiceMicrodollarsPerMinute: number;
@@ -147,12 +156,14 @@ export type ModelPrices = {
   cachedInputMicrodollarsPerMillionTokens: number;
   outputMicrodollarsPerMillionTokens: number;
 };
+
 export type ProviderUsage = {
   id: string;
   callId: string;
   periodId: string;
   costMicrodollars: number;
 };
+
 export type LiveSession = {
   closingAt: string | null;
   maximumCallSeconds: number;
@@ -176,6 +187,7 @@ export type LiveSession = {
   delegationCallIds: Record<string, string[]>;
   answerSdp: string | null;
 };
+
 export type TranscriptFragment = {
   sequence: number;
   id: string;
@@ -202,5 +214,7 @@ export function requireCondition(
   message: string,
   status: 400 | 401 | 403 | 404 | 409 | 503 = 409,
 ): asserts condition {
-  if (!condition) throw new BusinessError(code, message, status);
+  if (!condition) {
+    throw new BusinessError(code, message, status);
+  }
 }

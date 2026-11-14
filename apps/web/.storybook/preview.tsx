@@ -3,13 +3,7 @@ import type { Preview } from "@storybook/react-vite";
 import "@fontsource-variable/inter";
 import "../app/globals.css";
 
-function renderTheme({
-  theme,
-  children,
-}: {
-  theme: "light" | "dark";
-  children: ReactNode;
-}) {
+function renderTheme({ theme, children }: { theme: "light" | "dark"; children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
 

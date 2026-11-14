@@ -34,10 +34,9 @@ export default function renderCallPage() {
       onAccountAction={account.performAccountAction}
       onExploreSamples={exploreSamples}
       onViewCall={() => {
-        if (call.status)
-          window.location.assign(
-            `/dashboard/call?call=${encodeURIComponent(call.status.id)}`,
-          );
+        if (call.status) {
+          window.location.assign(`/dashboard/call?call=${encodeURIComponent(call.status.id)}`);
+        }
       }}
       onStart={() => {
         void call.start();

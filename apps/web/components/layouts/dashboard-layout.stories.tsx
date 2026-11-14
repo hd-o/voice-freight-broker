@@ -1,10 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { renderDashboardLayout as DashboardLayout } from "./dashboard-layout";
-import {
-  metrics,
-  emptyMetrics,
-} from "@/components/dashboard/metric-card.fixtures";
+import { metrics, emptyMetrics } from "@/components/dashboard/metric-card.fixtures";
 import { sentiments } from "@/components/dashboard/sentiment-distribution.fixtures";
 import { sampleCalls } from "@/lib/samples";
 import { createCallHref } from "@/lib/navigation";

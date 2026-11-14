@@ -18,11 +18,7 @@ function readServerQuery() {
 }
 
 export function useQueryParameters() {
-  const query = useSyncExternalStore<string | null>(
-    subscribeNavigation,
-    readQuery,
-    readServerQuery,
-  );
+  const query = useSyncExternalStore<string | null>(subscribeNavigation, readQuery, readServerQuery);
 
   return {
     parameters: new URLSearchParams(query ?? ""),
@@ -33,11 +29,7 @@ export function useQueryParameters() {
 export function changeQuery(parameters: URLSearchParams) {
   const query = parameters.toString();
 
-  window.history.pushState(
-    null,
-    "",
-    `${window.location.pathname}${query ? `?${query}` : ""}`,
-  );
+  window.history.pushState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 

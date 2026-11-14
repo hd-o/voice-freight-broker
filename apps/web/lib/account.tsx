@@ -1,19 +1,8 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  identitySchema,
-  errorSchema,
-  type Identity,
-} from "@voice-freight/contracts/business";
+import { identitySchema, errorSchema, type Identity } from "@voice-freight/contracts/business";
 import { renderAccountPanel as AccountPanel } from "@/components/navigation/account-panel";
 import { renderAlertDialog as AlertDialog } from "@/components/ui/alert-dialog";
 
@@ -36,22 +25,18 @@ export async function requestApi(path: string, method = "GET", body?: unknown) {
   const response = await fetch(`/api${path}`, {
     method,
     credentials: "same-origin",
-    headers:
-      body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(20_000),
   }).catch(() => {
-    throw new Error(
-      "Local API unavailable. Start the local workers and apply migrations, then try again.",
-    );
+    throw new Error("Local API unavailable. Start the local workers and apply migrations, then try again.");
   });
   if (!response.ok) {
-    if (response.status === 401)
+    if (response.status === 401) {
       window.dispatchEvent(new Event("freight-session-expired"));
-    const error = errorSchema.safeParse(
-      await response.json().catch(() => null),
-    );
+    }
+    const error = errorSchema.safeParse(await response.json().catch(() => null));
     throw new Error(
       response.status === 401
         ? "Session expired. Sign in again."
@@ -64,14 +49,10 @@ export async function requestApi(path: string, method = "GET", body?: unknown) {
 }
 
 async function fetchIdentity() {
-  const data: { user: unknown; identities: unknown[] } = await (
-    await requestApi("/identity")
-  ).json();
+  const data: { user: unknown; identities: unknown[] } = await (await requestApi("/identity")).json();
   return {
     user: data.user === null ? null : identitySchema.parse(data.user),
-    identities: data.identities.map((identity) =>
-      identitySchema.parse(identity),
-    ),
+    identities: data.identities.map((identity) => identitySchema.parse(identity)),
   };
 }
 
@@ -79,9 +60,7 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
   const cache = useQueryClient();
   const [session, setSession] = useState<string | null>(null);
   const [panel, setPanel] = useState(false);
-  const [operation, setOperation] = useState<
-    "sign-in" | "sign-out" | "waiting" | null
-  >(null);
+  const [operation, setOperation] = useState<"sign-in" | "sign-out" | "waiting" | null>(null);
   const [notice, setNotice] = useState<string>();
   const mutation = useRef(false);
   const pending = operation !== null;
@@ -116,7 +95,9 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
       setSession(localStorage.getItem(accountKey));
     }
     function restoreAccount(event: PageTransitionEvent) {
-      if (!event.persisted) return;
+      if (!event.persisted) {
+        return;
+      }
       cache.removeQueries({ queryKey: ["private"] });
       void cache.resetQueries({ queryKey: ["identity"] });
       setSession(localStorage.getItem(accountKey));
@@ -139,30 +120,25 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
     }
   }, [session, identity.data, cache]);
 
-  async function mutateSession(
-    action: "sign-in" | "sign-out",
-    command: () => Promise<void>,
-  ) {
-    if (mutation.current) return;
+  async function mutateSession(action: "sign-in" | "sign-out", command: () => Promise<void>) {
+    if (mutation.current) {
+      return;
+    }
     if (!navigator.locks) {
-      setNotice(
-        "Local accounts require browser Web Locks. Use desktop Chrome on localhost or HTTPS.",
-      );
+      setNotice("Local accounts require browser Web Locks. Use desktop Chrome on localhost or HTTPS.");
       return;
     }
     mutation.current = true;
     setOperation(action);
     setNotice(undefined);
     try {
-      const completed = await navigator.locks.request(
-        sessionLock,
-        { ifAvailable: true },
-        async (lock) => {
-          if (!lock) return false;
-          await command();
-          return true;
-        },
-      );
+      const completed = await navigator.locks.request(sessionLock, { ifAvailable: true }, async (lock) => {
+        if (!lock) {
+          return false;
+        }
+        await command();
+        return true;
+      });
       if (!completed) {
         setOperation("waiting");
         // Observe release without queuing the user's account choice.
@@ -204,9 +180,12 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
   }
 
   function performAccountAction() {
-    if (mutation.current) return;
-    if (user) void signOut();
-    else {
+    if (mutation.current) {
+      return;
+    }
+    if (user) {
+      void signOut();
+    } else {
       setPanel(true);
       void identity.refetch();
     }

@@ -8,9 +8,7 @@ const config: StorybookConfig = {
     name: "@storybook/react-vite",
     options: {
       builder: {
-        viteConfigPath: fileURLToPath(
-          new URL("./vite.config.ts", import.meta.url),
-        ),
+        viteConfigPath: fileURLToPath(new URL("./vite.config.ts", import.meta.url)),
       },
     },
   },

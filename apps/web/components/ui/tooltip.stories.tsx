@@ -14,9 +14,7 @@ const meta = {
   render: (args) => (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger render={<Button variant="outline" />}>
-          Hover or focus
-        </TooltipTrigger>
+        <TooltipTrigger render={<Button variant="outline" />}>Hover or focus</TooltipTrigger>
         <TooltipContent {...args} />
       </Tooltip>
     </TooltipProvider>

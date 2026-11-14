@@ -15,11 +15,7 @@ export type AccountActionProps = {
   onAccountAction: () => void;
 };
 
-export function renderAccountAction({
-  signedIn,
-  pending = false,
-  onAccountAction,
-}: AccountActionProps) {
+export function renderAccountAction({ signedIn, pending = false, onAccountAction }: AccountActionProps) {
   const [readiness, setReadiness] = useState(false);
   useEffect(() => {
     setReadiness(true);
@@ -30,13 +26,7 @@ export function renderAccountAction({
   return (
     <Tooltip>
       <TooltipTrigger
-        render={
-          <Button
-            variant="secondary"
-            size="icon"
-            disabled={!readiness || pending}
-          />
-        }
+        render={<Button variant="secondary" size="icon" disabled={!readiness || pending} />}
         aria-label={label}
         disabled={!readiness || pending}
         aria-busy={pending || undefined}

@@ -111,12 +111,7 @@ export const MultipleLoads: Story = {
   render: function renderDetails(args) {
     const [loadId, setLoadId] = useState<string | null>(null);
 
-    return (
-      <CallDetailLayout
-        {...args}
-        record={createDetail(sampleCalls[0], loadId, setLoadId)}
-      />
-    );
+    return <CallDetailLayout {...args} record={createDetail(sampleCalls[0], loadId, setLoadId)} />;
   },
 };
 

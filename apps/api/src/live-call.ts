@@ -1,14 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
 import { z } from "zod";
-import {
-  toolNameSchema,
-  type CallContext,
-} from "@voice-freight/contracts/business";
+import { toolNameSchema, type CallContext } from "@voice-freight/contracts/business";
 import { completeCall } from "@voice-freight/backend/calls";
-import {
-  ingestProviderEvent,
-  providerEventSchema,
-} from "@voice-freight/backend/provider-events";
+import { ingestProviderEvent, providerEventSchema } from "@voice-freight/backend/provider-events";
 import { BusinessError, requireCondition } from "@voice-freight/backend/model";
 import { readState, transact } from "@voice-freight/backend/repository";
 import {
@@ -44,7 +38,9 @@ export class LiveCall extends DurableObject<LiveBindings> {
   private closing = false;
 
   private haltProvider() {
-    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    if (this.socket?.readyState !== WebSocket.OPEN) {
+      return;
+    }
     try {
       this.socket.send(
         JSON.stringify({
@@ -59,19 +55,14 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   private isStub() {
-    return (
-      this.env.ENVIRONMENT === "local" && this.env.VOICE_PROVIDER === "stub"
-    );
+    return this.env.ENVIRONMENT === "local" && this.env.VOICE_PROVIDER === "stub";
   }
 
   private enqueue(command: () => Promise<void>) {
     this.queue = this.queue.then(command).catch(async () => {
       this.closing = true;
       this.haltProvider();
-      await this.end(
-        "Interrupted",
-        "The call was interrupted. Your saved agreements are preserved.",
-      ).catch(() => {});
+      await this.end("Interrupted", "The call was interrupted. Your saved agreements are preserved.").catch(() => {});
     });
     this.ctx.waitUntil(this.queue);
   }
@@ -99,12 +90,9 @@ export class LiveCall extends DurableObject<LiveBindings> {
         };
       }
     });
-    if (outcome.error)
-      throw new BusinessError(
-        outcome.error.code,
-        outcome.error.message,
-        outcome.error.status,
-      );
+    if (outcome.error) {
+      throw new BusinessError(outcome.error.code, outcome.error.message, outcome.error.status);
+    }
     return outcome.result!;
   }
 
@@ -117,12 +105,13 @@ export class LiveCall extends DurableObject<LiveBindings> {
       "call_ended",
       "This call already ended. Start a new call.",
     );
-    if (session.answerSdp)
+    if (session.answerSdp) {
       return {
         id: context.callId,
         answerSdp: session.answerSdp,
         provider: this.isStub() ? ("stub" as const) : ("openai" as const),
       };
+    }
     requireCondition(
       !session.providerAttempted,
       "startup_uncertain",
@@ -151,21 +140,18 @@ export class LiveCall extends DurableObject<LiveBindings> {
           current.state = "connected";
         });
       } else {
-        const response = await fetch(
-          "https://api.openai.com/v1/live/sessions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${this.env.OPENAI_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              session: createSessionConfiguration(),
-              transport: { type: "webrtc", sdp: offerSdp },
-            }),
-            signal: AbortSignal.timeout(15_000),
+        const response = await fetch("https://api.openai.com/v1/live/sessions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify({
+            session: createSessionConfiguration(),
+            transport: { type: "webrtc", sdp: offerSdp },
+          }),
+          signal: AbortSignal.timeout(15_000),
+        });
         if (!response.ok) {
           // An HTTP rejection confirms that no running session was created.
           // Its spending remains unconfirmed, but it must not occupy a voice slot.
@@ -195,54 +181,32 @@ export class LiveCall extends DurableObject<LiveBindings> {
         provider: this.isStub() ? ("stub" as const) : ("openai" as const),
       };
     } catch (error) {
-      await this.end(
-        "Connection failed",
-        "Could not connect. Your call record is saved.",
-      );
-      if (error instanceof BusinessError) throw error;
-      throw new BusinessError(
-        "provider_unavailable",
-        "Voice startup failed. Try a new call.",
-        503,
-      );
+      await this.end("Connection failed", "Could not connect. Your call record is saved.");
+      if (error instanceof BusinessError) {
+        throw error;
+      }
+      throw new BusinessError("provider_unavailable", "Voice startup failed. Try a new call.", 503);
     }
   }
 
   private async readSession() {
-    this.context ??=
-      (await this.ctx.storage.get<CallContext>("context")) ?? null;
-    requireCondition(
-      this.context,
-      "call_unavailable",
-      "Call unavailable.",
-      404,
-    );
+    this.context ??= (await this.ctx.storage.get<CallContext>("context")) ?? null;
+    requireCondition(this.context, "call_unavailable", "Call unavailable.", 404);
     const { state } = await readState(this.env.DB);
     const call = state.calls.find(
-      (entry) =>
-        entry.id === this.context!.callId &&
-        entry.ownerId === this.context!.userId,
+      (entry) => entry.id === this.context!.callId && entry.ownerId === this.context!.userId,
     );
-    const session = state.liveSessions.find(
-      (entry) => entry.id === this.context!.callId,
-    );
-    requireCondition(
-      call && session,
-      "call_unavailable",
-      "Call unavailable.",
-      404,
-    );
+    const session = state.liveSessions.find((entry) => entry.id === this.context!.callId);
+    requireCondition(call && session, "call_unavailable", "Call unavailable.", 404);
     return { state, call, session };
   }
 
   async connectAudio() {
     const { session } = await this.readSession();
-    requireCondition(
-      !this.closing && session.state === "connected",
-      "call_ended",
-      "This call is no longer active.",
-    );
-    if (await this.ctx.storage.get("greeted")) return;
+    requireCondition(!this.closing && session.state === "connected", "call_ended", "This call is no longer active.");
+    if (await this.ctx.storage.get("greeted")) {
+      return;
+    }
     await this.ctx.storage.put("greeted", true);
     await this.send({
       type: "session.commentary.append",
@@ -252,17 +216,11 @@ export class LiveCall extends DurableObject<LiveBindings> {
     });
   }
 
-  private async updateSession(
-    command: (
-      session: Awaited<ReturnType<LiveCall["readSession"]>>["session"],
-    ) => void,
-  ) {
+  private async updateSession(command: (session: Awaited<ReturnType<LiveCall["readSession"]>>["session"]) => void) {
     const context = this.context;
     requireCondition(context, "call_unavailable", "Call unavailable.", 404);
     await transact(this.env.DB, (state) => {
-      const session = state.liveSessions.find(
-        (entry) => entry.id === context.callId,
-      );
+      const session = state.liveSessions.find((entry) => entry.id === context.callId);
       requireCondition(session, "call_unavailable", "Call unavailable.", 404);
       command(session);
     });
@@ -273,30 +231,24 @@ export class LiveCall extends DurableObject<LiveBindings> {
     const timer = setTimeout(() => controller.abort(), 10_000);
     let response: Response;
     try {
-      response = await fetch(
-        `https://api.openai.com/v1/live/sessions/${encodeURIComponent(providerId)}/attach`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.env.OPENAI_API_KEY}`,
-            Upgrade: "websocket",
-          },
-          signal: controller.signal,
+      response = await fetch(`https://api.openai.com/v1/live/sessions/${encodeURIComponent(providerId)}/attach`, {
+        headers: {
+          Authorization: `Bearer ${this.env.OPENAI_API_KEY}`,
+          Upgrade: "websocket",
         },
-      );
+        signal: controller.signal,
+      });
     } finally {
       clearTimeout(timer);
     }
     const socket = response.webSocket;
-    requireCondition(
-      socket,
-      "sideband_unavailable",
-      "The voice coordinator could not connect.",
-      503,
-    );
+    requireCondition(socket, "sideband_unavailable", "The voice coordinator could not connect.", 503);
     socket.accept();
     this.socket = socket;
     socket.addEventListener("message", (message) => {
-      if (typeof message.data !== "string") return;
+      if (typeof message.data !== "string") {
+        return;
+      }
       // Reflected audio is deliberately discarded, never stored or logged.
       let event: unknown;
       try {
@@ -308,36 +260,30 @@ export class LiveCall extends DurableObject<LiveBindings> {
         return;
       }
       const parsed = providerEventSchema.safeParse(event);
-      if (!parsed.success || parsed.data.type.includes("audio.")) return;
+      if (!parsed.success || parsed.data.type.includes("audio.")) {
+        return;
+      }
       this.enqueue(() => this.observe(event));
     });
     socket.addEventListener("close", () => {
       this.socket = null;
       this.enqueue(async () => {
         const { session } = await this.readSession();
-        if (!session.providerClosed)
-          await this.end(
-            "Interrupted",
-            "Connection interrupted. Your partial transcript is saved.",
-          );
+        if (!session.providerClosed) {
+          await this.end("Interrupted", "Connection interrupted. Your partial transcript is saved.");
+        }
       });
     });
     socket.addEventListener("error", () =>
       this.enqueue(async () => {
-        await this.end(
-          "Interrupted",
-          "Voice connection failed. Your partial transcript is saved.",
-        );
+        await this.end("Interrupted", "Voice connection failed. Your partial transcript is saved.");
       }),
     );
   }
 
   private async send(event: Record<string, unknown>) {
     if (this.isStub()) {
-      const outgoing =
-        (await this.ctx.storage.get<Record<string, unknown>[]>(
-          "fixtureOutput",
-        )) ?? [];
+      const outgoing = (await this.ctx.storage.get<Record<string, unknown>[]>("fixtureOutput")) ?? [];
       outgoing.push(event);
       await this.ctx.storage.put("fixtureOutput", outgoing);
       return;
@@ -353,7 +299,9 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
   private async observe(input: unknown) {
     const event = providerEventSchema.parse(input);
-    if (!(await ingestProviderEvent(this.env.DB, this.context!, event))) return;
+    if (!(await ingestProviderEvent(this.env.DB, this.context!, event))) {
+      return;
+    }
     if (event.type === "session.closed") {
       await this.finish();
       return;
@@ -363,28 +311,24 @@ export class LiveCall extends DurableObject<LiveBindings> {
       return;
     }
     if (event.type === "error") {
-      await this.end(
-        "Interrupted",
-        "The voice service could not continue. Your call is saved.",
-      );
+      await this.end("Interrupted", "The voice service could not continue. Your call is saved.");
       return;
     }
-    if (!(await this.checkAllowance())) return;
+    if (!(await this.checkAllowance())) {
+      return;
+    }
     const functionEvent = functionEventSchema.safeParse(event);
     if (functionEvent.success) {
       const invocation = functionEvent.data;
       const pendingId = `pending:${invocation.event.item.call_id}`;
-      if (
-        (await this.readSession()).session.submittedCallIds.includes(
-          invocation.event.item.call_id,
-        )
-      ) {
+      if ((await this.readSession()).session.submittedCallIds.includes(invocation.event.item.call_id)) {
         await this.ctx.storage.delete(pendingId);
         return;
       }
       await this.ctx.storage.put(pendingId, invocation);
-      if (this.isStub()) await this.executeFunction(invocation);
-      else {
+      if (this.isStub()) {
+        await this.executeFunction(invocation);
+      } else {
         // Let transcript fragments following the tool event arrive before checking
         // confirmation. No transcript event itself marks a completed caller turn.
         this.ctx.waitUntil(
@@ -397,45 +341,39 @@ export class LiveCall extends DurableObject<LiveBindings> {
     if (event.type === "response.event") {
       const nested = providerEventSchema.parse(event.event);
       if (
-        [
-          "response.completed",
-          "response.failed",
-          "response.incomplete",
-          "response.cancelled",
-        ].includes(nested.type)
-      )
+        ["response.completed", "response.failed", "response.incomplete", "response.cancelled"].includes(nested.type)
+      ) {
         await this.continueResponse(z.string().parse(event.delegation_id));
+      }
     }
   }
 
-  private async executeFunction(
-    invocation: z.infer<typeof functionEventSchema>,
-  ) {
+  private async executeFunction(invocation: z.infer<typeof functionEventSchema>) {
     const {
       event: { item },
       delegation_id: delegationId,
     } = invocation;
     const { session } = await this.readSession();
-    if (
-      this.closing ||
-      session.state !== "connected" ||
-      session.submittedCallIds.includes(item.call_id)
-    )
+    if (this.closing || session.state !== "connected" || session.submittedCallIds.includes(item.call_id)) {
       return;
-    if (!(await this.checkAllowance())) return;
+    }
+    if (!(await this.checkAllowance())) {
+      return;
+    }
     let argumentsData: unknown;
     try {
       argumentsData = JSON.parse(item.arguments);
     } catch {
       argumentsData = null;
     }
-    const result = await this.env.TOOLS.executeObserved(
-      this.context!,
-      item.name,
-      { invocationId: item.call_id, arguments: argumentsData },
-    );
+    const result = await this.env.TOOLS.executeObserved(this.context!, item.name, {
+      invocationId: item.call_id,
+      arguments: argumentsData,
+    });
     const current = await this.readSession();
-    if (current.session.state !== "connected") return;
+    if (current.session.state !== "connected") {
+      return;
+    }
     await this.send({
       type: "response.item.create",
       event_id: `result-${item.call_id}`,
@@ -455,28 +393,25 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
   private async continueResponse(delegationId: string) {
     const pending = await this.ctx.storage.list({ prefix: "pending:" });
-    if (
-      [...pending.values()].some(
-        (entry) =>
-          functionEventSchema.parse(entry).delegation_id === delegationId,
-      )
-    )
+    if ([...pending.values()].some((entry) => functionEventSchema.parse(entry).delegation_id === delegationId)) {
       return;
+    }
     const { session } = await this.readSession();
     const count = session.continuations[delegationId] ?? 0;
     // A continuation belongs to the batch of newly submitted results, not every
     // repeated response.completed event. Persist that batch before sending.
     const submitted = session.delegationCallIds[delegationId] ?? [];
     const marker = `${delegationId}:${submitted.length}`;
-    if (!submitted.length || (await this.ctx.storage.get(marker))) return;
-    if (count >= maximumContinuationCount) {
-      await this.end(
-        "Interrupted",
-        "The voice service reached its work limit. Your call is saved.",
-      );
+    if (!submitted.length || (await this.ctx.storage.get(marker))) {
       return;
     }
-    if (!(await this.checkAllowance())) return;
+    if (count >= maximumContinuationCount) {
+      await this.end("Interrupted", "The voice service reached its work limit. Your call is saved.");
+      return;
+    }
+    if (!(await this.checkAllowance())) {
+      return;
+    }
     await this.ctx.storage.put(marker, true);
     await this.updateSession((entry) => {
       entry.continuations[delegationId] = count + 1;
@@ -489,19 +424,13 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
   private async checkAllowance() {
     const { state, session } = await this.readSession();
-    if (this.closing || session.state !== "connected") return false;
-    const reservation = state.reservations.find(
-      (entry) => entry.id === session.id,
-    );
-    requireCondition(
-      reservation,
-      "accounting_unavailable",
-      "Spending accounting unavailable.",
-      503,
-    );
+    if (this.closing || session.state !== "connected") {
+      return false;
+    }
+    const reservation = state.reservations.find((entry) => entry.id === session.id);
+    requireCondition(reservation, "accounting_unavailable", "Spending accounting unavailable.", 503);
     if (
-      reservation.reservedMicrodollars - reservation.chargedMicrodollars <=
-        shutdownHeadroomMicrodollars ||
+      reservation.reservedMicrodollars - reservation.chargedMicrodollars <= shutdownHeadroomMicrodollars ||
       calculateAvailableMicrodollars(state, new Date().toISOString()) < 0 ||
       session.responseIds.length >= maximumResponseCount
     ) {
@@ -515,31 +444,25 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   async end(
-    connection:
-      | "Ended normally"
-      | "Interrupted"
-      | "Connection failed" = "Ended normally",
+    connection: "Ended normally" | "Interrupted" | "Connection failed" = "Ended normally",
     notice: string | null = null,
   ) {
     this.closing = true;
     try {
       const { session } = await this.readSession();
-      if (session.state === "ended" || session.state === "ending") return;
+      if (session.state === "ended" || session.state === "ending") {
+        return;
+      }
       const now = new Date().toISOString();
       await transact(this.env.DB, (state) => {
-        const current = state.liveSessions.find(
-          (entry) => entry.id === session.id,
-        )!;
+        const current = state.liveSessions.find((entry) => entry.id === session.id)!;
         current.state = "ending";
         current.notice = notice;
         current.closingAt = now;
-        if (connection !== "Ended normally") current.gap = true;
-        completeCall(
-          state,
-          this.context!,
-          { connection, transcriptComplete: false },
-          now,
-        );
+        if (connection !== "Ended normally") {
+          current.gap = true;
+        }
+        completeCall(state, this.context!, { connection, transcriptComplete: false }, now);
       });
       await this.ctx.storage.setAlarm(Date.now() + 1000);
       if (this.isStub()) {
@@ -549,9 +472,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
           usage: {
             seconds: Math.max(
               session.voiceSeconds,
-              (Date.now() -
-                Date.parse((await this.readSession()).call.record.startedAt)) /
-                1000,
+              (Date.now() - Date.parse((await this.readSession()).call.record.startedAt)) / 1000,
             ),
           },
         });
@@ -565,20 +486,18 @@ export class LiveCall extends DurableObject<LiveBindings> {
         await this.finish();
       }
     } finally {
-      if (!this.isStub()) this.haltProvider();
+      if (!this.isStub()) {
+        this.haltProvider();
+      }
     }
   }
 
   private async finish() {
     const { session } = await this.readSession();
     const providerClosed = await transact(this.env.DB, (state) => {
-      const current = state.liveSessions.find(
-        (entry) => entry.id === session.id,
-      )!;
+      const current = state.liveSessions.find((entry) => entry.id === session.id)!;
       const call = state.calls.find((entry) => entry.id === session.id)!;
-      const reservation = state.reservations.find(
-        (entry) => entry.id === session.id,
-      )!;
+      const reservation = state.reservations.find((entry) => entry.id === session.id)!;
       if (!call.finalSnapshot) {
         completeCall(
           state,
@@ -587,20 +506,17 @@ export class LiveCall extends DurableObject<LiveBindings> {
           new Date().toISOString(),
         );
         current.gap = true;
-        current.notice ??=
-          "The voice session closed unexpectedly. Your partial call is saved.";
+        current.notice ??= "The voice session closed unexpectedly. Your partial call is saved.";
       }
       current.state = "ended";
       const complete = current.providerClosed && !current.gap;
       call.record.transcript.complete = complete;
       if (
         !current.providerAttempted ||
-        (current.usageConfirmed &&
-          current.responseIds.every((id) =>
-            current.completedResponseIds.includes(id),
-          ))
-      )
+        (current.usageConfirmed && current.responseIds.every((id) => current.completedResponseIds.includes(id)))
+      ) {
         reservation.settled = true;
+      }
       return current.providerClosed;
     });
     if (providerClosed) {
@@ -614,10 +530,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
     try {
       const { session, call } = await this.readSession();
       if (this.closing && session.state === "connected") {
-        await this.end(
-          "Interrupted",
-          "Usage accounting was interrupted. Your partial call is saved.",
-        );
+        await this.end("Interrupted", "Usage accounting was interrupted. Your partial call is saved.");
         return;
       }
       if (session.state === "ended") {
@@ -627,9 +540,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
         const closingAt = session.closingAt ?? new Date().toISOString();
         if (!session.closingAt || !call.finalSnapshot) {
           await transact(this.env.DB, (state) => {
-            const current = state.liveSessions.find(
-              (entry) => entry.id === session.id,
-            )!;
+            const current = state.liveSessions.find((entry) => entry.id === session.id)!;
             current.closingAt ??= closingAt;
             completeCall(
               state,
@@ -640,14 +551,8 @@ export class LiveCall extends DurableObject<LiveBindings> {
             current.gap = true;
           });
         }
-        if (
-          !this.socket &&
-          session.providerId &&
-          !this.isStub() &&
-          !session.providerClosed
-        ) {
-          const attempts =
-            (await this.ctx.storage.get<number>("recoveryAttempts")) ?? 0;
+        if (!this.socket && session.providerId && !this.isStub() && !session.providerClosed) {
+          const attempts = (await this.ctx.storage.get<number>("recoveryAttempts")) ?? 0;
           if (attempts < 2) {
             await this.ctx.storage.put("recoveryAttempts", attempts + 1);
             await this.updateSession((current) => {
@@ -668,19 +573,15 @@ export class LiveCall extends DurableObject<LiveBindings> {
         }
       } else {
         if (!this.isStub() && !this.socket) {
-          await this.end(
-            "Interrupted",
-            "The voice coordinator restarted. Your partial call is saved.",
-          );
+          await this.end("Interrupted", "The voice coordinator restarted. Your partial call is saved.");
           return;
         }
-        if (!(await this.checkAllowance())) return;
+        if (!(await this.checkAllowance())) {
+          return;
+        }
         const elapsed = (Date.now() - Date.parse(call.record.startedAt)) / 1000;
         const idle = (Date.now() - Date.parse(session.lastInputAt)) / 1000;
-        if (
-          elapsed >= session.maximumCallSeconds ||
-          idle >= session.inactivitySeconds
-        ) {
+        if (elapsed >= session.maximumCallSeconds || idle >= session.inactivitySeconds) {
           await this.end(
             "Ended normally",
             elapsed >= session.maximumCallSeconds
@@ -689,14 +590,8 @@ export class LiveCall extends DurableObject<LiveBindings> {
           );
           return;
         }
-        const warningSeconds = Math.min(
-          15,
-          Math.max(1, Math.floor(session.inactivitySeconds / 4)),
-        );
-        if (
-          idle >= session.inactivitySeconds - warningSeconds &&
-          !session.warned
-        ) {
+        const warningSeconds = Math.min(15, Math.max(1, Math.floor(session.inactivitySeconds / 4)));
+        if (idle >= session.inactivitySeconds - warningSeconds && !session.warned) {
           await this.updateSession((current) => {
             current.warned = true;
             current.notice = `Are you still there? Speak within ${warningSeconds} seconds to keep the call active.`;
@@ -726,27 +621,14 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   async observeFixture(event: unknown) {
-    requireCondition(
-      this.isStub(),
-      "forbidden",
-      "Provider fixtures are disabled.",
-      403,
-    );
+    requireCondition(this.isStub(), "forbidden", "Provider fixtures are disabled.", 403);
     await this.readSession();
     await this.observe(event);
   }
 
   async getFixtureOutput() {
-    requireCondition(
-      this.isStub(),
-      "forbidden",
-      "Provider fixtures are disabled.",
-      403,
-    );
-    const outgoing =
-      (await this.ctx.storage.get<Record<string, unknown>[]>(
-        "fixtureOutput",
-      )) ?? [];
+    requireCondition(this.isStub(), "forbidden", "Provider fixtures are disabled.", 403);
+    const outgoing = (await this.ctx.storage.get<Record<string, unknown>[]>("fixtureOutput")) ?? [];
     return outgoing.map((event) => ({
       type: String(event.type),
       json: JSON.stringify(event),
@@ -754,28 +636,20 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   async runFixture(scenario: string) {
-    requireCondition(
-      this.isStub(),
-      "forbidden",
-      "Provider fixtures are disabled.",
-      403,
-    );
+    requireCondition(this.isStub(), "forbidden", "Provider fixtures are disabled.", 403);
     await this.readSession();
-    if (scenario === "idle") return;
+    if (scenario === "idle") {
+      return;
+    }
     if (scenario === "budget-active") {
       await transact(this.env.DB, (state) => {
-        const reservation = state.reservations.find(
-          (entry) => entry.id === this.context!.callId,
-        )!;
+        const reservation = state.reservations.find((entry) => entry.id === this.context!.callId)!;
         reservation.reservedMicrodollars = shutdownHeadroomMicrodollars;
       });
       await this.checkAllowance();
       return;
     }
-    const invoke = async (
-      name: z.infer<typeof toolNameSchema>,
-      argumentsData: unknown,
-    ) => {
+    const invoke = async (name: z.infer<typeof toolNameSchema>, argumentsData: unknown) => {
       await this.observe({
         type: "response.event",
         event_id: crypto.randomUUID(),
@@ -795,16 +669,12 @@ export class LiveCall extends DurableObject<LiveBindings> {
       const { state, call } = await this.readSession();
       const quote = state.quotes.find((entry) => entry.id === targetId);
       const agreement = state.agreements.find((entry) => entry.id === targetId);
-      const load = call.record.loads.find(
-        (entry) => entry.id === (quote?.loadId ?? agreement?.load.id),
-      )!;
+      const load = call.record.loads.find((entry) => entry.id === (quote?.loadId ?? agreement?.load.id))!;
       const rateCents = quote?.rateCents ?? agreement!.rateCents;
       const startMs =
         Math.max(
           0,
-          ...state.transcriptFragments
-            .filter((entry) => entry.callId === call.id)
-            .map((entry) => entry.endMs),
+          ...state.transcriptFragments.filter((entry) => entry.callId === call.id).map((entry) => entry.endMs),
         ) + 1000;
       await this.observe({
         type: "session.output_transcript.delta",
@@ -826,10 +696,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
     const initial = await this.readSession();
     const loadIds = initial.call.inventoryIds
       .filter(
-        (loadId) =>
-          !initial.state.agreements.some(
-            (entry) => entry.load.id === loadId && entry.status === "effective",
-          ),
+        (loadId) => !initial.state.agreements.some((entry) => entry.load.id === loadId && entry.status === "effective"),
       )
       .slice(0, 2);
     for (const loadId of loadIds) {
@@ -845,10 +712,11 @@ export class LiveCall extends DurableObject<LiveBindings> {
     }
     let current = await this.readSession();
     const agreements = current.state.agreements.filter(
-      (entry) =>
-        entry.callId === current.call.id && entry.status === "effective",
+      (entry) => entry.callId === current.call.id && entry.status === "effective",
     );
-    if (agreements.length !== 2) return;
+    if (agreements.length !== 2) {
+      return;
+    }
     await readback(agreements[0].id, "cancel");
     await invoke("cancel_agreement", { agreementId: agreements[0].id });
     await invoke("begin_renegotiation", { agreementId: agreements[1].id });

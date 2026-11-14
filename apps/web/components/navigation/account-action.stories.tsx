@@ -28,9 +28,7 @@ export const Pending: Story = { args: { pending: true } };
 
 export const Callback: Story = {
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(
-      within(canvasElement).getByRole("button", { name: "Sign in" }),
-    );
+    await userEvent.click(within(canvasElement).getByRole("button", { name: "Sign in" }));
 
     await expect(args.onAccountAction).toHaveBeenCalledOnce();
   },
