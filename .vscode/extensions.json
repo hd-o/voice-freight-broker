@@ -1,5 +1,7 @@
 {
   "recommendations": [
+    // Lang
+    "TypeScriptTeam.native-preview",
     // Lint
     "VoidZero.vite-plus-extension-pack",
     "DavidAnson.vscode-markdownlint",
