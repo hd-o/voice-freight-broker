@@ -46,3 +46,6 @@ vp exec playwright install chromium
 
 # Show how to load Vite+ in the caller's shell; sourcing here affects only this script.
 printf '\nSetup complete. Load Vite+ in your shell with:\nsource "%s/env"\n' "$VP_HOME"
+
+# Run API app setup
+./apps/api/scripts/setup.sh
