@@ -1,15 +1,9 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
+	"$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
 	"name": "Ubuntu",
 	"image": "mcr.microsoft.com/devcontainers/base:resolute",
 	"features": {
-		"ghcr.io/devcontainers/features/docker-in-docker:4": {
-			"moby": false
-		},
-		"ghcr.io/devcontainers/features/node:2": {
-			"version": "26.13.1"
-		}
+		"ghcr.io/devcontainers/features/node:2": {}
 	},
 	"mounts": [
 		"type=bind,src=/tmp,dst=/tmp"
