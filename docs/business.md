@@ -73,11 +73,22 @@ preceding matching read-back and confirm unambiguously. Browser and model tool a
 Integration tests exercise this boundary through the exported recorder and RPC.
 
 For live calls, the Durable Object records every provider transcript fragment and executes `executeObserved` through
-Tools RPC. That path derives evidence inside the same transaction as the business command. Broker speech must name the
-current carrier, load reference, and exact rate. Caller speech must follow without overlap and clearly affirm;
-ambiguity, corrections, mismatched cents, and stale context require another read-back. New quotes establish a transcript
-boundary so an earlier read-back cannot confirm a later quote. Transcripts have no completed-turn marker; interpretation
-remains fallible. A short collection delay permits trailing fragments to arrive before confirmation is checked.
+Tools RPC. That path derives evidence inside the same transaction as the business command.
+
+Search results include a spoken load label: route, equipment, and an explicit UTC pickup date. Matching descriptions
+receive stable option numbers within the call's fixed inventory. Quotes include a generated read-back; committed
+agreements include the cancellation read-back. Full references are spoken only on request. Existing references and
+stored records are preserved.
+
+Broker speech must name the current carrier, spoken load label, and exact rate. Legacy reference read-backs remain
+accepted for calls already in progress. Confirmation groups speech by speaker changes rather than pauses. The latest
+explicit read-back is checked separately from earlier bargaining. Caller speech must follow without overlap and clearly
+affirm; ambiguity, corrections, mismatched cents, and stale context require another read-back. Cancellation and
+replacement must identify their action explicitly. Evidence failures return the current read-back; after two failed
+attempts for the same target, the assistant offers another load or ending the call instead of repeating indefinitely.
+New quotes establish a transcript boundary so earlier speech cannot confirm a later quote. Transcripts have no
+completed-turn marker; interpretation remains fallible. A short collection delay permits trailing fragments to arrive
+before confirmation is checked.
 
 The browser cannot invoke the direct business or finalization REST adapters for provider-managed calls. It uses
 authenticated SDP creation, status, audio-ready, and hang-up actions. The Durable Object resolves its trusted owner and

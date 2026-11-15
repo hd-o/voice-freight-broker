@@ -1,3 +1,5 @@
+import { executeTool } from "@voice-freight/backend/business";
+import { addInventory } from "@voice-freight/backend/inventory";
 import { env, SELF, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { seedDatabase } from "@voice-freight/backend/seeding";
@@ -257,7 +259,8 @@ it("runs the full coordinator and Tools RPC workflow with cancellation, replacem
   const { state } = await readState(env.DB);
   expect(state.reservations.find((entry) => entry.id === id)?.settled).toBe(true);
   expect(state.evidence).toHaveLength(8);
-  expect(final.transcript.entries).toHaveLength(8);
+  expect(final.transcript.entries.filter((entry) => entry.speaker === "carrier")).toHaveLength(4);
+  expect(final.transcript.entries.filter((entry) => entry.text.startsWith("Please confirm"))).toHaveLength(4);
   const late = createFunctionEvent("confirm_handoff", { quoteId: "old" });
   await stub.observeFixture(late);
   expect((await queryCall(env.DB, context)).agreements).toEqual(final.agreements);
@@ -539,4 +542,237 @@ it("repairs interrupted closing states before settling or timing out", async () 
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("commits a paused description read-back once, even after rejected bargaining", async () => {
+  const { context, stub } = await openCall();
+  await executeTool(env.DB, context, "verify_carrier", { invocationId: "verify", arguments: { mcNumber: "123456" } });
+  const quote = await executeTool(env.DB, context, "select_load", {
+    invocationId: "select",
+    arguments: { loadId: "seed-v1-01" },
+  });
+  if (!("quoteId" in quote)) {
+    throw new Error("Expected quote");
+  }
+  expect(quote.readback).toContain("Dallas to Atlanta dry van, pickup November 14, 2026");
+  expect(quote.readback).not.toContain("NS-seed");
+  await stub.observeFixture(createTranscriptEvent("output", "I can't do 2,500 dollars. ", 1000));
+  const boundary = quote.readback.indexOf(". Please say");
+  await stub.observeFixture(createTranscriptEvent("output", quote.readback.slice(0, boundary + 1), 4000));
+  await stub.observeFixture(createTranscriptEvent("output", quote.readback.slice(boundary + 1), 8000));
+  await stub.observeFixture(createTranscriptEvent("input", "Yes,", 12000));
+  await stub.observeFixture(createTranscriptEvent("input", " confirmed.", 15000));
+  const invocation = { invocationId: "confirm", arguments: { quoteId: quote.quoteId } };
+  const result = await executeTool(env.DB, context, "confirm_handoff", invocation, clock, true);
+  expect(await executeTool(env.DB, context, "confirm_handoff", invocation, clock, true)).toEqual(result);
+  expect((await queryCall(env.DB, context)).agreements).toMatchObject([{ rateCents: 200000, status: "effective" }]);
+  expect((await queryCall(env.DB, context)).agreements).toHaveLength(1);
+});
+
+it("rejects incorrect descriptions and trailing corrections, with actionable recovery", async () => {
+  const { context, stub } = await openCall();
+  await executeTool(env.DB, context, "verify_carrier", { invocationId: "verify", arguments: { mcNumber: "123456" } });
+  const quote = await executeTool(env.DB, context, "select_load", {
+    invocationId: "select",
+    arguments: { loadId: "seed-v1-01" },
+  });
+  if (!("quoteId" in quote)) {
+    throw new Error("Expected quote");
+  }
+  const readbacks = [
+    quote.readback.replace("Summit Transport", "Harbor Logistics"),
+    quote.readback.replace("Atlanta", "Denver"),
+    quote.readback.replace("November 14", "November 15"),
+    quote.readback.replace("2,000 dollars", "2,000.50 dollars"),
+    quote.readback.replace("Please confirm:", "Please confirm cancellation:"),
+    `${quote.readback} Please confirm: Summit Transport.`,
+    `Do not say ${quote.readback}`,
+  ];
+  for (const [index, readback] of readbacks.entries()) {
+    await stub.observeFixture(createTranscriptEvent("output", readback, 1000 + index * 5000));
+    await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed.", 2000 + index * 5000));
+    await expect(
+      executeTool(
+        env.DB,
+        context,
+        "confirm_handoff",
+        { invocationId: `invalid-${index}`, arguments: { quoteId: quote.quoteId } },
+        clock,
+        true,
+      ),
+    ).rejects.toMatchObject({ code: "evidence_required", message: expect.stringContaining(quote.readback) });
+  }
+  const { state } = await readState(env.DB);
+  const failure = state.receipts.find((entry) => entry.id.endsWith(":invalid-1"));
+  expect(failure && "error" in failure && failure.error.message).toContain("Two confirmation attempts failed");
+  await stub.observeFixture(createTranscriptEvent("output", quote.readback, 35000));
+  await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed", 37000));
+  await stub.observeFixture(createTranscriptEvent("input", ", but change the date.", 40000));
+  await expect(
+    executeTool(
+      env.DB,
+      context,
+      "confirm_handoff",
+      { invocationId: "correction", arguments: { quoteId: quote.quoteId } },
+      clock,
+      true,
+    ),
+  ).rejects.toMatchObject({ code: "evidence_required" });
+  expect((await queryCall(env.DB, context)).agreements).toHaveLength(0);
+  await stub.observeFixture(
+    createTranscriptEvent(
+      "output",
+      quote.readback
+        .replace("November 14, 2026", "November fourteenth, two thousand twenty six")
+        .replace("2,000 dollars", "two thousand dollars"),
+      43000,
+    ),
+  );
+  await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed.", 45000));
+  await executeTool(
+    env.DB,
+    context,
+    "confirm_handoff",
+    { invocationId: "fresh", arguments: { quoteId: quote.quoteId } },
+    clock,
+    true,
+  );
+  expect((await queryCall(env.DB, context)).agreements).toHaveLength(1);
+});
+
+it("distinguishes identical route/date loads with stable spoken options", async () => {
+  await transact(env.DB, (state) => {
+    addInventory(state, "second", clock);
+  });
+  const { context, stub } = await openCall();
+  await executeTool(env.DB, context, "verify_carrier", { invocationId: "verify", arguments: { mcNumber: "123456" } });
+  const search = await executeTool(env.DB, context, "search_loads", {
+    invocationId: "search",
+    arguments: { origin: "Dallas" },
+  });
+  if (!("loads" in search)) {
+    throw new Error("Expected loads");
+  }
+  expect(search.loads.find((load) => load.id === "seed-v1-01")?.spokenLabel).toContain("option 1");
+  expect(search.loads.find((load) => load.id === "second-01")?.spokenLabel).toContain("option 2");
+  const quote = await executeTool(env.DB, context, "select_load", {
+    invocationId: "select",
+    arguments: { loadId: "seed-v1-01" },
+  });
+  if (!("quoteId" in quote)) {
+    throw new Error("Expected quote");
+  }
+  await stub.observeFixture(createTranscriptEvent("output", quote.readback.replace("option 1", "option two"), 1000));
+  await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed.", 2000));
+  await expect(
+    executeTool(
+      env.DB,
+      context,
+      "confirm_handoff",
+      { invocationId: "wrong-option", arguments: { quoteId: quote.quoteId } },
+      clock,
+      true,
+    ),
+  ).rejects.toMatchObject({ code: "evidence_required" });
+  await stub.observeFixture(createTranscriptEvent("output", quote.readback.replace("option 1", "option one"), 4000));
+  await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed.", 5000));
+  await executeTool(
+    env.DB,
+    context,
+    "confirm_handoff",
+    { invocationId: "correct-option", arguments: { quoteId: quote.quoteId } },
+    clock,
+    true,
+  );
+  const next = await executeTool(env.DB, context, "select_load", {
+    invocationId: "next",
+    arguments: { loadId: "second-01" },
+  });
+  if (!("quoteId" in next)) {
+    throw new Error("Expected quote");
+  }
+  expect(next.readback).toContain("option 2");
+  await expect(
+    executeTool(
+      env.DB,
+      context,
+      "confirm_handoff",
+      { invocationId: "stale-answer", arguments: { quoteId: next.quoteId } },
+      clock,
+      true,
+    ),
+  ).rejects.toMatchObject({ code: "evidence_required" });
+});
+
+it("uses fresh action-specific descriptions for replacement and cancellation", async () => {
+  const { context, stub } = await openCall();
+  await executeTool(env.DB, context, "verify_carrier", { invocationId: "verify", arguments: { mcNumber: "123456" } });
+  const quote = await executeTool(env.DB, context, "select_load", {
+    invocationId: "select",
+    arguments: { loadId: "seed-v1-01" },
+  });
+  if (!("quoteId" in quote)) {
+    throw new Error("Expected quote");
+  }
+  await stub.observeFixture(createTranscriptEvent("output", quote.readback, 1000));
+  await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed.", 2000));
+  const agreement = await executeTool(
+    env.DB,
+    context,
+    "confirm_handoff",
+    { invocationId: "confirm", arguments: { quoteId: quote.quoteId } },
+    clock,
+    true,
+  );
+  if (!("cancellationReadback" in agreement)) {
+    throw new Error("Expected agreement");
+  }
+  expect(agreement.cancellationReadback).toContain("Please confirm cancellation:");
+  const replacement = await executeTool(env.DB, context, "begin_renegotiation", {
+    invocationId: "replace",
+    arguments: { agreementId: agreement.agreementId },
+  });
+  if (!("quoteId" in replacement)) {
+    throw new Error("Expected quote");
+  }
+  expect(replacement.readback).toContain("Please confirm replacement:");
+  await stub.observeFixture(createTranscriptEvent("output", replacement.readback.replace(" replacement", ""), 4000));
+  await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed.", 5000));
+  await expect(
+    executeTool(
+      env.DB,
+      context,
+      "confirm_handoff",
+      { invocationId: "wrong-action", arguments: { quoteId: replacement.quoteId } },
+      clock,
+      true,
+    ),
+  ).rejects.toMatchObject({ code: "evidence_required" });
+  await stub.observeFixture(createTranscriptEvent("output", replacement.readback, 7000));
+  await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed.", 8000));
+  const updated = await executeTool(
+    env.DB,
+    context,
+    "confirm_handoff",
+    { invocationId: "replacement", arguments: { quoteId: replacement.quoteId } },
+    clock,
+    true,
+  );
+  if (!("cancellationReadback" in updated)) {
+    throw new Error("Expected agreement");
+  }
+  await stub.observeFixture(createTranscriptEvent("output", updated.cancellationReadback, 10000));
+  await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed.", 12000));
+  await executeTool(
+    env.DB,
+    context,
+    "cancel_agreement",
+    { invocationId: "cancel", arguments: { agreementId: updated.agreementId } },
+    clock,
+    true,
+  );
+  expect((await queryCall(env.DB, context)).agreements.map((entry) => entry.status)).toEqual([
+    "superseded",
+    "cancelled",
+  ]);
 });

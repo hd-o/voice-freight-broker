@@ -3,6 +3,7 @@ import { requireCondition } from "./model";
 import { checkAvailability } from "./inventory";
 import { issueQuote, requireQuote } from "./negotiations";
 import { requireEvidence } from "./evidence";
+import { createReadback } from "./readbacks";
 
 export function beginRenegotiation(state: State, callId: string, agreementId: string) {
   const agreement = state.agreements.find(
@@ -72,6 +73,7 @@ export function confirmHandoff(
 
   return {
     agreementId: agreement.id,
+    cancellationReadback: createReadback(state, callId, load, agreement.rateCents, "cancel"),
     loadId: load.id,
     rateCents: agreement.rateCents,
     version: agreement.version,

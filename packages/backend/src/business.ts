@@ -14,6 +14,8 @@ import { issueQuote, evaluateOffer } from "./negotiations";
 import { beginRenegotiation, confirmHandoff, cancelAgreement } from "./agreements";
 import { transact } from "./repository";
 import { captureConfirmation } from "./confirmation";
+import { resolveTarget } from "./evidence";
+import { createReadback } from "./readbacks";
 
 export type ToolResult =
   | ReturnType<typeof verifyCarrier>
@@ -130,10 +132,43 @@ export async function executeTool(
         throw error;
       }
 
+      let message = error.message;
+      if (
+        observed &&
+        error.code === "evidence_required" &&
+        (name === "confirm_handoff" || name === "cancel_agreement")
+      ) {
+        const targetId =
+          name === "confirm_handoff"
+            ? toolArguments.confirm_handoff.parse(argumentsData).quoteId
+            : toolArguments.cancel_agreement.parse(argumentsData).agreementId;
+        const action = name === "cancel_agreement" ? "cancel" : "handoff";
+        const target = resolveTarget(state, context.callId, action, targetId);
+        const call = state.calls.find((entry) => entry.id === context.callId)!;
+        const load = call.record.loads.find((entry) => entry.id === target.loadId)!;
+        const quote = state.quotes.find((entry) => entry.id === targetId);
+        const failures =
+          state.receipts.filter(
+            (entry) =>
+              entry.callId === context.callId &&
+              entry.fingerprint === fingerprint &&
+              "error" in entry &&
+              entry.error.code === "evidence_required",
+          ).length + 1;
+        const readback = createReadback(
+          state,
+          call.id,
+          load,
+          target.rateCents,
+          action === "cancel" ? "cancel" : quote?.replacementId ? "replace" : "handoff",
+        );
+        message = `The agreement change was not saved. ${error.message} Read this back: ${readback}${failures >= 2 ? " Two confirmation attempts failed. Explain the failure and offer another load or ending the call; do not keep asking for the same confirmation." : ""}`;
+      }
+
       outcome = {
         error: {
           code: error.code,
-          message: error.message,
+          message,
           status: error.status,
         },
       };

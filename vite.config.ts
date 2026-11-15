@@ -6,6 +6,7 @@ export default defineConfig({
     ignorePatterns: ["**/worker-configuration.d.ts", "**/.vinext/**", ".devcontainer/**", ".vscode/**"],
     rules: {
       curly: "error",
+      "typescript/explicit-function-return-type": "error",
     },
   },
   fmt: {

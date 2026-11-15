@@ -27,10 +27,13 @@ account can access. Private history starts empty. For voice, add `OPENAI_API_KEY
 microphone, and give one of the displayed demo MC numbers. Voice uses `gpt-live-1`; delegation uses `gpt-6-luna` with
 low reasoning effort. Both require model access.
 
-After a full carrier/load/rate read-back, say **Yes, confirmed**. Agreements, cancellations, and replacements require
-fresh confirmation. Hang up to inspect the saved transcript, rates, and agreements in the dashboard. Analysis stays
-pending until its processing phase is implemented. Voice validation targets desktop Chrome; other browsers and mobile
-audio have not been validated.
+Loads are introduced one at a time by route, dates, equipment, cargo, weight, mileage, and posted rate. Ask for the full
+reference if you need it.
+
+After the carrier, route, equipment, pickup date, and exact rate are read back, say **Yes, confirmed**. Normal pauses do
+not invalidate the read-back. Agreements, cancellations, and replacements require fresh confirmation. Hang up to inspect
+the saved transcript, rates, and agreements in the dashboard. Analysis stays pending until its processing phase is
+implemented. Voice validation targets desktop Chrome; other browsers and mobile audio have not been validated.
 
 Use desktop Chrome for local sign-in. Overlapping account changes are blocked. If a port-forwarded browser address
 causes a same-origin error, set `LOCAL_ALLOWED_ORIGIN` in `apps/api/.dev.vars.local` to the exact browser origin, for

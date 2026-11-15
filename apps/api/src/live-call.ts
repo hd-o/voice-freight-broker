@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { z } from "zod";
 import { toolNameSchema, type CallContext } from "@voice-freight/contracts/business";
+import { createReadback } from "@voice-freight/backend/readbacks";
 import { completeCall } from "@voice-freight/backend/calls";
 import { ingestProviderEvent, providerEventSchema } from "@voice-freight/backend/provider-events";
 import { BusinessError, requireCondition } from "@voice-freight/backend/model";
@@ -676,18 +677,28 @@ export class LiveCall extends DurableObject<LiveBindings> {
           0,
           ...state.transcriptFragments.filter((entry) => entry.callId === call.id).map((entry) => entry.endMs),
         ) + 1000;
-      await this.observe({
-        type: "session.output_transcript.delta",
-        event_id: crypto.randomUUID(),
-        start_ms: startMs,
-        end_ms: startMs + 1000,
-        delta: `${action === "cancel" ? "Cancel" : "Confirm"} ${call.record.carrier!.name}, load ${load.reference}, at $${(rateCents / 100).toFixed(2)}. Please say yes, confirmed.`,
-      });
+      const speech = createReadback(
+        state,
+        call.id,
+        load,
+        rateCents,
+        action === "cancel" ? "cancel" : quote?.replacementId ? "replace" : "handoff",
+      );
+      const boundary = speech.indexOf(". Please say");
+      for (const [index, delta] of [speech.slice(0, boundary + 1), speech.slice(boundary + 1)].entries()) {
+        await this.observe({
+          type: "session.output_transcript.delta",
+          event_id: crypto.randomUUID(),
+          start_ms: startMs + index * 3000,
+          end_ms: startMs + index * 3000 + 1000,
+          delta,
+        });
+      }
       await this.observe({
         type: "session.input_transcript.delta",
         event_id: crypto.randomUUID(),
-        start_ms: startMs + 2000,
-        end_ms: startMs + 2500,
+        start_ms: startMs + 6000,
+        end_ms: startMs + 6500,
         delta: "Yes, confirmed.",
       });
     };

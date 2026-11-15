@@ -1,6 +1,7 @@
 import type { State, Quote } from "./model";
 import { requireCondition } from "./model";
 import { checkAvailability } from "./inventory";
+import { createReadback } from "./readbacks";
 
 export function issueQuote(state: State, callId: string, loadId: string, replacementId: string | null = null) {
   const call = state.calls.find((call) => call.id === callId)!;
@@ -101,6 +102,13 @@ export function describeQuote(state: State, quote: Quote) {
 
   return {
     quoteId: quote.id,
+    readback: createReadback(
+      state,
+      quote.callId,
+      state.inventory.find((entry) => entry.id === quote.loadId)!.load,
+      quote.rateCents,
+      quote.replacementId ? "replace" : "handoff",
+    ),
     version: quote.version,
     loadId: quote.loadId,
     rateCents: quote.rateCents,

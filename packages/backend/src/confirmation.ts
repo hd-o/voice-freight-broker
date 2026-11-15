@@ -3,67 +3,8 @@ import { authorizeCall } from "./authorization";
 import { requireCondition } from "./model";
 import type { State } from "./model";
 import { resolveTarget } from "./evidence";
-
-function normalizeSpeech(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-const unitWords = [
-  "zero",
-  "one",
-  "two",
-  "three",
-  "four",
-  "five",
-  "six",
-  "seven",
-  "eight",
-  "nine",
-  "ten",
-  "eleven",
-  "twelve",
-  "thirteen",
-  "fourteen",
-  "fifteen",
-  "sixteen",
-  "seventeen",
-  "eighteen",
-  "nineteen",
-];
-
-const tensWords = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
-
-function parseSpokenNumber(text: string): number | null {
-  let total = 0;
-  let group = 0;
-
-  for (const word of text
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word !== "and")
-  ) {
-    const unit = unitWords.indexOf(word);
-    const tens = tensWords.indexOf(word);
-
-    if (unit >= 0) {
-      group += unit;
-    } else if (tens >= 0) {
-      group += (tens + 2) * 10;
-    } else if (word === "hundred" && group > 0 && group < 100) {
-      group *= 100;
-    } else if (word === "thousand" && group > 0 && group < 1000) {
-      total += group * 1000;
-      group = 0;
-    } else {
-      return null;
-    }
-  }
-
-  return total + group;
-}
+import { normalizeSpeech, normalizeReadback, parseSpokenNumber, unitWords, tensWords } from "./speech";
+import { describeLoad } from "./readbacks";
 
 export function captureConfirmation(
   state: State,
@@ -97,11 +38,7 @@ export function captureConfirmation(
 
   let firstCaller = lastCaller;
 
-  while (
-    firstCaller > 0 &&
-    fragments[firstCaller - 1].speaker === "carrier" &&
-    fragments[firstCaller].startMs - fragments[firstCaller - 1].endMs <= 1500
-  ) {
+  while (firstCaller > 0 && fragments[firstCaller - 1].speaker === "carrier") {
     firstCaller--;
   }
 
@@ -132,14 +69,19 @@ export function captureConfirmation(
   while (
     firstBroker > 0 &&
     fragments[firstBroker - 1].speaker === "broker" &&
-    fragments[firstBroker - 1].startMs >= evidenceAfterMs &&
-    fragments[firstBroker].startMs - fragments[firstBroker - 1].endMs <= 1500
+    fragments[firstBroker - 1].startMs >= evidenceAfterMs
   ) {
     firstBroker--;
   }
 
   const broker = fragments.slice(firstBroker, firstCaller);
-  const brokerText = broker.map((entry) => entry.text).join("");
+  const brokerSpeech = broker.map((entry) => entry.text).join("");
+  // Earlier bargaining may contain rejected prices or negation. Validate the
+  // latest explicit read-back, without treating pauses as turn boundaries.
+  const readbackStart = [
+    ...brokerSpeech.matchAll(/(?:^|[.!?]\s+)please\s+confirm(?:\s+(?:cancellation|replacement))?[\s,:]+(?=\w)/gi),
+  ].at(-1)?.index;
+  const brokerText = readbackStart === undefined ? brokerSpeech : brokerSpeech.slice(readbackStart);
   const normalized = normalizeSpeech(brokerText.replace(/(?<=\d),(?=\d)/g, ""));
 
   const numericRates = [
@@ -169,7 +111,10 @@ export function captureConfirmation(
     (normalized.match(/\bcents\b/g)?.length ?? 0) === spokenMatches.filter((match) => match[2]).length;
 
   const hasCarrier = normalized.includes(normalizeSpeech(call.record.carrier.name));
-  const hasLoad = normalized.includes(normalizeSpeech(load.reference));
+  const spokenLabel = describeLoad(state, call.id, load).spokenLabel;
+  const hasLoad =
+    ` ${normalizeReadback(brokerText)} `.includes(` ${normalizeReadback(spokenLabel)} `) ||
+    (readbackStart === undefined && normalized.includes(normalizeSpeech(load.reference)));
   const lastBroker = broker.at(-1)!;
 
   requireCondition(
@@ -180,11 +125,20 @@ export function captureConfirmation(
       hasLoad &&
       hasRate &&
       (action === "cancel" ? /\bcancel\w*\b/.test(normalized) : !/\bcancel\w*\b/.test(normalized)) &&
+      (latestQuote?.replacementId
+        ? /\breplace(?:ment)?\b/.test(normalized)
+        : !/\breplace(?:ment)?\b/.test(normalized)) &&
       broker[0].startMs >= evidenceAfterMs &&
       caller[0].startMs >= lastBroker.endMs &&
       (!latestQuote || latestQuote.valid),
     "evidence_required",
-    "Read back the carrier, load and exact rate, then obtain a fresh, non-overlapping confirmation.",
+    !hasCarrier
+      ? "The carrier name is missing."
+      : !hasLoad
+        ? "The load description does not match."
+        : !hasRate
+          ? "The rate does not match."
+          : "A fresh, non-overlapping read-back and confirmation are required.",
   );
 
   const readbackId = `${broker[0].id}:readback:${targetId}`;

@@ -1,5 +1,6 @@
 import type { State } from "./model";
 import { requireCondition } from "./model";
+import { describeLoad } from "./readbacks";
 
 const routes = [
   ["Dallas, TX", "Atlanta, GA", "Dry van", 780],
@@ -92,5 +93,5 @@ export function searchLoads(
     call.record.matched = true;
   }
 
-  return { loads };
+  return { loads: loads.map((load) => describeLoad(state, callId, load)) };
 }
