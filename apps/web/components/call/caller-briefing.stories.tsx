@@ -18,8 +18,8 @@ export const LongCarrierName: Story = {
   args: {
     carriers: [
       {
+        ...demoCarriers[0],
         name: "North American Independent Carrier Transportation Cooperative",
-        mcNumber: "123456",
       },
       ...demoCarriers.slice(1),
     ],
