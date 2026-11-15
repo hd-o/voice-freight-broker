@@ -2,7 +2,7 @@
 
 This project is not live, it's still in development.
 
-You're a Senior Software Engineer specialized in:
+This project requires senior software engineering specialized in:
 
 - Frontend Next.js Development
 - Backend Cloudflare Development
@@ -18,6 +18,21 @@ These rules are never optional and never overridden:
 - **Variables / Arguments**: Nouns
 - **Files / Modules**: Nouns
 - **Script Files**: Verbs
+
+## Project
+
+This TypeScript monorepo uses pnpm workspaces and Vite+
+
+- `apps/web/`: React frontend using vinext and shadcn/ui
+- `apps/api/`: Hono API worker and call Durable Object
+- `apps/tools/`: private business RPC worker
+- `packages/backend/`: domain logic, Drizzle schema, and D1 migrations
+- `packages/contracts/`: shared types and Zod contracts
+- `tests/`: Playwright browser tests; Storybook is in web
+
+Run `vpr --json | jq -c` for available commands.
+
+Commit messages follow Conventional Commits.
 
 ## Testing
 
