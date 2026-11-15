@@ -2,14 +2,14 @@
 
 import type { ComponentProps } from "react";
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import { renderButton as Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { mergeClasses } from "@/lib/classes";
 
-export function renderAlertDialog(props: AlertDialogPrimitive.Root.Props): React.JSX.Element {
+export function AlertDialog(props: AlertDialogPrimitive.Root.Props): React.JSX.Element {
   return <AlertDialogPrimitive.Root {...props} />;
 }
 
-export function renderAlertDialogContent({ className, ...props }: AlertDialogPrimitive.Popup.Props): React.JSX.Element {
+export function AlertDialogContent({ className, ...props }: AlertDialogPrimitive.Popup.Props): React.JSX.Element {
   return (
     <AlertDialogPrimitive.Portal>
       <AlertDialogPrimitive.Backdrop
@@ -30,7 +30,7 @@ export function renderAlertDialogContent({ className, ...props }: AlertDialogPri
   );
 }
 
-export function renderAlertDialogHeader({ className, ...props }: ComponentProps<"div">): React.JSX.Element {
+export function AlertDialogHeader({ className, ...props }: ComponentProps<"div">): React.JSX.Element {
   return (
     <div
       data-slot="alert-dialog-header"
@@ -40,7 +40,7 @@ export function renderAlertDialogHeader({ className, ...props }: ComponentProps<
   );
 }
 
-export function renderAlertDialogFooter({ className, ...props }: ComponentProps<"div">): React.JSX.Element {
+export function AlertDialogFooter({ className, ...props }: ComponentProps<"div">): React.JSX.Element {
   return (
     <div
       data-slot="alert-dialog-footer"
@@ -53,7 +53,7 @@ export function renderAlertDialogFooter({ className, ...props }: ComponentProps<
   );
 }
 
-export function renderAlertDialogTitle({ className, ...props }: AlertDialogPrimitive.Title.Props): React.JSX.Element {
+export function AlertDialogTitle({ className, ...props }: AlertDialogPrimitive.Title.Props): React.JSX.Element {
   return (
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
@@ -65,7 +65,7 @@ export function renderAlertDialogTitle({ className, ...props }: AlertDialogPrimi
   );
 }
 
-export function renderAlertDialogDescription({
+export function AlertDialogDescription({
   className,
   ...props
 }: AlertDialogPrimitive.Description.Props): React.JSX.Element {
@@ -83,11 +83,11 @@ export function renderAlertDialogDescription({
   );
 }
 
-export function renderAlertDialogAction(props: ComponentProps<typeof Button>): React.JSX.Element {
+export function AlertDialogAction(props: ComponentProps<typeof Button>): React.JSX.Element {
   return <Button data-slot="alert-dialog-action" {...props} />;
 }
 
-export function renderAlertDialogCancel(props: AlertDialogPrimitive.Close.Props): React.JSX.Element {
+export function AlertDialogCancel(props: AlertDialogPrimitive.Close.Props): React.JSX.Element {
   return (
     <AlertDialogPrimitive.Close data-slot="alert-dialog-cancel" render={<Button variant="outline" />} {...props} />
   );

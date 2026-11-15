@@ -19,6 +19,7 @@ These rules are never optional and never overridden:
 
 - **Classes / Types**: Nouns
 - **Functions / Methods**: Verbs
+- **Component Functions**: Nouns
 - **Variables / Arguments**: Nouns
 - **Files / Modules**: Nouns
 - **Script Files**: Verbs

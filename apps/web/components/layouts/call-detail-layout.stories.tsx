@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderCallDetailLayout as CallDetailLayout } from "./call-detail-layout";
+import { CallDetailLayout } from "./call-detail-layout";
 import { createCallDetail } from "./call-detail-layout.fixtures";
 import { sampleCalls } from "@/lib/samples";
 import { createCallDetail as createDetail } from "@/lib/reporting";
@@ -108,7 +108,7 @@ export const LongContent: Story = {
 };
 
 export const MultipleLoads: Story = {
-  render: function renderDetails(args): React.JSX.Element {
+  render: function Details(args): React.JSX.Element {
     const [loadId, setLoadId] = useState<string | null>(null);
 
     return <CallDetailLayout {...args} record={createDetail(sampleCalls[0], loadId, setLoadId)} />;

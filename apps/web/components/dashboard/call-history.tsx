@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { renderButton as Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export type CallRecord = {
   id: string;
@@ -26,7 +26,7 @@ export type CallHistoryProps = {
   onPrevious: () => void;
 };
 
-export function renderCallHistory({
+export function CallHistory({
   rows,
   pageLabel,
   nextDisabled = false,

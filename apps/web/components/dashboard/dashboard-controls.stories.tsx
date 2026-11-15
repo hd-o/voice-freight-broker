@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderDashboardControls as DashboardControls } from "./dashboard-controls";
+import { DashboardControls } from "./dashboard-controls";
 const meta = {
   title: "Dashboard/Controls",
   component: DashboardControls,

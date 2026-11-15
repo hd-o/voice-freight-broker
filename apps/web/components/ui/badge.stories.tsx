@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { renderBadge as Badge } from "./badge";
+import { Badge } from "./badge";
 
 const meta = {
   title: "UI/Badge",

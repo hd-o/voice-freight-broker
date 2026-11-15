@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { renderPageHeader as PageHeader } from "./page-header";
+import { PageHeader } from "./page-header";
 
 const meta = {
   title: "Navigation/Page header",

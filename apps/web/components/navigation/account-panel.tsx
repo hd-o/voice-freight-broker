@@ -1,11 +1,11 @@
 import {
-  renderAlertDialogAction as AlertDialogAction,
-  renderAlertDialogCancel as AlertDialogCancel,
-  renderAlertDialogContent as AlertDialogContent,
-  renderAlertDialogDescription as AlertDialogDescription,
-  renderAlertDialogFooter as AlertDialogFooter,
-  renderAlertDialogHeader as AlertDialogHeader,
-  renderAlertDialogTitle as AlertDialogTitle,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { Identity } from "@voice-freight/contracts/business";
 
@@ -17,13 +17,7 @@ export type AccountPanelProps = {
   onSignIn: (id: string) => void;
 };
 
-export function renderAccountPanel({
-  identities,
-  pending,
-  progress,
-  error,
-  onSignIn,
-}: AccountPanelProps): React.JSX.Element {
+export function AccountPanel({ identities, pending, progress, error, onSignIn }: AccountPanelProps): React.JSX.Element {
   return (
     <AlertDialogContent className="max-w-xl">
       <AlertDialogHeader>

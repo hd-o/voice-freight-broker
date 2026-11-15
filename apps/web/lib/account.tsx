@@ -3,8 +3,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type ReactElement } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { identitySchema, errorSchema, type Identity } from "@voice-freight/contracts/business";
-import { renderAccountPanel as AccountPanel } from "@/components/navigation/account-panel";
-import { renderAlertDialog as AlertDialog } from "@/components/ui/alert-dialog";
+import { AccountPanel } from "@/components/navigation/account-panel";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 const accountContext = createContext<{
   user: Identity | null;
@@ -56,7 +56,7 @@ async function fetchIdentity(): Promise<{ user: Identity | null; identities: Ide
   };
 }
 
-export function renderAccountProvider({ children }: { children: ReactNode }): ReactElement {
+export function AccountProvider({ children }: { children: ReactNode }): ReactElement {
   const cache = useQueryClient();
   const [session, setSession] = useState<string | null>(null);
   const [panel, setPanel] = useState(false);

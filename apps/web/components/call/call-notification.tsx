@@ -1,5 +1,5 @@
 import { AlertCircle, CircleHelp, LoaderCircle, X } from "lucide-react";
-import { renderButton as Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { mergeClasses } from "@/lib/classes";
 
 export type CallNotificationKind =
@@ -55,7 +55,7 @@ const notifications: Record<CallNotificationKind, { title: string; description: 
   },
 };
 
-export function renderCallNotification({
+export function CallNotification({
   kind,
   administrator = false,
   onDismiss,

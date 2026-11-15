@@ -1,14 +1,11 @@
-import { renderApplicationLayout as ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
-import { renderPageHeader as PageHeader } from "@/components/navigation/page-header";
-import { renderBadge as Badge } from "@/components/ui/badge";
-import { renderButton as Button } from "@/components/ui/button";
-import { renderSkeleton as Skeleton } from "@/components/ui/skeleton";
-import { renderLoadSummary as LoadSummary, type LoadSummaryProps } from "@/components/dashboard/load-summary";
-import {
-  renderAnalysisSummary as AnalysisSummary,
-  type AnalysisSummaryProps,
-} from "@/components/dashboard/analysis-summary";
-import { renderTranscript as Transcript, type TranscriptEntry } from "@/components/call/transcript";
+import { ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
+import { PageHeader } from "@/components/navigation/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { LoadSummary, type LoadSummaryProps } from "@/components/dashboard/load-summary";
+import { AnalysisSummary, type AnalysisSummaryProps } from "@/components/dashboard/analysis-summary";
+import { Transcript, type TranscriptEntry } from "@/components/call/transcript";
 
 export type CallDetail = {
   carrier: string;
@@ -27,7 +24,7 @@ export type CallDetailLayoutProps = Omit<ApplicationLayoutProps, "activePage" | 
   notice?: string;
 };
 
-export function renderCallDetailLayout({
+export function CallDetailLayout({
   record,
   loading = false,
   unavailable = false,

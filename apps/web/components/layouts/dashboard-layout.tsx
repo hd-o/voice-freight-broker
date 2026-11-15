@@ -1,12 +1,9 @@
-import { renderApplicationLayout as ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
-import { renderPageHeader as PageHeader } from "@/components/navigation/page-header";
-import { renderMetricCard as MetricCard, type MetricCardProps } from "@/components/dashboard/metric-card";
-import {
-  renderSentimentDistribution as SentimentDistribution,
-  type SentimentDistributionProps,
-} from "@/components/dashboard/sentiment-distribution";
-import { renderCallHistory as CallHistory, type CallHistoryProps } from "@/components/dashboard/call-history";
-import { renderSkeleton as Skeleton } from "@/components/ui/skeleton";
+import { ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
+import { PageHeader } from "@/components/navigation/page-header";
+import { MetricCard, type MetricCardProps } from "@/components/dashboard/metric-card";
+import { SentimentDistribution, type SentimentDistributionProps } from "@/components/dashboard/sentiment-distribution";
+import { CallHistory, type CallHistoryProps } from "@/components/dashboard/call-history";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { ReactNode } from "react";
 
 export type DashboardLayoutProps = Omit<ApplicationLayoutProps, "activePage" | "children"> & {
@@ -18,7 +15,7 @@ export type DashboardLayoutProps = Omit<ApplicationLayoutProps, "activePage" | "
   controls?: ReactNode;
 };
 
-export function renderDashboardLayout({
+export function DashboardLayout({
   metrics,
   sentiment,
   history,

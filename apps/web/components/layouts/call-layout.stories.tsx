@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderCallLayout as CallLayout } from "./call-layout";
+import { CallLayout } from "./call-layout";
 import { demoCarriers } from "@/components/call/carrier-fixtures";
 import { transcriptEntries } from "@/components/call/transcript-fixtures";
 

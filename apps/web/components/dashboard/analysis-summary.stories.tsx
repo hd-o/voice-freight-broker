@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { sampleCalls } from "@/lib/samples";
 import { fn } from "storybook/test";
-import { renderAnalysisSummary as AnalysisSummary } from "./analysis-summary";
+import { AnalysisSummary } from "./analysis-summary";
 
 const meta = {
   title: "Dashboard/AnalysisSummary",

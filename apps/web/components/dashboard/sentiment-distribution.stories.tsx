@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { renderSentimentDistribution as SentimentDistribution } from "./sentiment-distribution";
+import { SentimentDistribution } from "./sentiment-distribution";
 import { sentiments } from "./sentiment-distribution.fixtures";
 
 const meta = {

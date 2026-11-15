@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { renderTranscript as Transcript } from "./transcript";
+import { Transcript } from "./transcript";
 import { transcriptEntries } from "./transcript-fixtures";
 
 const meta = {

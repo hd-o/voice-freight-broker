@@ -1,4 +1,4 @@
-import { renderButton as Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export type DashboardControlsProps = {
   restocking?: boolean;
@@ -7,7 +7,7 @@ export type DashboardControlsProps = {
   onRestock: () => void;
 };
 
-export function renderDashboardControls({
+export function DashboardControls({
   restocking,
   feedback,
   error,

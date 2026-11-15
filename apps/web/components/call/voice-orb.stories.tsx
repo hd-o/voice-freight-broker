@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { renderVoiceOrb as VoiceOrb } from "./voice-orb";
+import { VoiceOrb } from "./voice-orb";
 
 const meta = {
   title: "Call/Voice Orb",

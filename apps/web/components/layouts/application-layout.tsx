@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { renderNavigation as Navigation, type NavigationPage } from "@/components/navigation/navigation";
+import { Navigation, type NavigationPage } from "@/components/navigation/navigation";
 
 export type ApplicationLayoutProps = {
   activePage: NavigationPage;
@@ -13,7 +13,7 @@ export type ApplicationLayoutProps = {
   children: ReactNode;
 };
 
-export function renderApplicationLayout({
+export function ApplicationLayout({
   activePage,
   signedIn,
   accountName,

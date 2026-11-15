@@ -1,4 +1,4 @@
-import { renderButton as Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { mergeClasses } from "@/lib/classes";
 
 export type CallIntroductionProps = {
@@ -6,7 +6,7 @@ export type CallIntroductionProps = {
   className?: string;
 };
 
-export function renderCallIntroduction({ onExploreSamples, className }: CallIntroductionProps): React.JSX.Element {
+export function CallIntroduction({ onExploreSamples, className }: CallIntroductionProps): React.JSX.Element {
   return (
     <section
       className={mergeClasses("flex flex-col justify-center bg-muted p-6", className)}

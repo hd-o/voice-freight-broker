@@ -5,9 +5,9 @@ import { useState, type ReactNode } from "react";
 import "@fontsource-variable/inter";
 // vinext's static client manifest includes styles imported by client components.
 import "@/app/globals.css";
-import { renderAccountProvider as AccountProvider } from "@/lib/account";
+import { AccountProvider } from "@/lib/account";
 
-export function renderProviders({ children }: { children: ReactNode }): React.JSX.Element {
+export function Providers({ children }: { children: ReactNode }): React.JSX.Element {
   const [queryClient] = useState((): QueryClient => new QueryClient());
 
   return (

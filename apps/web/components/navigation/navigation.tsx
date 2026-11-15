@@ -2,13 +2,8 @@
 
 import { LayoutGrid, Phone, UserRound } from "lucide-react";
 import { getButtonClasses } from "@/components/ui/button";
-import {
-  renderTooltip as Tooltip,
-  renderTooltipTrigger as TooltipTrigger,
-  renderTooltipContent as TooltipContent,
-  renderTooltipProvider as TooltipProvider,
-} from "@/components/ui/tooltip";
-import { renderAccountAction as AccountAction } from "./account-action";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { AccountAction } from "./account-action";
 
 const navigationItems = [
   { page: "call", label: "Call", icon: Phone },
@@ -26,7 +21,7 @@ export type NavigationProps = {
   onAccountAction: () => void;
 };
 
-export function renderNavigation({
+export function Navigation({
   activePage,
   signedIn,
   accountName,

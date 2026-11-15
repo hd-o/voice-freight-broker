@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderLoadSummary as LoadSummary } from "./load-summary";
+import { LoadSummary } from "./load-summary";
 import { firstLoad, secondLoad } from "./load-summary.fixtures";
 import { loadOptions } from "./load-selector.fixtures";
 

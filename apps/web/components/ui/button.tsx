@@ -27,7 +27,7 @@ export const getButtonClasses = cva(
 
 export type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof getButtonClasses>;
 
-export function renderButton({ className, variant, size, ...props }: ButtonProps): React.JSX.Element {
+export function Button({ className, variant, size, ...props }: ButtonProps): React.JSX.Element {
   return (
     <ButtonPrimitive
       data-slot="button"

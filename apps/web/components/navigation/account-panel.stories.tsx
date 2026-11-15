@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderAccountPanel as AccountPanel } from "./account-panel";
-import { renderAlertDialog as AlertDialog } from "@/components/ui/alert-dialog";
+import { AccountPanel } from "./account-panel";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 const meta = {
   title: "Navigation/Account Panel",

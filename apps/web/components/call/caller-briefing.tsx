@@ -7,7 +7,7 @@ export type CallerBriefingProps = {
   className?: string;
 };
 
-export function renderCallerBriefing({ carriers, className }: CallerBriefingProps): React.JSX.Element {
+export function CallerBriefing({ carriers, className }: CallerBriefingProps): React.JSX.Element {
   return (
     <section
       className={mergeClasses("rounded-[10px] border border-border bg-surface p-6", className)}

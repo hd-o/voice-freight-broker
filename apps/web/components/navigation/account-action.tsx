@@ -2,12 +2,8 @@
 
 import { LogIn, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import { renderButton as Button } from "@/components/ui/button";
-import {
-  renderTooltip as Tooltip,
-  renderTooltipTrigger as TooltipTrigger,
-  renderTooltipContent as TooltipContent,
-} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 export type AccountActionProps = {
   signedIn: boolean;
@@ -15,11 +11,7 @@ export type AccountActionProps = {
   onAccountAction: () => void;
 };
 
-export function renderAccountAction({
-  signedIn,
-  pending = false,
-  onAccountAction,
-}: AccountActionProps): React.JSX.Element {
+export function AccountAction({ signedIn, pending = false, onAccountAction }: AccountActionProps): React.JSX.Element {
   const [readiness, setReadiness] = useState(false);
   useEffect((): void => {
     setReadiness(true);

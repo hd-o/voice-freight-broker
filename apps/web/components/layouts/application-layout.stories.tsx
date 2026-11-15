@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderPageHeader as PageHeader } from "@/components/navigation/page-header";
-import { renderApplicationLayout as ApplicationLayout } from "./application-layout";
+import { PageHeader } from "@/components/navigation/page-header";
+import { ApplicationLayout } from "./application-layout";
 
 const meta = {
   title: "Layouts/Application",

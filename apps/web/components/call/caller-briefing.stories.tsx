@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { renderCallerBriefing as CallerBriefing } from "./caller-briefing";
+import { CallerBriefing } from "./caller-briefing";
 import { demoCarriers } from "./carrier-fixtures";
 
 const meta = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { LoaderCircle } from "lucide-react";
-import { renderButton as Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 const analysisLabels = {
   complete: "Complete",
@@ -18,7 +18,7 @@ export type AnalysisSummaryProps = {
   onRetry?: () => void;
 };
 
-export function renderAnalysisSummary({
+export function AnalysisSummary({
   sentiment,
   connection,
   status,

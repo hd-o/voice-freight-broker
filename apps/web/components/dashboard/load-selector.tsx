@@ -16,7 +16,7 @@ export type LoadSelectorProps = {
   onOpenChange?: (open: boolean) => void;
 };
 
-export function renderLoadSelector({
+export function LoadSelector({
   options,
   value,
   countLabel,

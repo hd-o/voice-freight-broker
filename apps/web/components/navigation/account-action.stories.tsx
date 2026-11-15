@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-import { renderAccountAction as AccountAction } from "./account-action";
-import { renderTooltipProvider as TooltipProvider } from "@/components/ui/tooltip";
+import { AccountAction } from "./account-action";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const meta = {
   title: "Navigation/Account action",

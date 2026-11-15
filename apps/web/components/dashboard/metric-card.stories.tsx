@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { renderMetricCard as MetricCard } from "./metric-card";
+import { MetricCard } from "./metric-card";
 import { metrics, unavailableMetric } from "./metric-card.fixtures";
 
 const meta = {

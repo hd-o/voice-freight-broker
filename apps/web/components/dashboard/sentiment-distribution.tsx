@@ -16,7 +16,7 @@ export type SentimentDistributionProps = {
   description: string;
 };
 
-export function renderSentimentDistribution({ segments, description }: SentimentDistributionProps): React.JSX.Element {
+export function SentimentDistribution({ segments, description }: SentimentDistributionProps): React.JSX.Element {
   return (
     <section aria-label="Caller sentiment" className="min-w-0 rounded-[10px] bg-muted p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">

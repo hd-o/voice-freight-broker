@@ -15,7 +15,7 @@ export type TranscriptProps = {
   className?: string;
 };
 
-export function renderTranscript({
+export function Transcript({
   entries,
   heading = "Transcript",
   emptyMessage = "Your conversation will appear here when the call starts.",

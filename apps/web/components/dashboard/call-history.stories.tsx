@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderCallHistory as CallHistory } from "./call-history";
+import { CallHistory } from "./call-history";
 import { calls, longCalls } from "./call-history.fixtures";
 import { createCallHref } from "@/lib/navigation";
 import { sampleCalls } from "@/lib/samples";

@@ -1,4 +1,4 @@
-import { renderButton as Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export type CallControlsProps = {
   state: "ready" | "connecting" | "connected" | "ending" | "ended";
@@ -12,7 +12,7 @@ export type CallControlsProps = {
   onNewCall: () => void;
 };
 
-export function renderCallControls({
+export function CallControls({
   state,
   signedIn = false,
   accountPending = false,

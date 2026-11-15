@@ -1,16 +1,13 @@
 "use client";
 
-import { renderApplicationLayout as ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
-import { renderPageHeader as PageHeader } from "@/components/navigation/page-header";
-import { renderCallerBriefing as CallerBriefing, type DemoCarrier } from "@/components/call/caller-briefing";
-import { renderCallIntroduction as CallIntroduction } from "@/components/call/call-introduction";
-import { renderCallControls as CallControls, type CallControlsProps } from "@/components/call/call-controls";
-import { renderVoiceOrb as VoiceOrb } from "@/components/call/voice-orb";
-import { renderTranscript as Transcript, type TranscriptEntry } from "@/components/call/transcript";
-import {
-  renderCallNotification as CallNotification,
-  type CallNotificationKind,
-} from "@/components/call/call-notification";
+import { ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
+import { PageHeader } from "@/components/navigation/page-header";
+import { CallerBriefing, type DemoCarrier } from "@/components/call/caller-briefing";
+import { CallIntroduction } from "@/components/call/call-introduction";
+import { CallControls, type CallControlsProps } from "@/components/call/call-controls";
+import { VoiceOrb } from "@/components/call/voice-orb";
+import { Transcript, type TranscriptEntry } from "@/components/call/transcript";
+import { CallNotification, type CallNotificationKind } from "@/components/call/call-notification";
 
 export type CallLayoutProps = CallControlsProps & {
   signedIn: boolean;
@@ -29,7 +26,7 @@ export type CallLayoutProps = CallControlsProps & {
   notice?: string;
 };
 
-export function renderCallLayout({
+export function CallLayout({
   state,
   signedIn,
   accountName,

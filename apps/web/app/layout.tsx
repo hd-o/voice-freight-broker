@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import { renderProviders as Providers } from "@/components/providers";
+import { Providers } from "@/components/providers";
 
 export const metadata = {
   title: "Voice Freight Broker",
   icons: { icon: "/favicon.svg" },
 };
 
-export default function renderLayout({ children }: { children: ReactNode }): React.JSX.Element {
+export default function Layout({ children }: { children: ReactNode }): React.JSX.Element {
   return (
     <html lang="en">
       <body>

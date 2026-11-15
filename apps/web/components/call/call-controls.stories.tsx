@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderCallControls as CallControls } from "./call-controls";
+import { CallControls } from "./call-controls";
 
 const meta = {
   title: "Call/Call Controls",

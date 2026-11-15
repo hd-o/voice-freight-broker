@@ -3,7 +3,7 @@ import type { Preview } from "@storybook/react-vite";
 import "@fontsource-variable/inter";
 import "../app/globals.css";
 
-function renderTheme({ theme, children }: { theme: "light" | "dark"; children: ReactNode }): React.JSX.Element {
+function Theme({ theme, children }: { theme: "light" | "dark"; children: ReactNode }): React.JSX.Element {
   useEffect((): (() => void) => {
     document.documentElement.dataset.theme = theme;
 
@@ -14,8 +14,6 @@ function renderTheme({ theme, children }: { theme: "light" | "dark"; children: R
 
   return <div data-theme={theme}>{children}</div>;
 }
-
-const Theme = renderTheme;
 
 const preview: Preview = {
   globalTypes: {

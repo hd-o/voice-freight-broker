@@ -1,13 +1,13 @@
 "use client";
 
 import type { TranscriptEntry } from "@/components/call/transcript";
-import { renderCallLayout as CallLayout } from "@/components/layouts/call-layout";
+import { CallLayout } from "@/components/layouts/call-layout";
 import { demoCarriers } from "@/components/call/carrier-fixtures";
 import { navigatePage } from "@/lib/navigation";
 import { useAccount } from "@/lib/account";
 import { useLiveCall } from "@/lib/live";
 
-export default function renderCallPage(): React.JSX.Element {
+export default function CallPage(): React.JSX.Element {
   const account = useAccount();
   const call = useLiveCall(account.user?.id);
 

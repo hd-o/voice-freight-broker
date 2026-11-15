@@ -1,5 +1,5 @@
-import { renderBadge as Badge } from "@/components/ui/badge";
-import { renderLoadSelector as LoadSelector, type LoadSelectorProps } from "./load-selector";
+import { Badge } from "@/components/ui/badge";
+import { LoadSelector, type LoadSelectorProps } from "./load-selector";
 
 export type NegotiationEntry = {
   label: string;
@@ -24,7 +24,7 @@ export type LoadSummaryProps = {
   load: LoadDetails | null;
 };
 
-export function renderLoadSummary({
+export function LoadSummary({
   outcome,
   eligibility,
   carrier,

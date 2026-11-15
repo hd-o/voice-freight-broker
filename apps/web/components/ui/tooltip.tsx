@@ -12,19 +12,19 @@ export type TooltipTriggerProps = TooltipPrimitive.Trigger.Props;
 export type TooltipContentProps = TooltipPrimitive.Popup.Props &
   Pick<TooltipPrimitive.Positioner.Props, "side" | "sideOffset" | "align" | "alignOffset">;
 
-export function renderTooltipProvider({ delay = 300, ...props }: TooltipProviderProps): React.JSX.Element {
+export function TooltipProvider({ delay = 300, ...props }: TooltipProviderProps): React.JSX.Element {
   return <TooltipPrimitive.Provider delay={delay} {...props} />;
 }
 
-export function renderTooltip(props: TooltipProps): React.JSX.Element {
+export function Tooltip(props: TooltipProps): React.JSX.Element {
   return <TooltipPrimitive.Root {...props} />;
 }
 
-export function renderTooltipTrigger(props: TooltipTriggerProps): React.JSX.Element {
+export function TooltipTrigger(props: TooltipTriggerProps): React.JSX.Element {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
-export function renderTooltipContent({
+export function TooltipContent({
   className,
   side = "top",
   sideOffset = 8,

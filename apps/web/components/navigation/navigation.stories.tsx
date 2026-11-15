@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-import { renderNavigation as Navigation } from "./navigation";
+import { Navigation } from "./navigation";
 
 const meta = {
   title: "Navigation/Navigation",

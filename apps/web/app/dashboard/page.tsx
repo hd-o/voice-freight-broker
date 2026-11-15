@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { callsSchema } from "@voice-freight/contracts/calls";
 import { summarizeCalls } from "@voice-freight/contracts/reporting";
-import { renderDashboardLayout as DashboardLayout } from "@/components/layouts/dashboard-layout";
-import { renderDashboardControls as DashboardControls } from "@/components/dashboard/dashboard-controls";
+import { DashboardLayout } from "@/components/layouts/dashboard-layout";
+import { DashboardControls } from "@/components/dashboard/dashboard-controls";
 import { sampleCalls } from "@/lib/samples";
 import { createHistory, createMetrics } from "@/lib/reporting";
 import { useAccount, requestApi } from "@/lib/account";
@@ -13,7 +13,7 @@ import { changeQuery, createCallHref, navigatePage, useQueryParameters } from "@
 
 const pageSize = 5;
 
-export default function renderDashboardPage(): React.JSX.Element {
+export default function DashboardPage(): React.JSX.Element {
   const { parameters, readiness } = useQueryParameters();
   const account = useAccount();
   const [feedback, setFeedback] = useState<string>();

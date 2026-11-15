@@ -20,6 +20,6 @@ const getBadgeClasses = cva(
 
 export type BadgeProps = ComponentProps<"span"> & VariantProps<typeof getBadgeClasses>;
 
-export function renderBadge({ className, variant, ...props }: BadgeProps): React.JSX.Element {
+export function Badge({ className, variant, ...props }: BadgeProps): React.JSX.Element {
   return <span data-slot="badge" className={mergeClasses(getBadgeClasses({ variant }), className)} {...props} />;
 }

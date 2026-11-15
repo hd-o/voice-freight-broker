@@ -1,6 +1,6 @@
 "use client";
 
-import { renderCallDetailLayout as CallDetailLayout } from "@/components/layouts/call-detail-layout";
+import { CallDetailLayout } from "@/components/layouts/call-detail-layout";
 import type { NavigationPage } from "@/components/navigation/navigation";
 import { sampleCalls } from "@/lib/samples";
 import { createCallDetail } from "@/lib/reporting";
@@ -9,7 +9,7 @@ import { useAccount, requestApi } from "@/lib/account";
 import { useQuery } from "@tanstack/react-query";
 import { callSchema } from "@voice-freight/contracts/calls";
 
-export default function renderCallDetailsPage(): React.JSX.Element {
+export default function CallDetailsPage(): React.JSX.Element {
   const { parameters, readiness } = useQueryParameters();
   const account = useAccount();
   const selection = parameters.get("call");

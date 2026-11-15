@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { renderLoadSelector as LoadSelector } from "./load-selector";
+import { LoadSelector } from "./load-selector";
 import { loadOptions } from "./load-selector.fixtures";
 
 const meta = {
