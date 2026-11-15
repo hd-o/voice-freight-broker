@@ -12,7 +12,8 @@
     }
   },
 	"mounts": [
-		"source=${localEnv:HOME}/.ssh/devcontainer_authorized_keys,target=/home/vscode/.ssh/authorized_keys,type=bind,readonly"
+		"source=${localEnv:HOME}/.ssh/devcontainer_authorized_keys,target=/home/vscode/.ssh/authorized_keys,type=bind,readonly",
+		"source=${localEnv:HOME}/.ssh/known_hosts,target=/home/vscode/.ssh/known_hosts,type=bind,readonly"
 	],
 	"postCreateCommand": "bash scripts/setup.sh",
 	"remoteEnv": {
