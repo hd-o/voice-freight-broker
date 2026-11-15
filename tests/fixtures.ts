@@ -6,11 +6,11 @@ import { createBrowserServer } from "./server";
 type WorkerFixtures = {
   voiceScenario: string;
   backend: TestHarness;
-  browserServer: Awaited<ReturnType<typeof createBrowserServer>>;
 };
 
 type TestFixtures = {
   database: void;
+  browserServer: Awaited<ReturnType<typeof createBrowserServer>>;
 };
 
 export function createTestBackend(voiceScenario = "workflow"): TestHarness {
@@ -48,18 +48,16 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     },
     { scope: "worker", timeout: 30_000 },
   ],
-  browserServer: [
-    async ({ backend }, use): Promise<void> => {
-      const browserServer = await createBrowserServer(backend, "http://127.0.0.1:4173");
+  // The database dependency closes and drains this test's proxy before reset.
+  browserServer: async ({ backend, database: _database }, use): Promise<void> => {
+    const browserServer = await createBrowserServer(backend, "http://127.0.0.1:4173");
 
-      try {
-        await use(browserServer);
-      } finally {
-        await browserServer.close();
-      }
-    },
-    { scope: "worker" },
-  ],
+    try {
+      await use(browserServer);
+    } finally {
+      await browserServer.close();
+    }
+  },
   baseURL: async ({ browserServer }, use): Promise<void> => {
     await use(browserServer.url);
   },

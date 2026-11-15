@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 
@@ -12,10 +13,10 @@ export default async function prepareTestWorkers(): Promise<() => Promise<void>>
     { cwd: root, timeout: 60_000 },
   );
 
-  // Keep Chromium's mmap-backed scratch files off the host-mounted /tmp.
-  const directory = resolve(root, ".local");
-  await mkdir(directory, { recursive: true });
-  const temporaryDirectory = await mkdtemp(resolve(directory, "playwright-"));
+  // Both /tmp and the workspace are host-mounted in the devcontainer. Chromium's
+  // mmap-backed scratch files need the container's native filesystem on Linux.
+  const directory = process.platform === "linux" ? "/var/tmp" : tmpdir();
+  const temporaryDirectory = await mkdtemp(resolve(directory, "voice-freight-playwright-"));
   const previousDirectory = process.env.TMPDIR;
   process.env.TMPDIR = temporaryDirectory;
 

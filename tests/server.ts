@@ -8,16 +8,27 @@ export async function createBrowserServer(
   frontendURL: string,
 ): Promise<{ url: string; close(): Promise<void> }> {
   const sockets = new Set<Socket>();
+  const requests = new Set<Promise<void>>();
 
   const server = createServer((request, response): void => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
 
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
-      void forwardApi().catch((error: unknown): void => {
-        console.error("Browser test API proxy failed", error);
-        response.writeHead(502);
-        response.end("Browser test API unavailable");
-      });
+      const pending = forwardApi()
+        .catch((error: unknown): void => {
+          if (response.destroyed) {
+            return;
+          }
+
+          console.error("Browser test API proxy failed", error);
+          response.writeHead(502);
+          response.end("Browser test API unavailable");
+        })
+        .finally((): void => {
+          requests.delete(pending);
+        });
+
+      requests.add(pending);
 
       return;
     }
@@ -127,13 +138,17 @@ export async function createBrowserServer(
   return {
     url: `http://127.0.0.1:${address.port}`,
     async close(): Promise<void> {
+      const closure = new Promise<void>((resolve, reject): void => {
+        server.close((error): void => (error ? reject(error) : resolve()));
+      });
+
       for (const socket of sockets) {
         socket.destroy();
       }
 
-      await new Promise<void>((resolve, reject): void => {
-        server.close((error): void => (error ? reject(error) : resolve()));
-      });
+      await closure;
+      // Closing sockets does not finish async handlers already awaiting Workers.
+      await Promise.all(requests);
     },
   };
 }
