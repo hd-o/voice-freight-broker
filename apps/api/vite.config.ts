@@ -8,7 +8,6 @@ export default defineConfig({
       wrangler: { configPath: "./wrangler.jsonc", environment: "local" },
       miniflare: {
         bindings: {
-          LOCAL_ALLOWED_ORIGIN: "http://localhost:49245",
           VOICE_PROVIDER: "stub",
           VOICE_STUB_SCENARIO: "idle",
           TEST_MIGRATIONS: await readD1Migrations("../../packages/backend/migrations"),

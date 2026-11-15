@@ -35,11 +35,6 @@ not invalidate the read-back. Agreements, cancellations, and replacements requir
 the saved transcript, rates, and agreements in the dashboard. Analysis stays pending until its processing phase is
 implemented. Voice validation targets desktop Chrome; other browsers and mobile audio have not been validated.
 
-Use desktop Chrome for local sign-in. Overlapping account changes are blocked. If a port-forwarded browser address
-causes a same-origin error, set `LOCAL_ALLOWED_ORIGIN` in `apps/api/.dev.vars.local` to the exact browser origin, for
-example `http://localhost:49245`, and restart the workers. Update it if the forwarded address changes. This setting
-applies only to local auth.
-
 Live calls share a **$25 USD monthly app allowance**, renewing at 00:00 UTC on the first day. The app reserves
 approximately $5.20 before a call and releases unused money after confirmed final usage. Duration is limited to ten
 minutes; 60 seconds without caller speech ends a call, with a warning 15 seconds before. Defaults allow one concurrent

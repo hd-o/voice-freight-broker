@@ -34,10 +34,8 @@ app.use("/api/*", async (context, next): Promise<void> => {
     const origins = [new URL(context.req.url).origin];
 
     if (context.env.ENVIRONMENT === "local" && context.env.AUTH_MODE === "local") {
-      origins.push("http://localhost:3000", "http://127.0.0.1:3000");
-
-      if (context.env.LOCAL_ALLOWED_ORIGIN) {
-        origins.push(context.env.LOCAL_ALLOWED_ORIGIN);
+      if (origin && origin.startsWith("http://localhost")) {
+        origins.push(origin);
       }
     }
 

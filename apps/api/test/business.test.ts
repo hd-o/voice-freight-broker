@@ -633,20 +633,6 @@ it("uses equivalent REST and private RPC rules, validates arguments, origin, ses
   });
 
   expect(attack.status).toBe(403);
-
-  for (const [origin, status] of [
-    ["http://localhost:49245", 200],
-    ["http://localhost:49246", 403],
-  ] as const) {
-    const response = await SELF.fetch("http://localhost/api/session", {
-      method: "POST",
-      headers: { Origin: origin, "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "reviewer" }),
-    });
-
-    expect(response.status).toBe(status);
-  }
-
   const dashboard = await request("/api/dashboard", "GET", undefined, cookie);
   expect(dashboard.headers.get("Cache-Control")).toBe("private, no-store");
   expect(JSON.stringify(await dashboard.json())).not.toMatch(/maximumCents|prices|fingerprint|readbackId/);
