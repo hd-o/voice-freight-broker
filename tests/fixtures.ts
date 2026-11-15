@@ -72,6 +72,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         if (testInfo.status !== testInfo.expectedStatus) {
           backend.debug();
         }
+
         await backend.reset();
       }
     },

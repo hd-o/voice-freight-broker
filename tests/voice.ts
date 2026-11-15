@@ -116,6 +116,7 @@ export async function simulateVoice(page: Page, channelOpening = true): Promise<
     }
 
     Object.defineProperty(window, "RTCPeerConnection", { value: VoicePeer });
+
     Object.defineProperty(navigator, "mediaDevices", {
       value: { getUserMedia: async (): Promise<MediaStream> => new MediaStream() },
       configurable: true,

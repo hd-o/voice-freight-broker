@@ -20,6 +20,7 @@ test("public static routes load directly and navigation works without an API", a
   const errors: string[] = [];
   const requests: string[] = [];
   page.on("pageerror", (error): number => errors.push(error.message));
+
   page.on("request", (request): void => {
     if (new URL(request.url()).pathname.startsWith("/api")) {
       requests.push(request.url());
@@ -60,15 +61,19 @@ test("whole history rows open a dedicated details page with load and navigation 
       exact: false,
     }),
   });
+
   const carrierCell = row.getByRole("cell", {
     name: "Summit Transport",
     exact: true,
   });
+
   await carrierCell.scrollIntoViewIfNeeded();
   const carrier = await carrierCell.boundingBox();
+
   if (!carrier) {
     throw new Error("The carrier cell must be visible");
   }
+
   await page.mouse.click(carrier.x + carrier.width / 2, carrier.y + carrier.height / 2);
   await expect(page).toHaveURL(`${origin}/dashboard/call?call=summit-1042`);
   await expect(page.getByRole("heading", { name: "Call Dashboard" })).toHaveCount(0);
@@ -79,6 +84,7 @@ test("whole history rows open a dedicated details page with load and navigation 
     name: "Call details",
     exact: true,
   });
+
   await expect(details.getByText("Sample Call", { exact: true })).toBeVisible();
   await expect(details.getByRole("heading", { name: "Dallas → Atlanta" })).toBeVisible();
   await expect(details.getByText("$150 above posted rate")).toBeVisible();
@@ -108,9 +114,11 @@ test("whole history rows open a dedicated details page with load and navigation 
   const status = row.getByRole("cell", { name: "Complete", exact: true });
   await status.scrollIntoViewIfNeeded();
   const statusCell = await status.boundingBox();
+
   if (!statusCell) {
     throw new Error("The analysis cell must be visible");
   }
+
   await page.mouse.click(statusCell.x + statusCell.width - 4, statusCell.y + statusCell.height - 4);
   await expect(page).toHaveURL(`${origin}/dashboard/call?call=retained&page=2`);
   await expect(details.getByRole("heading", { name: "Phoenix → Dallas" })).toBeVisible();
@@ -122,6 +130,7 @@ test("whole history rows open a dedicated details page with load and navigation 
     name: "View call from Summit Transport",
     exact: false,
   });
+
   await link.focus();
   await link.press("Enter");
   await expect(page).toHaveURL(`${origin}/dashboard/call?call=retained&page=2`);
@@ -132,6 +141,7 @@ test("whole history rows open a dedicated details page with load and navigation 
 
 test("call details show loading until the browser reads the selected call", async ({ page }): Promise<void> => {
   let releaseScripts = (): void => {};
+
   const scripts = new Promise<void>((resolve): void => {
     releaseScripts = resolve;
   });
@@ -150,6 +160,7 @@ test("call details show loading until the browser reads the selected call", asyn
     await page.goto(`${origin}/dashboard/call?call=summit-1042`, {
       waitUntil: "commit",
     });
+
     await expect(page.getByRole("status", { name: "Loading call details" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No call selected" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Call unavailable" })).toHaveCount(0);
@@ -165,10 +176,12 @@ test("call details show loading until the browser reads the selected call", asyn
 
 test("pending and missing sample data keep statuses and useful recovery visible", async ({ page }): Promise<void> => {
   await page.goto(`${origin}/dashboard/call?call=mesa`);
+
   const details = page.getByRole("region", {
     name: "Call details",
     exact: true,
   });
+
   const analysis = details.getByRole("region", { name: "Call analysis" });
   await expect(analysis.getByText("Connection", { exact: true })).toBeVisible();
   await expect(analysis.getByText("Interrupted", { exact: true })).toBeVisible();

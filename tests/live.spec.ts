@@ -9,12 +9,14 @@ test("a simulated multi-load call saves cancellation, replacement, transcript an
   if (!baseURL) {
     throw new Error("Browser test origin is required");
   }
+
   for (const [path, data] of [
     ["/api/session", { userId: "administrator" }],
     ["/api/local/seed", {}],
   ] as const) {
     expect((await request.post(path, { headers: { Origin: baseURL }, data })).ok()).toBe(true);
   }
+
   const errors: string[] = [];
   page.on("pageerror", (error): number => errors.push(error.message));
   await page.goto("/call");
@@ -39,12 +41,14 @@ test("a simulated multi-load call saves cancellation, replacement, transcript an
   await expect(page.getByText("$2,100", { exact: true }).first()).toBeVisible();
   await page.getByRole("link", { name: "Dashboard", exact: true }).click();
   await expect(page.getByText("9 calls in this population")).toBeVisible();
+
   await expect(
     page
       .locator("dl")
       .filter({ has: page.getByText("Final agreements", { exact: true }) })
       .locator("dd"),
   ).toHaveText("5");
+
   expect(errors).toEqual([]);
 });
 
@@ -55,11 +59,13 @@ test("WebRTC transcripts survive status polls and reconcile with the saved snaps
   await expect.poll((): number => scenario.polls).toBeGreaterThan(0);
   await page.clock.install();
   const polls = scenario.polls;
+
   await page.evaluate((): void => {
     for (const detail of [{ type: "session.started" }, { type: "session.input_transcript.delta", delta: 42 }]) {
       window.dispatchEvent(new CustomEvent("voice-message", { detail }));
     }
   });
+
   await sendTranscript(page, "Live ");
   await sendTranscript(page, "Live ");
   await sendTranscript(page, "greeting.", "second");
@@ -95,9 +101,11 @@ test("data channel failure polls transcripts without ending audio or losing unsa
   await page.clock.install();
   await sendTranscript(page);
   scenario.failures = 1;
+
   await page.evaluate((): void => {
     window.dispatchEvent(new Event("voice-close"));
   });
+
   await expect.poll((): number => scenario.requests).toBe(1);
   await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Hang up", exact: true })).toBeVisible();
@@ -146,6 +154,7 @@ test("microphone denial leaves paid startup untouched and allows a retry", async
   await page.route("**/api/live/configuration", (route): Promise<void> =>
     route.fulfill({ json: { provider: "openai" } }),
   );
+
   await page.addInitScript((): void => {
     Object.defineProperty(navigator, "mediaDevices", {
       value: {
@@ -154,12 +163,15 @@ test("microphone denial leaves paid startup untouched and allows a retry", async
       configurable: true,
     });
   });
+
   let paidStarts = 0;
+
   page.on("request", (request): void => {
     if (new URL(request.url()).pathname === "/api/live/calls") {
       paidStarts++;
     }
   });
+
   await page.goto("/call");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("button", { name: "Local Reviewer", exact: true }).click();
@@ -178,15 +190,19 @@ test("a status failure ends the call without reviving disposed audio", async ({
   if (!baseURL) {
     throw new Error("Browser test origin is required");
   }
+
   for (const [path, data] of [
     ["/api/session", { userId: "administrator" }],
     ["/api/local/seed", {}],
   ] as const) {
     expect((await request.post(path, { headers: { Origin: baseURL }, data })).ok()).toBe(true);
   }
+
   let polls = 0;
+
   await page.route("**/api/calls/*/live", async (route): Promise<void> => {
     polls++;
+
     if (polls === 1) {
       await route.fulfill({
         status: 503,
@@ -198,6 +214,7 @@ test("a status failure ends the call without reviving disposed audio", async ({
       await route.continue();
     }
   });
+
   await page.goto("/call");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("button", { name: "Local Reviewer", exact: true }).click();
@@ -207,6 +224,7 @@ test("a status failure ends the call without reviving disposed audio", async ({
   await expect(page.getByRole("button", { name: "Hang up", exact: true })).toHaveCount(0);
   expect(polls).toBe(1);
   await page.getByRole("button", { name: "View this call in dashboard →" }).click();
+
   await expect(
     page.getByRole("region", { name: "Call analysis" }).getByText("Interrupted", { exact: true }),
   ).toBeVisible();

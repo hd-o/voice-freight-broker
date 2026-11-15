@@ -20,6 +20,7 @@ export default function DashboardPage(): React.JSX.Element {
   const [failure, setFailure] = useState(false);
   const [restocking, setRestocking] = useState(false);
   const [operationId, setOperationId] = useState<string>();
+
   const live = useQuery({
     queryKey: ["private", account.user?.id, "dashboard"],
     enabled: !!account.user,
@@ -29,9 +30,11 @@ export default function DashboardPage(): React.JSX.Element {
       return callsSchema.parse(data.calls);
     },
   });
+
   const calls = [...sampleCalls, ...(account.user ? (live.data ?? []) : [])].sort((a, b): number =>
     b.startedAt.localeCompare(a.startedAt),
   );
+
   const history = createHistory(calls);
   const report = summarizeCalls(calls);
   const pageNumber = Number(parameters.get("page") ?? 1);
@@ -43,21 +46,25 @@ export default function DashboardPage(): React.JSX.Element {
     parameters.set("page", String(page));
     changeQuery(parameters);
   }
+
   async function restock(): Promise<void> {
     const id = operationId ?? crypto.randomUUID();
     setOperationId(id);
     setRestocking(true);
     setFeedback(undefined);
     setFailure(false);
+
     try {
       const result: { added: number } = await (
         await requestApi("/inventory/restock", "POST", { operationId: id })
       ).json();
+
       setFeedback(
         result.added
           ? `Added ${result.added} loads. Existing calls keep their inventory.`
           : "This restock already completed. Existing history is preserved.",
       );
+
       setOperationId(undefined);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Restocking failed. Try again.");

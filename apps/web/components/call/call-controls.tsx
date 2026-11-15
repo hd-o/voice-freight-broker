@@ -33,9 +33,11 @@ export function CallControls({
       </div>
     );
   }
+
   if (state === "ending") {
     return <Button disabled>Saving call…</Button>;
   }
+
   if (state === "connected") {
     return (
       <div className="flex flex-wrap justify-center gap-3" aria-label="Call controls">

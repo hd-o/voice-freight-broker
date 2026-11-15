@@ -37,6 +37,7 @@ export function useLiveCall(userId?: string): {
   const [notification, setNotification] = useState<CallNotificationKind>();
   const [muted, setMuted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
   const session = useRef<{
     id?: string;
     peer?: RTCPeerConnection;
@@ -45,19 +46,23 @@ export function useLiveCall(userId?: string): {
     transcript?: TranscriptSession;
     generation: number;
   }>({ generation: 0 });
+
   const busy = useRef(false);
 
   const dispose = useCallback((): void => {
     const current = session.current;
     current.stream?.getTracks().forEach((track): void => track.stop());
+
     if (current.peer) {
       current.peer.onconnectionstatechange = null;
       current.peer.close();
     }
+
     if (current.audio) {
       current.audio.pause();
       current.audio.srcObject = null;
     }
+
     current.peer = undefined;
     current.stream = undefined;
     current.audio = undefined;
@@ -77,10 +82,13 @@ export function useLiveCall(userId?: string): {
         setState("ready");
         return;
       }
+
       setState("ending");
+
       session.current.stream?.getTracks().forEach((track): void => {
         track.enabled = false;
       });
+
       try {
         await requestApi(`/calls/${encodeURIComponent(id)}/hangup`, "POST", {
           interrupted,
@@ -100,6 +108,7 @@ export function useLiveCall(userId?: string): {
         setTranscriptFailure(true);
         dispose();
         setState("ended");
+
         setNotice(
           error instanceof Error ? error.message : "Could not finish the call. Your saved record remains available.",
         );
@@ -116,8 +125,10 @@ export function useLiveCall(userId?: string): {
     setNotice(undefined);
     setNotification(undefined);
     setElapsedSeconds(0);
+
     function abandon(): void {
       const id = session.current.id;
+
       if (id) {
         navigator.sendBeacon(
           `/api/calls/${encodeURIComponent(id)}/hangup`,
@@ -126,12 +137,15 @@ export function useLiveCall(userId?: string): {
           }),
         );
       }
+
       session.current.generation++;
       session.current.transcript?.cancel();
       dispose();
       session.current.id = undefined;
     }
+
     window.addEventListener("pagehide", abandon);
+
     return (): void => {
       window.removeEventListener("pagehide", abandon);
       abandon();
@@ -142,26 +156,34 @@ export function useLiveCall(userId?: string): {
     if (!status?.id || state === "ready") {
       return;
     }
+
     let active = true;
     let polling = false;
+
     async function refresh(): Promise<void> {
       if (polling) {
         return;
       }
+
       polling = true;
+
       try {
         const result = liveStatusSchema.parse(
           await (await requestApi(`/calls/${encodeURIComponent(status!.id)}/live`)).json(),
         );
+
         if (!active) {
           return;
         }
+
         setStatus(result);
+
         setState(
           result.state === "connected" && session.current.peer && session.current.peer.connectionState !== "connected"
             ? "connecting"
             : result.state,
         );
+
         setElapsedSeconds(
           Math.max(
             0,
@@ -170,11 +192,13 @@ export function useLiveCall(userId?: string): {
             ),
           ),
         );
+
         if (result.state === "ended") {
           window.clearInterval(timer);
           void session.current.transcript?.complete();
           dispose();
           void cache.invalidateQueries({ queryKey: ["private"] });
+
           if (!result.notice) {
             setNotification("analysis");
           }
@@ -188,10 +212,13 @@ export function useLiveCall(userId?: string): {
           setTranscriptFailure(true);
           dispose();
           setState("ended");
+
           setStatus((current): LiveStatus | undefined =>
             current ? { ...current, state: "ended", notice: null } : current,
           );
+
           setNotice(error instanceof Error ? error.message : "Call status unavailable.");
+
           void requestApi(`/calls/${encodeURIComponent(status!.id)}/hangup`, "POST", { interrupted: true })
             .then((): Promise<void> => cache.invalidateQueries({ queryKey: ["private"] }))
             .catch((): void => {});
@@ -200,10 +227,13 @@ export function useLiveCall(userId?: string): {
         polling = false;
       }
     }
+
     void refresh();
+
     const timer = window.setInterval((): void => {
       void refresh();
     }, 1000);
+
     return (): void => {
       active = false;
       window.clearInterval(timer);
@@ -214,6 +244,7 @@ export function useLiveCall(userId?: string): {
     if (busy.current || !userId) {
       return;
     }
+
     busy.current = true;
     const generation = ++session.current.generation;
     session.current.transcript?.cancel();
@@ -228,6 +259,7 @@ export function useLiveCall(userId?: string): {
     setMuted(false);
     setElapsedSeconds(0);
     let microphone = false;
+
     try {
       const configuration: { provider: string } = await (await requestApi("/live/configuration")).json();
 
@@ -238,31 +270,40 @@ export function useLiveCall(userId?: string): {
       let offerSdp = "stub-offer";
       let peer: RTCPeerConnection | undefined;
       let channel: RTCDataChannel | undefined;
+
       if (configuration.provider !== "stub") {
         microphone = true;
+
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
+
         microphone = false;
+
         if (session.current.generation !== generation) {
           stream.getTracks().forEach((track): void => track.stop());
           return;
         }
+
         peer = new RTCPeerConnection();
         const audio = new Audio();
         audio.autoplay = true;
         session.current = { generation, stream, peer, audio };
+
         peer.ontrack = (event): void => {
           audio.srcObject = event.streams[0];
+
           void audio
             .play()
             .catch((): void => setNotice("Audio playback was blocked. Allow sound for this site and retry the call."));
         };
+
         stream.getTracks().forEach((track): RTCRtpSender => peer!.addTrack(track, stream));
         channel = peer.createDataChannel("oai-events");
         await peer.setLocalDescription(await peer.createOffer());
         offerSdp = peer.localDescription!.sdp;
       }
+
       const connected = liveConnectionSchema.parse(
         await (
           await requestApi("/live/calls", "POST", {
@@ -271,13 +312,17 @@ export function useLiveCall(userId?: string): {
           })
         ).json(),
       );
+
       if (session.current.generation !== generation) {
         void requestApi(`/calls/${encodeURIComponent(connected.id)}/hangup`, "POST", {
           interrupted: true,
         }).catch((): void => {});
+
         return;
       }
+
       session.current.id = connected.id;
+
       session.current.transcript = createTranscriptSession(
         connected.id,
         channel,
@@ -292,6 +337,7 @@ export function useLiveCall(userId?: string): {
           }
         },
       );
+
       if (peer) {
         peer.onconnectionstatechange = (): void => {
           if (peer?.connectionState === "failed") {
@@ -299,6 +345,7 @@ export function useLiveCall(userId?: string): {
           } else if (peer?.connectionState === "connected") {
             setState("connected");
             session.current.transcript?.monitorChannel();
+
             void requestApi(`/calls/${encodeURIComponent(connected.id)}/connected`, "POST", {}).catch((): void => {
               if (session.current.generation === generation) {
                 void hangUp(true);
@@ -306,11 +353,13 @@ export function useLiveCall(userId?: string): {
             });
           }
         };
+
         await peer.setRemoteDescription({
           type: "answer",
           sdp: connected.answerSdp,
         });
       }
+
       setStatus({
         id: connected.id,
         state: "connected",
@@ -318,7 +367,9 @@ export function useLiveCall(userId?: string): {
         endedAt: null,
         notice: null,
       });
+
       setState(peer ? "connecting" : "connected");
+
       if (connected.provider === "stub") {
         setNotice("Simulated voice provider. This isolated local scenario uses no paid requests.");
       }
@@ -326,9 +377,11 @@ export function useLiveCall(userId?: string): {
       if (session.current.generation !== generation) {
         return;
       }
+
       if (session.current.id) {
         void hangUp(true);
       }
+
       session.current.transcript?.cancel();
       dispose();
       setState("ready");
@@ -341,9 +394,11 @@ export function useLiveCall(userId?: string): {
 
   function toggleMute(): void {
     const next = !muted;
+
     session.current.stream?.getAudioTracks().forEach((track): void => {
       track.enabled = !next;
     });
+
     setMuted(next);
   }
 

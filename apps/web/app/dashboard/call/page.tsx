@@ -15,6 +15,7 @@ export default function CallDetailsPage(): React.JSX.Element {
   const selection = parameters.get("call");
   const sample = sampleCalls.find((call): boolean => call.id === selection);
   const privateSelection = selection !== null && !sample;
+
   const live = useQuery({
     queryKey: ["private", account.user?.id, "call", selection],
     enabled: privateSelection && !!account.user,
@@ -22,6 +23,7 @@ export default function CallDetailsPage(): React.JSX.Element {
     queryFn: async (): Promise<ReturnType<typeof callSchema.parse>> =>
       callSchema.parse(await (await requestApi(`/calls/${encodeURIComponent(selection!)}`)).json()),
   });
+
   const call = sample ?? (account.user ? live.data : undefined);
 
   function selectLoad(id: string | null): void {
@@ -46,6 +48,7 @@ export default function CallDetailsPage(): React.JSX.Element {
     if (historyPage !== null) {
       query.set("page", historyPage);
     }
+
     window.location.assign(`/dashboard${query.size ? `?${query}` : ""}`);
   }
 

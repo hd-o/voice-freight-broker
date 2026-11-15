@@ -36,6 +36,7 @@ export function createTranscriptSession(
     if (cancellation || pendingRequest) {
       return;
     }
+
     const requestController = new AbortController();
     pendingRequest = requestController;
 
@@ -46,6 +47,7 @@ export function createTranscriptSession(
         undefined,
         requestController.signal,
       );
+
       const snapshot = transcriptSchema.parse(await response.json());
 
       if (cancellation || requestController.signal.aborted) {
@@ -54,6 +56,7 @@ export function createTranscriptSession(
 
       // Saved fragments take precedence; retain events the backend has not saved yet.
       const identifiers = new Set(snapshot.fragments.map((entry): string => entry.id));
+
       fragments =
         mode === "replace"
           ? snapshot.fragments
@@ -120,6 +123,7 @@ export function createTranscriptSession(
     fallback = true;
     clearTimeout(channelDeadline);
     void refreshTranscript();
+
     pollingTimer = setInterval((): void => {
       void refreshTranscript();
     }, 1000);

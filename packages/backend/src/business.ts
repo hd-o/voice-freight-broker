@@ -81,6 +81,7 @@ export async function executeTool(
             toolArguments.verify_carrier.parse(argumentsData).mcNumber,
             now,
           );
+
           break;
         case "search_loads":
           result = searchLoads(draft, context.callId, toolArguments.search_loads.parse(argumentsData));
@@ -100,6 +101,7 @@ export async function executeTool(
             context.callId,
             toolArguments.begin_renegotiation.parse(argumentsData).agreementId,
           );
+
           break;
         case "confirm_handoff": {
           const input = toolArguments.confirm_handoff.parse(argumentsData);
@@ -110,6 +112,7 @@ export async function executeTool(
             input.quoteId,
             observed ? captureConfirmation(draft, context, "handoff", input.quoteId) : input.evidence,
           );
+
           break;
         }
         case "cancel_agreement": {
@@ -121,6 +124,7 @@ export async function executeTool(
             input.agreementId,
             observed ? captureConfirmation(draft, context, "cancel", input.agreementId) : input.evidence,
           );
+
           break;
         }
       }
@@ -133,6 +137,7 @@ export async function executeTool(
       }
 
       let message = error.message;
+
       if (
         observed &&
         error.code === "evidence_required" &&
@@ -142,11 +147,13 @@ export async function executeTool(
           name === "confirm_handoff"
             ? toolArguments.confirm_handoff.parse(argumentsData).quoteId
             : toolArguments.cancel_agreement.parse(argumentsData).agreementId;
+
         const action = name === "cancel_agreement" ? "cancel" : "handoff";
         const target = resolveTarget(state, context.callId, action, targetId);
         const call = state.calls.find((entry): boolean => entry.id === context.callId)!;
         const load = call.record.loads.find((entry): boolean => entry.id === target.loadId)!;
         const quote = state.quotes.find((entry): boolean => entry.id === targetId);
+
         const failures =
           state.receipts.filter(
             (entry): boolean =>
@@ -155,6 +162,7 @@ export async function executeTool(
               "error" in entry &&
               entry.error.code === "evidence_required",
           ).length + 1;
+
         const readback = createReadback(
           state,
           call.id,
@@ -162,6 +170,7 @@ export async function executeTool(
           target.rateCents,
           action === "cancel" ? "cancel" : quote?.replacementId ? "replace" : "handoff",
         );
+
         message = `The agreement change was not saved. ${error.message} Read this back: ${readback}${failures >= 2 ? " Two confirmation attempts failed. Explain the failure and offer another load or ending the call; do not keep asking for the same confirmation." : ""}`;
       }
 

@@ -79,11 +79,13 @@ export function captureConfirmation(
 
   const broker = fragments.slice(firstBroker, firstCaller);
   const brokerSpeech = broker.map((entry): typeof entry.text => entry.text).join("");
+
   // Earlier bargaining may contain rejected prices or negation. Validate the
   // latest explicit read-back, without treating pauses as turn boundaries.
   const readbackStart = [
     ...brokerSpeech.matchAll(/(?:^|[.!?]\s+)please\s+confirm(?:\s+(?:cancellation|replacement))?[\s,:]+(?=\w)/gi),
   ].at(-1)?.index;
+
   const brokerText = readbackStart === undefined ? brokerSpeech : brokerSpeech.slice(readbackStart);
   const normalized = normalizeSpeech(brokerText.replace(/(?<=\d),(?=\d)/g, ""));
 
@@ -116,9 +118,11 @@ export function captureConfirmation(
 
   const hasCarrier = normalized.includes(normalizeSpeech(call.record.carrier.name));
   const spokenLabel = describeLoad(state, call.id, load).spokenLabel;
+
   const hasLoad =
     ` ${normalizeReadback(brokerText)} `.includes(` ${normalizeReadback(spokenLabel)} `) ||
     (readbackStart === undefined && normalized.includes(normalizeSpeech(load.reference)));
+
   const lastBroker = broker.at(-1)!;
 
   requireCondition(

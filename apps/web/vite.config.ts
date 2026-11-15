@@ -28,11 +28,14 @@ export default defineConfig({
       enforce: "post",
       configEnvironment(name, config): void {
         const output = config.build?.rolldownOptions?.output;
+
         for (const options of Array.isArray(output) ? output : [output]) {
           const splitting = options?.codeSplitting;
+
           if (!splitting || typeof splitting !== "object") {
             continue;
           }
+
           splitting.groups?.forEach((group, index): void => {
             if (typeof group.name === "function" && !group.debugName) {
               group.debugName = `${name}-chunk-group-${index}`;
@@ -56,6 +59,7 @@ export default defineConfig({
         ) {
           return;
         }
+
         handler(level, log);
       },
     },

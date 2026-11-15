@@ -33,6 +33,7 @@ export class Tools extends WorkerEntrypoint<Env> {
       if (error instanceof BusinessError) {
         return { error: { code: error.code, message: error.message } };
       }
+
       return {
         error: {
           code: "unavailable",
@@ -53,6 +54,7 @@ export class Tools extends WorkerEntrypoint<Env> {
       if (error instanceof BusinessError) {
         return { error: { code: error.code, message: error.message } };
       }
+
       if (error instanceof Error && error.name === "ZodError") {
         return {
           error: {
@@ -61,6 +63,7 @@ export class Tools extends WorkerEntrypoint<Env> {
           },
         };
       }
+
       return {
         error: {
           code: "unavailable",

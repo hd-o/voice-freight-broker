@@ -80,7 +80,9 @@ export function normalizeReadback(text: string): string {
     "eighteenth",
     "nineteenth",
   ];
+
   const numbers = [...unitWords, ...tensWords, "hundred", "thousand", "and"].join("|");
+
   const speech = normalizeSpeech(text.replace(/(?<=\d),(?=\d)/g, ""))
     .replace(/\b(\d+)(?:st|nd|rd|th)\b/g, "$1")
     .replace(
@@ -104,6 +106,7 @@ export function normalizeReadback(text: string): string {
       const year = parseSpokenNumber(word);
       return year !== null && year < 10 ? String(2020 + year) : `twenty twenty ${word}`;
     });
+
   return speech.replace(new RegExp(`\\b(?:${numbers})(?:\\s+(?:${numbers}))*\\b`, "g"), (words): string =>
     String(parseSpokenNumber(words) ?? words),
   );

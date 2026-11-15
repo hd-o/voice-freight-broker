@@ -16,12 +16,15 @@ it("validates timestamp chronology independently of ISO fractional precision", (
       endedAt: timestamp,
     }).success,
   ).toBe(false);
+
   const call = callSchema.parse({
     ...records[0],
     startedAt: timestamp,
     endedAt: fraction,
   });
+
   expect(summarizeCalls([call]).averageDurationSeconds).toBe(0.5);
+
   expect(
     loadSchema.safeParse({
       ...records[0].loads[0],
@@ -29,6 +32,7 @@ it("validates timestamp chronology independently of ISO fractional precision", (
       deliveryAt: timestamp,
     }).success,
   ).toBe(false);
+
   expect(
     loadSchema.safeParse({
       ...records[0].loads[0],
@@ -41,12 +45,14 @@ it("validates timestamp chronology independently of ISO fractional precision", (
 it("validates the bundled public sample records and their references", (): void => {
   expect(calls.every((call): boolean => call.source === "Sample" && call.endedAt !== null)).toBe(true);
   expect(callsSchema.safeParse([...records, records[0]]).success).toBe(false);
+
   expect(
     callSchema.safeParse({
       ...records[0],
       agreements: [{ ...records[0].agreements[0], loadId: "missing" }],
     }).success,
   ).toBe(false);
+
   expect(
     callSchema.safeParse({
       ...records[0],
@@ -68,6 +74,7 @@ it("uses the same call population for history, duration, sentiment and agreement
     finalAgreementCount: 4,
     averageVarianceCents: 9500,
   });
+
   expect(
     report.sentiments.map(({ label, count }): { label: typeof label; count: number } => ({ label, count })),
   ).toEqual([
@@ -87,11 +94,13 @@ it("counts calls once and excludes unresolved errors only when no agreement surv
   }
 
   expect(describeOutcome(retainedCall)).toBe("Agreement reached");
+
   expect(summarizeCalls([retainedCall, error])).toMatchObject({
     matchedCallCount: 1,
     agreementCallCount: 1,
     agreementRate: 1,
   });
+
   expect(summarizeCalls([calls[0]])).toMatchObject({
     matchedCallCount: 1,
     agreementCallCount: 1,
@@ -119,7 +128,9 @@ it("excludes cancelled and superseded agreements and preserves signed variance",
     })),
     outcomeReason: "All agreements cancelled",
   });
+
   expect(describeOutcome(cancellation)).toBe("All agreements cancelled");
+
   expect(summarizeCalls([cancellation])).toMatchObject({
     matchedCallCount: 1,
     agreementRate: 0,
@@ -131,6 +142,7 @@ it("excludes cancelled and superseded agreements and preserves signed variance",
     ...harbor,
     agreements: [{ ...harbor.agreements[1], rateCents: 100000 }],
   });
+
   expect(summarizeCalls([discount]).averageVarianceCents).toBe(-10000);
 });
 
@@ -142,6 +154,7 @@ it("shows unavailable denominators and omits active sessions from end-of-call me
     agreementRate: null,
     averageVarianceCents: null,
   });
+
   expect(summarizeCalls([calls[3]])).toMatchObject({
     matchedCallCount: 0,
     agreementRate: null,
@@ -152,6 +165,7 @@ it("shows unavailable denominators and omits active sessions from end-of-call me
     source: "Live",
     endedAt: null,
   });
+
   expect(summarizeCalls([activeCall])).toMatchObject({
     callCount: 1,
     durationCount: 0,

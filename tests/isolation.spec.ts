@@ -30,6 +30,7 @@ async function signIn(backend: TestHarness): Promise<string> {
   const response = await requestApi(backend, "/session", undefined, {
     userId: "administrator",
   });
+
   expect(response.status).toBe(200);
 
   const cookie = response.headers.get("set-cookie");
@@ -51,6 +52,7 @@ test("backends isolate fixed accounts and reset storage across both Workers", as
     for (const server of [backend, otherBackend]) {
       const response = await requestApi(server, "/health");
       expect(response.status).toBe(200);
+
       expect(await response.json()).toEqual({
         service: "api",
         database: "ready",
@@ -71,15 +73,18 @@ test("backends isolate fixed accounts and reset storage across both Workers", as
     ] as const) {
       const tools = await server.getWorker<DatabaseBindings>("voice-freight-tools").getEnv();
       expect(await tools.DB.prepare("SELECT COUNT(*) AS count FROM calls").first("count")).toBe(count);
+
       expect(await tools.DB.prepare("SELECT id FROM users WHERE id = 'administrator'").first("id")).toBe(
         "administrator",
       );
     }
 
     const dashboard = await requestApi(backend, "/dashboard", cookie);
+
     expect(await dashboard.json()).toMatchObject({
       calls: [expect.anything()],
     });
+
     const otherDashboard = await requestApi(otherBackend, "/dashboard", otherCookie);
     expect(await otherDashboard.json()).toMatchObject({ calls: [] });
     const otherIdentity = await requestApi(otherBackend, "/identity", cookie);
@@ -95,6 +100,7 @@ test("backends isolate fixed accounts and reset storage across both Workers", as
     const resetTools = await backend.getWorker<DatabaseBindings>("voice-freight-tools").getEnv();
     expect(await resetTools.DB.prepare("SELECT COUNT(*) AS count FROM calls").first("count")).toBe(0);
     const remainingIdentity = await requestApi(otherBackend, "/identity", otherCookie);
+
     expect(await remainingIdentity.json()).toMatchObject({
       user: { id: "administrator" },
     });

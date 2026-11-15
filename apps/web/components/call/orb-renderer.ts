@@ -142,6 +142,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement): (() => void) | und
     if (program) {
       context.deleteProgram(program);
     }
+
     if (buffer) {
       context.deleteBuffer(buffer);
     }

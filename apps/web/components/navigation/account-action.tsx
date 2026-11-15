@@ -13,9 +13,11 @@ export type AccountActionProps = {
 
 export function AccountAction({ signedIn, pending = false, onAccountAction }: AccountActionProps): React.JSX.Element {
   const [readiness, setReadiness] = useState(false);
+
   useEffect((): void => {
     setReadiness(true);
   }, []);
+
   const label = signedIn ? "Sign out" : "Sign in";
   const Icon = signedIn ? LogOut : LogIn;
 

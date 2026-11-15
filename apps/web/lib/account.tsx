@@ -37,11 +37,14 @@ export async function requestApi(
   }).catch((): never => {
     throw new Error("Local API unavailable. Start the local workers and apply migrations, then try again.");
   });
+
   if (!response.ok) {
     if (response.status === 401) {
       window.dispatchEvent(new Event("freight-session-expired"));
     }
+
     const error = errorSchema.safeParse(await response.json().catch((): null => null));
+
     throw new Error(
       response.status === 401
         ? "Session expired. Sign in again."
@@ -50,11 +53,13 @@ export async function requestApi(
           : "Local API unavailable. Start the local workers and apply migrations, then try again.",
     );
   }
+
   return response;
 }
 
 async function fetchIdentity(): Promise<{ user: Identity | null; identities: Identity[] }> {
   const data: { user: unknown; identities: unknown[] } = await (await requestApi("/identity")).json();
+
   return {
     user: data.user === null ? null : identitySchema.parse(data.user),
     identities: data.identities.map((identity): Identity => identitySchema.parse(identity)),
@@ -69,6 +74,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
   const [notice, setNotice] = useState<string>();
   const mutation = useRef(false);
   const pending = operation !== null;
+
   const progress =
     operation === "sign-in"
       ? "Signing in…"
@@ -77,6 +83,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
         : operation === "waiting"
           ? "Another account change is finishing. Try again when it completes."
           : undefined;
+
   const identity = useQuery({
     queryKey: ["identity", session],
     queryFn: fetchIdentity,
@@ -85,31 +92,38 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     staleTime: 0,
     refetchOnWindowFocus: "always",
   });
+
   const user = session ? (identity.data?.user ?? null) : null;
 
   useEffect((): void | (() => void) => {
     setSession(localStorage.getItem(accountKey));
+
     function expireSession(): void {
       cache.clear();
       localStorage.removeItem(accountKey);
       setSession(null);
       setNotice("Session expired. Sign in again.");
     }
+
     function synchronizeAccount(): void {
       cache.clear();
       setSession(localStorage.getItem(accountKey));
     }
+
     function restoreAccount(event: PageTransitionEvent): void {
       if (!event.persisted) {
         return;
       }
+
       cache.removeQueries({ queryKey: ["private"] });
       void cache.resetQueries({ queryKey: ["identity"] });
       setSession(localStorage.getItem(accountKey));
     }
+
     window.addEventListener("freight-session-expired", expireSession);
     window.addEventListener("storage", synchronizeAccount);
     window.addEventListener("pageshow", restoreAccount);
+
     return (): void => {
       window.removeEventListener("freight-session-expired", expireSession);
       window.removeEventListener("storage", synchronizeAccount);
@@ -129,13 +143,16 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     if (mutation.current) {
       return;
     }
+
     if (!navigator.locks) {
       setNotice("Local accounts require browser Web Locks. Use desktop Chrome on localhost or HTTPS.");
       return;
     }
+
     mutation.current = true;
     setOperation(action);
     setNotice(undefined);
+
     try {
       const completed = await navigator.locks.request(
         sessionLock,
@@ -144,10 +161,12 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
           if (!lock) {
             return false;
           }
+
           await command();
           return true;
         },
       );
+
       if (!completed) {
         setOperation("waiting");
         // Observe release without queuing the user's account choice.
@@ -192,6 +211,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     if (mutation.current) {
       return;
     }
+
     if (user) {
       void signOut();
     } else {

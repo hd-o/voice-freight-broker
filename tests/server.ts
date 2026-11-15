@@ -8,6 +8,7 @@ export async function createBrowserServer(
   frontendURL: string,
 ): Promise<{ url: string; close(): Promise<void> }> {
   const sockets = new Set<Socket>();
+
   const server = createServer((request, response): void => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
 
@@ -17,6 +18,7 @@ export async function createBrowserServer(
         response.writeHead(502);
         response.end("Browser test API unavailable");
       });
+
       return;
     }
 
@@ -86,9 +88,11 @@ export async function createBrowserServer(
       }
 
       socket.write("\r\n");
+
       if (data.length) {
         socket.write(data);
       }
+
       if (head.length) {
         connection.write(head);
       }
@@ -98,6 +102,7 @@ export async function createBrowserServer(
       socket.on("close", (): ReturnType<typeof connection.destroy> => connection.destroy());
       socket.pipe(connection).pipe(socket);
     });
+
     upstream.on("error", (): ReturnType<typeof socket.destroy> => socket.destroy());
     upstream.on("response", (): ReturnType<typeof socket.destroy> => socket.destroy());
     socket.on("close", (): ReturnType<typeof upstream.destroy> => upstream.destroy());
@@ -106,6 +111,7 @@ export async function createBrowserServer(
 
   await new Promise<void>((resolve, reject): void => {
     server.once("error", reject);
+
     server.listen(0, "127.0.0.1", (): void => {
       server.off("error", reject);
       resolve();

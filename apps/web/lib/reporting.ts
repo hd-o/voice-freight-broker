@@ -90,6 +90,7 @@ export function createMetrics(calls: readonly Call[]): { label: string; value: s
 export function createLoadDetails(call: Call, load: Load): LoadDetails {
   const agreement = listFinalAgreements(call).find((agreement): boolean => agreement.loadId === load.id);
   const variance = agreement ? agreement.rateCents - load.postedRateCents : null;
+
   const agreementLabels = {
     effective: "Accepted",
     cancelled: "Cancelled",
@@ -138,6 +139,7 @@ export function createCallDetail(
   onLoadChange: (value: string | null) => void,
 ): CallDetail {
   const load = loadId === null ? call.loads[0] : call.loads.find((load): boolean => load.id === loadId);
+
   const duration =
     call.endedAt === null
       ? "Duration unavailable"
