@@ -80,6 +80,9 @@ components in isolation. Use `vpr` without a task name to discover the other wor
 
 ## Development notes
 
+Dependency installation sets up a pre-commit hook that formats and lints staged files. Check its status with
+`pnpm exec vp hooks status`; run `pnpm exec vp hooks enable` to enable it in an existing checkout.
+
 The frontend remains a static export. Run `vpr build` before `vpr preview`; preview serves only the exported frontend.
 Use `vpr dev` for the API proxy.
 

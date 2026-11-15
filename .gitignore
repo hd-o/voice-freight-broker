@@ -152,6 +152,7 @@ vite.config.ts.timestamp-*
 # Local development and generated artifacts
 .wrangler/
 .vite-plus/
+.vite-hooks/_/
 .vinext/
 storybook-static/
 .playwright/*

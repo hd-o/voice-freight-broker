@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare": "vp config --no-agent",
     "dev": "vp run --parallel --filter @voice-freight/web --filter @voice-freight/api dev",
     "dev:web": "vp run @voice-freight/web#dev",
     "dev:workers": "vp run @voice-freight/api#dev",
