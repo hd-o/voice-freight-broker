@@ -124,7 +124,7 @@ flowchart TD
   Dev -->|/api proxy| API
   API -->|Health check RPC| Tools
   API -->|Call lifecycle| Call
-  Browser <-->|WebRTC audio| Live
+  Browser <-->|WebRTC audio and transcript | Live
   Call <-->|Sideband events and continuation| Live
   Call -->|Private business RPC| Tools
   Call -->|Transcripts and spending| DB

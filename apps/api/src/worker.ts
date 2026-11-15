@@ -17,7 +17,7 @@ import { BusinessError, requireCondition } from "@voice-freight/backend/model";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { ZodError, z } from "zod";
 import { liveStartSchema } from "@voice-freight/contracts/live";
-import { reserveLiveCall, queryLiveStatus, prepareBudgetFixture } from "@voice-freight/backend/live";
+import { reserveLiveCall, queryLiveStatus, queryTranscript, prepareBudgetFixture } from "@voice-freight/backend/live";
 import { readState } from "@voice-freight/backend/repository";
 import { resolveUsageLimits } from "@voice-freight/backend/spending";
 import type { LiveBindings } from "./bindings";
@@ -152,6 +152,15 @@ app.get("/api/calls/:callId/live", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   return context.json(
     await queryLiveStatus(context.env.DB, {
+      userId: user.id,
+      callId: context.req.param("callId"),
+    }),
+  );
+});
+app.get("/api/calls/:callId/transcript", async (context): Promise<Response> => {
+  const user = await resolveUser(context);
+  return context.json(
+    await queryTranscript(context.env.DB, {
       userId: user.id,
       callId: context.req.param("callId"),
     }),

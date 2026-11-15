@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { sendTranscript, simulateVoice } from "./voice";
 
 test("a simulated multi-load call saves cancellation, replacement, transcript and final counts", async ({
   page,
@@ -45,6 +46,100 @@ test("a simulated multi-load call saves cancellation, replacement, transcript an
       .locator("dd"),
   ).toHaveText("5");
   expect(errors).toEqual([]);
+});
+
+test("WebRTC transcripts survive status polls and reconcile with the saved snapshot", async ({
+  page,
+}): Promise<void> => {
+  const scenario = await simulateVoice(page);
+  await expect.poll((): number => scenario.polls).toBeGreaterThan(0);
+  await page.clock.install();
+  const polls = scenario.polls;
+  await page.evaluate((): void => {
+    for (const detail of [{ type: "session.started" }, { type: "session.input_transcript.delta", delta: 42 }]) {
+      window.dispatchEvent(new CustomEvent("voice-message", { detail }));
+    }
+  });
+  await sendTranscript(page, "Live ");
+  await sendTranscript(page, "Live ");
+  await sendTranscript(page, "greeting.", "second");
+  await expect(page.getByText("Live greeting.", { exact: true })).toHaveCount(1);
+  expect(scenario.polls).toBe(polls);
+  expect(scenario.requests).toBe(0);
+  await page.clock.runFor(1100);
+  await expect.poll((): number => scenario.polls).toBeGreaterThan(polls);
+  await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
+  expect(scenario.requests).toBe(0);
+  scenario.fragments = [{ id: "voice-test:first", speaker: "broker", startMs: 0, endMs: 500, text: "Saved greeting." }];
+  scenario.failures = 1;
+  await page.getByRole("button", { name: "Hang up", exact: true }).click();
+  await page.clock.runFor(1100);
+  await expect(page.getByText("Could not load the saved transcript.")).toBeVisible();
+  await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Retry saved transcript" }).click();
+  await expect(page.getByText("Saved greeting.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Live greeting.", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Clear and Start New Call" }).click();
+  await sendTranscript(page, "Stale greeting.", "stale");
+  await expect(page.getByText("Stale greeting.", { exact: true })).toHaveCount(0);
+  const requests = scenario.requests;
+  await page.clock.runFor(2200);
+  expect(scenario.requests).toBe(requests);
+});
+
+test("data channel failure polls transcripts without ending audio or losing unsaved text", async ({
+  page,
+}): Promise<void> => {
+  const scenario = await simulateVoice(page);
+  await expect.poll((): number => scenario.polls).toBeGreaterThan(0);
+  await page.clock.install();
+  await sendTranscript(page);
+  scenario.failures = 1;
+  await page.evaluate((): void => {
+    window.dispatchEvent(new Event("voice-close"));
+  });
+  await expect.poll((): number => scenario.requests).toBe(1);
+  await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hang up", exact: true })).toBeVisible();
+  scenario.fragments = [{ id: "voice-test:first", speaker: "broker", startMs: 0, endMs: 500, text: "Live greeting." }];
+  await page.clock.runFor(1100);
+  await expect.poll((): number => scenario.requests).toBeGreaterThan(1);
+  await expect(page.getByText("Live greeting.", { exact: true })).toHaveCount(1);
+  // Empty snapshots during persistence lag must not erase received speech.
+  scenario.fragments = [];
+  await page.clock.runFor(1100);
+  await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Hang up", exact: true }).click();
+  await page.clock.runFor(1100);
+  await expect(page.getByRole("button", { name: "View this call in dashboard →" })).toBeVisible();
+});
+
+test("status failure preserves unsaved WebRTC text until saved-transcript retry", async ({ page }): Promise<void> => {
+  const scenario = await simulateVoice(page);
+  await expect.poll((): number => scenario.polls).toBeGreaterThan(0);
+  await page.clock.install();
+  await sendTranscript(page);
+  await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
+  scenario.statusFailures = 1;
+  await page.clock.runFor(1100);
+  await expect(page.getByRole("button", { name: "Retry saved transcript" })).toBeVisible();
+  await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
+  expect(scenario.requests).toBe(0);
+  await sendTranscript(page, "Ignored after failure.", "late");
+  await expect(page.getByText("Ignored after failure.", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Retry saved transcript" }).click();
+  await expect(page.getByText("Live greeting.", { exact: true })).toHaveCount(0);
+});
+
+test("a data channel that never opens falls back after audio connects", async ({ page }): Promise<void> => {
+  const scenario = await simulateVoice(page, false);
+  await expect.poll((): number => scenario.polls).toBeGreaterThan(0);
+  await page.clock.install();
+  scenario.fragments = [{ id: "voice-test:first", speaker: "carrier", startMs: 0, endMs: 500, text: "Saved speech." }];
+  expect(scenario.requests).toBe(0);
+  await page.clock.runFor(5100);
+  await expect(page.getByText("Saved speech.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hang up", exact: true })).toBeVisible();
 });
 
 test("microphone denial leaves paid startup untouched and allows a retry", async ({ page }): Promise<void> => {

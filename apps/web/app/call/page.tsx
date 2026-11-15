@@ -25,7 +25,11 @@ export default function CallPage(): React.JSX.Element {
       accountName={account.user?.name}
       accountPending={account.pending}
       carriers={demoCarriers}
-      entries={(call.status?.transcript ?? []).map((entry): TranscriptEntry => ({
+      transcriptFailure={call.transcriptFailure}
+      onRetryTranscript={(): void => {
+        void call.retryTranscript();
+      }}
+      entries={call.transcript.map((entry): TranscriptEntry => ({
         ...entry,
         label: entry.speaker === "carrier" ? "You" : "Northstar",
         time: `${String(Math.floor(entry.startMs / 60_000)).padStart(2, "0")}:${String(Math.floor(entry.startMs / 1000) % 60).padStart(2, "0")}`,

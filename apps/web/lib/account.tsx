@@ -21,14 +21,19 @@ const accountContext = createContext<{
 const accountKey = "freight-local-session";
 const sessionLock = "freight-session-mutation";
 
-export async function requestApi(path: string, method = "GET", body?: unknown): Promise<Response> {
+export async function requestApi(
+  path: string,
+  method = "GET",
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<Response> {
   const response = await fetch(`/api${path}`, {
     method,
     credentials: "same-origin",
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
   }).catch((): never => {
     throw new Error("Local API unavailable. Start the local workers and apply migrations, then try again.");
   });

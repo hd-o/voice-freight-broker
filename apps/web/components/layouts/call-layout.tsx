@@ -24,6 +24,8 @@ export type CallLayoutProps = CallControlsProps & {
   onDismissNotification: () => void;
   onNotificationAction: () => void;
   notice?: string;
+  transcriptFailure?: boolean;
+  onRetryTranscript?: () => void;
 };
 
 export function CallLayout({
@@ -44,6 +46,8 @@ export function CallLayout({
   onDismissNotification,
   onNotificationAction,
   notice,
+  transcriptFailure,
+  onRetryTranscript,
   ...actions
 }: CallLayoutProps): React.JSX.Element {
   const status =
@@ -83,6 +87,14 @@ export function CallLayout({
           ) : (
             <div className="flex min-w-0 flex-col bg-muted md:h-[490px]">
               <Transcript entries={entries} className="max-h-[490px] min-h-[360px] flex-1 rounded-none md:min-h-0" />
+              {transcriptFailure && (
+                <div role="alert" className="px-6 pb-4 text-sm">
+                  <p>Could not load the saved transcript.</p>
+                  <button type="button" onClick={onRetryTranscript} className="underline">
+                    Retry saved transcript
+                  </button>
+                </div>
+              )}
               {state === "ended" && (
                 <div className="px-6 pb-6">
                   <button

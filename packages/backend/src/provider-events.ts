@@ -1,3 +1,4 @@
+import { transcriptEventSchema } from "@voice-freight/contracts/live";
 import { z } from "zod";
 import type { CallContext } from "@voice-freight/contracts/business";
 import { authorizeCall } from "./authorization";
@@ -6,13 +7,6 @@ import { transact } from "./repository";
 import { chargeUsage, chargeVoice, calculateResponseCostMicrodollars, resolvePeriod } from "./spending";
 
 export const providerEventSchema = z.object({ type: z.string(), event_id: z.string().optional() }).passthrough();
-
-const transcriptEventSchema = providerEventSchema.extend({
-  event_id: z.string(),
-  delta: z.string().max(8000),
-  start_ms: z.number().nonnegative(),
-  end_ms: z.number().nonnegative(),
-});
 
 const responseEventSchema = z.object({
   type: z.string(),
@@ -51,8 +45,6 @@ export async function ingestProviderEvent(
 
     if (event.type === "session.input_transcript.delta" || event.type === "session.output_transcript.delta") {
       const fragment = transcriptEventSchema.parse(event);
-
-      requireCondition(fragment.end_ms >= fragment.start_ms, "invalid_event", "Invalid transcript interval.");
 
       if (fragment.delta) {
         state.transcriptFragments.push({

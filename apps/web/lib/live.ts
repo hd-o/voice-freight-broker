@@ -2,13 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { liveConnectionSchema, liveStatusSchema, type LiveStatus } from "@voice-freight/contracts/live";
+import {
+  liveConnectionSchema,
+  liveStatusSchema,
+  type LiveStatus,
+  type TranscriptFragment,
+} from "@voice-freight/contracts/live";
 import type { CallNotificationKind } from "@/components/call/call-notification";
 import { requestApi } from "./account";
+import { createTranscriptSession, type TranscriptSession } from "./transcript";
 
 export function useLiveCall(userId?: string): {
   state: "ready" | "connecting" | "connected" | "ending" | "ended";
   status: LiveStatus | undefined;
+  transcript: TranscriptFragment[];
+  transcriptFailure: boolean;
+  retryTranscript: () => Promise<void>;
   notice: string | undefined;
   notification: CallNotificationKind | undefined;
   muted: boolean;
@@ -21,6 +30,8 @@ export function useLiveCall(userId?: string): {
 } {
   const cache = useQueryClient();
   const [state, setState] = useState<"ready" | "connecting" | "connected" | "ending" | "ended">("ready");
+  const [transcript, setTranscript] = useState<TranscriptFragment[]>([]);
+  const [transcriptFailure, setTranscriptFailure] = useState(false);
   const [status, setStatus] = useState<LiveStatus>();
   const [notice, setNotice] = useState<string>();
   const [notification, setNotification] = useState<CallNotificationKind>();
@@ -31,6 +42,7 @@ export function useLiveCall(userId?: string): {
     peer?: RTCPeerConnection;
     stream?: MediaStream;
     audio?: HTMLAudioElement;
+    transcript?: TranscriptSession;
     generation: number;
   }>({ generation: 0 });
   const busy = useRef(false);
@@ -54,9 +66,13 @@ export function useLiveCall(userId?: string): {
   const hangUp = useCallback(
     async (interrupted = false): Promise<void> => {
       const id = session.current.id;
+      const generation = session.current.generation;
+      const transcriptSession = session.current.transcript;
+
       if (!id) {
         session.current.generation++;
         busy.current = false;
+        session.current.transcript?.cancel();
         dispose();
         setState("ready");
         return;
@@ -69,8 +85,19 @@ export function useLiveCall(userId?: string): {
         await requestApi(`/calls/${encodeURIComponent(id)}/hangup`, "POST", {
           interrupted,
         });
+
+        if (session.current.generation !== generation) {
+          return;
+        }
+
         void cache.invalidateQueries({ queryKey: ["private"] });
       } catch (error) {
+        if (session.current.generation !== generation) {
+          return;
+        }
+
+        transcriptSession?.suspend();
+        setTranscriptFailure(true);
         dispose();
         setState("ended");
         setNotice(
@@ -84,6 +111,8 @@ export function useLiveCall(userId?: string): {
   useEffect((): void | (() => void) => {
     setState("ready");
     setStatus(undefined);
+    setTranscript([]);
+    setTranscriptFailure(false);
     setNotice(undefined);
     setNotification(undefined);
     setElapsedSeconds(0);
@@ -98,6 +127,7 @@ export function useLiveCall(userId?: string): {
         );
       }
       session.current.generation++;
+      session.current.transcript?.cancel();
       dispose();
       session.current.id = undefined;
     }
@@ -142,6 +172,7 @@ export function useLiveCall(userId?: string): {
         );
         if (result.state === "ended") {
           window.clearInterval(timer);
+          void session.current.transcript?.complete();
           dispose();
           void cache.invalidateQueries({ queryKey: ["private"] });
           if (!result.notice) {
@@ -152,6 +183,9 @@ export function useLiveCall(userId?: string): {
         if (active) {
           active = false;
           window.clearInterval(timer);
+          const transcriptSession = session.current.transcript;
+          transcriptSession?.suspend();
+          setTranscriptFailure(true);
           dispose();
           setState("ended");
           setStatus((current): LiveStatus | undefined =>
@@ -182,10 +216,13 @@ export function useLiveCall(userId?: string): {
     }
     busy.current = true;
     const generation = ++session.current.generation;
+    session.current.transcript?.cancel();
     dispose();
     session.current.id = undefined;
     setState("connecting");
     setStatus(undefined);
+    setTranscript([]);
+    setTranscriptFailure(false);
     setNotice(undefined);
     setNotification(undefined);
     setMuted(false);
@@ -193,8 +230,14 @@ export function useLiveCall(userId?: string): {
     let microphone = false;
     try {
       const configuration: { provider: string } = await (await requestApi("/live/configuration")).json();
+
+      if (session.current.generation !== generation) {
+        return;
+      }
+
       let offerSdp = "stub-offer";
       let peer: RTCPeerConnection | undefined;
+      let channel: RTCDataChannel | undefined;
       if (configuration.provider !== "stub") {
         microphone = true;
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -216,7 +259,7 @@ export function useLiveCall(userId?: string): {
             .catch((): void => setNotice("Audio playback was blocked. Allow sound for this site and retry the call."));
         };
         stream.getTracks().forEach((track): RTCRtpSender => peer!.addTrack(track, stream));
-        peer.createDataChannel("oai-events");
+        channel = peer.createDataChannel("oai-events");
         await peer.setLocalDescription(await peer.createOffer());
         offerSdp = peer.localDescription!.sdp;
       }
@@ -235,14 +278,31 @@ export function useLiveCall(userId?: string): {
         return;
       }
       session.current.id = connected.id;
+      session.current.transcript = createTranscriptSession(
+        connected.id,
+        channel,
+        (entries): void => {
+          if (session.current.generation === generation) {
+            setTranscript(entries);
+          }
+        },
+        (failure): void => {
+          if (session.current.generation === generation) {
+            setTranscriptFailure(failure);
+          }
+        },
+      );
       if (peer) {
         peer.onconnectionstatechange = (): void => {
           if (peer?.connectionState === "failed") {
             void hangUp(true);
           } else if (peer?.connectionState === "connected") {
             setState("connected");
+            session.current.transcript?.monitorChannel();
             void requestApi(`/calls/${encodeURIComponent(connected.id)}/connected`, "POST", {}).catch((): void => {
-              void hangUp(true);
+              if (session.current.generation === generation) {
+                void hangUp(true);
+              }
             });
           }
         };
@@ -257,7 +317,6 @@ export function useLiveCall(userId?: string): {
         startedAt: new Date().toISOString(),
         endedAt: null,
         notice: null,
-        transcript: [],
       });
       setState(peer ? "connecting" : "connected");
       if (connected.provider === "stub") {
@@ -270,6 +329,7 @@ export function useLiveCall(userId?: string): {
       if (session.current.id) {
         void hangUp(true);
       }
+      session.current.transcript?.cancel();
       dispose();
       setState("ready");
       setNotification(microphone ? "microphone" : "connection");
@@ -289,10 +349,13 @@ export function useLiveCall(userId?: string): {
 
   function reset(): void {
     session.current.generation++;
+    session.current.transcript?.cancel();
     dispose();
     session.current.id = undefined;
     setState("ready");
     setStatus(undefined);
+    setTranscript([]);
+    setTranscriptFailure(false);
     setNotice(undefined);
     setNotification(undefined);
     setElapsedSeconds(0);
@@ -301,6 +364,11 @@ export function useLiveCall(userId?: string): {
   return {
     state,
     status,
+    transcript,
+    transcriptFailure,
+    retryTranscript: async (): Promise<void> => {
+      await session.current.transcript?.complete();
+    },
     notice: status?.notice ?? notice,
     notification,
     muted,

@@ -3,7 +3,7 @@ import { addInventory } from "@voice-freight/backend/inventory";
 import { env, SELF, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { seedDatabase } from "@voice-freight/backend/seeding";
-import { reserveLiveCall, queryLiveStatus } from "@voice-freight/backend/live";
+import { reserveLiveCall, queryLiveStatus, queryTranscript } from "@voice-freight/backend/live";
 import { ingestProviderEvent } from "@voice-freight/backend/provider-events";
 import { readState, transact } from "@voice-freight/backend/repository";
 import {
@@ -379,6 +379,32 @@ it("authorizes SDP creation and hang-up through the real API and blocks browser 
   expect(response.status).toBe(201);
   const { id } = await response.json<{ id: string }>();
   expect((await SELF.fetch(`http://localhost/api/calls/${id}/live`)).status).toBe(401);
+  expect((await SELF.fetch(`http://localhost/api/calls/${id}/transcript`)).status).toBe(401);
+  const stub = env.CALLS.get(env.CALLS.idFromName(id));
+  const event = createTranscriptEvent("input", "Confirmed.", 1200);
+  await stub.observeFixture(event);
+  await stub.observeFixture(event);
+  const transcript = await SELF.fetch(`http://localhost/api/calls/${id}/transcript`, { headers: { Cookie } });
+  expect(transcript.status).toBe(200);
+  expect(await transcript.json()).toEqual({
+    fragments: [
+      {
+        id: `${id}:${event.event_id}`,
+        speaker: "carrier",
+        startMs: 1200,
+        endMs: 1700,
+        text: "Confirmed.",
+      },
+    ],
+  });
+  const other = await openCall("administrator");
+  expect((await SELF.fetch(`http://localhost/api/calls/${other.id}/transcript`, { headers: { Cookie } })).status).toBe(
+    404,
+  );
+  expect(
+    await (await SELF.fetch(`http://localhost/api/calls/${id}/live`, { headers: { Cookie } })).json(),
+  ).not.toHaveProperty("transcript");
+
   expect(
     (
       await SELF.fetch(`http://localhost/api/calls/${id}/tools/select_load`, {
@@ -468,9 +494,8 @@ it("retains ordered fragments, deduplicates replay, and drains transcripts witho
   await stub.observeFixture(first);
   await stub.observeFixture({ ...first, event_id: "a-second", delta: "lo" });
   await stub.observeFixture(first);
-  expect((await queryLiveStatus(env.DB, context)).transcript.map((entry): typeof entry.text => entry.text)).toEqual([
-    "Hello",
-  ]);
+  expect((await queryTranscript(env.DB, context)).fragments.map((entry): string => entry.text)).toEqual(["Hel", "lo"]);
+  expect(await queryLiveStatus(env.DB, context)).not.toHaveProperty("transcript");
   await stub.end();
   const snapshot = (await readState(env.DB)).state.calls.find((entry): boolean => entry.id === id)!.finalSnapshot;
   await ingestProviderEvent(env.DB, context, createTranscriptEvent("input", "Thanks.", 1000));

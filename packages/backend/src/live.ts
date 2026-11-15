@@ -1,5 +1,10 @@
 import type { CallContext } from "@voice-freight/contracts/business";
-import type { LiveStatus } from "@voice-freight/contracts/live";
+import {
+  groupTranscript,
+  type LiveStatus,
+  type Transcript,
+  type TranscriptFragment,
+} from "@voice-freight/contracts/live";
 import { authorizeCall, resolveIdentity } from "./authorization";
 import { initializeCall, completeCall } from "./calls";
 import { requireCondition } from "./model";
@@ -139,36 +144,24 @@ export async function queryLiveStatus(binding: D1Database, context: CallContext)
     startedAt: call.record.startedAt,
     endedAt: call.record.endedAt,
     notice: session.notice,
-    transcript: collectTranscript(state, call.id),
   };
 }
 
-export function collectTranscript(state: State, callId: string): LiveStatus["transcript"] {
-  const fragments = state.transcriptFragments
+export async function queryTranscript(binding: D1Database, context: CallContext): Promise<Transcript> {
+  const { state } = await readState(binding);
+  const call = authorizeCall(state, context, false);
+  return { fragments: collectTranscriptFragments(state, call.id) };
+}
+
+function collectTranscriptFragments(state: State, callId: string): TranscriptFragment[] {
+  return state.transcriptFragments
     .filter((fragment): boolean => fragment.callId === callId)
     .sort((a, b): number => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence)
-    .map(({ id, speaker, startMs, endMs, text }): LiveStatus["transcript"][number] => ({
-      id,
-      speaker,
-      startMs,
-      endMs,
-      text,
-    }));
+    .map(({ id, speaker, startMs, endMs, text }): TranscriptFragment => ({ id, speaker, startMs, endMs, text }));
+}
 
-  const groups: LiveStatus["transcript"] = [];
-
-  for (const fragment of fragments) {
-    const previous = groups.at(-1);
-
-    if (previous?.speaker === fragment.speaker && fragment.startMs - previous.endMs <= 1500) {
-      previous.text += fragment.text;
-      previous.endMs = Math.max(previous.endMs, fragment.endMs);
-    } else {
-      groups.push({ ...fragment });
-    }
-  }
-
-  return groups;
+export function collectTranscript(state: State, callId: string): TranscriptFragment[] {
+  return groupTranscript(collectTranscriptFragments(state, callId));
 }
 
 export async function prepareBudgetFixture(
