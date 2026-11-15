@@ -8,7 +8,7 @@ const meta = {
   component: AccountAction,
   args: { signedIn: false, onAccountAction: fn() },
   decorators: [
-    (Story) => (
+    (Story): React.JSX.Element => (
       <TooltipProvider>
         <Story />
       </TooltipProvider>
@@ -27,7 +27,7 @@ export const SignedIn: Story = { args: { signedIn: true } };
 export const Pending: Story = { args: { pending: true } };
 
 export const Callback: Story = {
-  play: async ({ canvasElement, args }) => {
+  play: async ({ canvasElement, args }): Promise<void> => {
     await userEvent.click(within(canvasElement).getByRole("button", { name: "Sign in" }));
 
     await expect(args.onAccountAction).toHaveBeenCalledOnce();

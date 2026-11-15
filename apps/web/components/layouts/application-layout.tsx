@@ -21,7 +21,7 @@ export function renderApplicationLayout({
   onNavigate,
   onAccountAction,
   children,
-}: ApplicationLayoutProps) {
+}: ApplicationLayoutProps): React.JSX.Element {
   return (
     <div className="min-h-svh bg-background text-foreground">
       <a

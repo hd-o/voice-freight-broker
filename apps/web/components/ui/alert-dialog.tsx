@@ -5,11 +5,11 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import { renderButton as Button } from "@/components/ui/button";
 import { mergeClasses } from "@/lib/classes";
 
-export function renderAlertDialog(props: AlertDialogPrimitive.Root.Props) {
+export function renderAlertDialog(props: AlertDialogPrimitive.Root.Props): React.JSX.Element {
   return <AlertDialogPrimitive.Root {...props} />;
 }
 
-export function renderAlertDialogContent({ className, ...props }: AlertDialogPrimitive.Popup.Props) {
+export function renderAlertDialogContent({ className, ...props }: AlertDialogPrimitive.Popup.Props): React.JSX.Element {
   return (
     <AlertDialogPrimitive.Portal>
       <AlertDialogPrimitive.Backdrop
@@ -18,7 +18,7 @@ export function renderAlertDialogContent({ className, ...props }: AlertDialogPri
       />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
-        className={(state) =>
+        className={(state): string =>
           mergeClasses(
             "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-surface p-4 text-foreground ring-1 ring-foreground/10 outline-none",
             typeof className === "function" ? className(state) : className,
@@ -30,7 +30,7 @@ export function renderAlertDialogContent({ className, ...props }: AlertDialogPri
   );
 }
 
-export function renderAlertDialogHeader({ className, ...props }: ComponentProps<"div">) {
+export function renderAlertDialogHeader({ className, ...props }: ComponentProps<"div">): React.JSX.Element {
   return (
     <div
       data-slot="alert-dialog-header"
@@ -40,7 +40,7 @@ export function renderAlertDialogHeader({ className, ...props }: ComponentProps<
   );
 }
 
-export function renderAlertDialogFooter({ className, ...props }: ComponentProps<"div">) {
+export function renderAlertDialogFooter({ className, ...props }: ComponentProps<"div">): React.JSX.Element {
   return (
     <div
       data-slot="alert-dialog-footer"
@@ -53,11 +53,11 @@ export function renderAlertDialogFooter({ className, ...props }: ComponentProps<
   );
 }
 
-export function renderAlertDialogTitle({ className, ...props }: AlertDialogPrimitive.Title.Props) {
+export function renderAlertDialogTitle({ className, ...props }: AlertDialogPrimitive.Title.Props): React.JSX.Element {
   return (
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
-      className={(state) =>
+      className={(state): string =>
         mergeClasses("text-base font-medium", typeof className === "function" ? className(state) : className)
       }
       {...props}
@@ -65,11 +65,14 @@ export function renderAlertDialogTitle({ className, ...props }: AlertDialogPrimi
   );
 }
 
-export function renderAlertDialogDescription({ className, ...props }: AlertDialogPrimitive.Description.Props) {
+export function renderAlertDialogDescription({
+  className,
+  ...props
+}: AlertDialogPrimitive.Description.Props): React.JSX.Element {
   return (
     <AlertDialogPrimitive.Description
       data-slot="alert-dialog-description"
-      className={(state) =>
+      className={(state): string =>
         mergeClasses(
           "text-sm text-balance text-muted-foreground sm:text-pretty",
           typeof className === "function" ? className(state) : className,
@@ -80,11 +83,11 @@ export function renderAlertDialogDescription({ className, ...props }: AlertDialo
   );
 }
 
-export function renderAlertDialogAction(props: ComponentProps<typeof Button>) {
+export function renderAlertDialogAction(props: ComponentProps<typeof Button>): React.JSX.Element {
   return <Button data-slot="alert-dialog-action" {...props} />;
 }
 
-export function renderAlertDialogCancel(props: AlertDialogPrimitive.Close.Props) {
+export function renderAlertDialogCancel(props: AlertDialogPrimitive.Close.Props): React.JSX.Element {
   return (
     <AlertDialogPrimitive.Close data-slot="alert-dialog-cancel" render={<Button variant="outline" />} {...props} />
   );

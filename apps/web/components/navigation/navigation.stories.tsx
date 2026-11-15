@@ -33,7 +33,7 @@ export const Phone: Story = {
 };
 
 export const Callbacks: Story = {
-  play: async ({ canvasElement, args }) => {
+  play: async ({ canvasElement, args }): Promise<void> => {
     const canvas = within(canvasElement);
 
     await userEvent.click(canvas.getByRole("button", { name: "Dashboard" }));

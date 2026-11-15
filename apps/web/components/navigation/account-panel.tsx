@@ -17,7 +17,13 @@ export type AccountPanelProps = {
   onSignIn: (id: string) => void;
 };
 
-export function renderAccountPanel({ identities, pending, progress, error, onSignIn }: AccountPanelProps) {
+export function renderAccountPanel({
+  identities,
+  pending,
+  progress,
+  error,
+  onSignIn,
+}: AccountPanelProps): React.JSX.Element {
   return (
     <AlertDialogContent className="max-w-xl">
       <AlertDialogHeader>
@@ -27,8 +33,8 @@ export function renderAccountPanel({ identities, pending, progress, error, onSig
       {error && <p role="alert">{error}</p>}
       {pending && <p role="status">{progress ?? "Loading account…"}</p>}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        {identities.map((identity) => (
-          <AlertDialogAction key={identity.id} disabled={pending} onClick={() => onSignIn(identity.id)}>
+        {identities.map((identity): React.JSX.Element => (
+          <AlertDialogAction key={identity.id} disabled={pending} onClick={(): void => onSignIn(identity.id)}>
             {identity.name}
           </AlertDialogAction>
         ))}

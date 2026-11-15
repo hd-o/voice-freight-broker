@@ -99,7 +99,7 @@ export const LongContent: Story = {
         ...record.loadSummary,
         carrier: "Summit Transport and Regional Distribution Partners",
       },
-      transcript: record.transcript.map((entry) => ({
+      transcript: record.transcript.map((entry): (typeof record.transcript)[number] => ({
         ...entry,
         text: `${entry.text} We also discussed the pickup appointment, delivery requirements, trailer dimensions, and the contact information for the receiving warehouse. Please confirm the details before proceeding with the simulated handoff.`,
       })),
@@ -108,7 +108,7 @@ export const LongContent: Story = {
 };
 
 export const MultipleLoads: Story = {
-  render: function renderDetails(args) {
+  render: function renderDetails(args): React.JSX.Element {
     const [loadId, setLoadId] = useState<string | null>(null);
 
     return <CallDetailLayout {...args} record={createDetail(sampleCalls[0], loadId, setLoadId)} />;

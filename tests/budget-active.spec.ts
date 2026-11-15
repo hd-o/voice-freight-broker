@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 
 test.use({ voiceScenario: "budget-active" });
-test("ends a connected call with a clear allowance message", async ({ page, request, baseURL }) => {
+test("ends a connected call with a clear allowance message", async ({ page, request, baseURL }): Promise<void> => {
   if (!baseURL) {
     throw new Error("Browser test origin is required");
   }

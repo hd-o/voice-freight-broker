@@ -1,12 +1,12 @@
 import type { Load } from "@voice-freight/contracts/calls";
 import type { State } from "./model";
 
-function describeRoute(load: Load) {
+function describeRoute(load: Load): string {
   return `${load.origin.split(",")[0]} to ${load.destination.split(",")[0]} ${load.equipment.toLowerCase()}`;
 }
 
-export function describeLoad(state: State, callId: string, load: Load) {
-  const call = state.calls.find((entry) => entry.id === callId)!;
+export function describeLoad(state: State, callId: string, load: Load): Load & { spokenLabel: string } {
+  const call = state.calls.find((entry): boolean => entry.id === callId)!;
   const date = new Intl.DateTimeFormat("en-US", {
     month: "long",
     day: "numeric",
@@ -14,13 +14,13 @@ export function describeLoad(state: State, callId: string, load: Load) {
     timeZone: "UTC",
   }).format(new Date(load.pickupAt));
   const peers = call.inventoryIds
-    .map((id) => state.inventory.find((entry) => entry.id === id)!)
+    .map((id): (typeof state.inventory)[number] => state.inventory.find((entry): boolean => entry.id === id)!)
     .filter(
-      (entry) =>
+      (entry): boolean =>
         describeRoute(entry.load) === describeRoute(load) &&
         entry.load.pickupAt.slice(0, 10) === load.pickupAt.slice(0, 10),
     );
-  const option = peers.length > 1 ? `, option ${peers.findIndex((entry) => entry.id === load.id) + 1}` : "";
+  const option = peers.length > 1 ? `, option ${peers.findIndex((entry): boolean => entry.id === load.id) + 1}` : "";
   return { ...load, spokenLabel: `${describeRoute(load)}, pickup ${date}${option}` };
 }
 
@@ -30,8 +30,8 @@ export function createReadback(
   load: Load,
   rateCents: number,
   action: "handoff" | "cancel" | "replace",
-) {
-  const call = state.calls.find((entry) => entry.id === callId)!;
+): string {
+  const call = state.calls.find((entry): boolean => entry.id === callId)!;
   const intent = action === "cancel" ? " cancellation" : action === "replace" ? " replacement" : "";
   const rate = (rateCents / 100).toLocaleString("en-US", {
     minimumFractionDigits: rateCents % 100 ? 2 : 0,

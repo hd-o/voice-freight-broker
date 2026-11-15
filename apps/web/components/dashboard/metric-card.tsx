@@ -7,7 +7,7 @@ export type MetricCardProps = {
   className?: string;
 };
 
-export function renderMetricCard({ label, value, description, className }: MetricCardProps) {
+export function renderMetricCard({ label, value, description, className }: MetricCardProps): React.JSX.Element {
   return (
     <div className={mergeClasses("min-w-0 rounded-[10px] bg-muted p-6", className)}>
       <dl className="space-y-2">

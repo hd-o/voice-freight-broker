@@ -1,16 +1,17 @@
 "use client";
 
+import type { TranscriptEntry } from "@/components/call/transcript";
 import { renderCallLayout as CallLayout } from "@/components/layouts/call-layout";
 import { demoCarriers } from "@/components/call/carrier-fixtures";
 import { navigatePage } from "@/lib/navigation";
 import { useAccount } from "@/lib/account";
 import { useLiveCall } from "@/lib/live";
 
-export default function renderCallPage() {
+export default function renderCallPage(): React.JSX.Element {
   const account = useAccount();
   const call = useLiveCall(account.user?.id);
 
-  function exploreSamples() {
+  function exploreSamples(): void {
     navigatePage("dashboard");
   }
 
@@ -24,7 +25,7 @@ export default function renderCallPage() {
       accountName={account.user?.name}
       accountPending={account.pending}
       carriers={demoCarriers}
-      entries={(call.status?.transcript ?? []).map((entry) => ({
+      entries={(call.status?.transcript ?? []).map((entry): TranscriptEntry => ({
         ...entry,
         label: entry.speaker === "carrier" ? "You" : "Northstar",
         time: `${String(Math.floor(entry.startMs / 60_000)).padStart(2, "0")}:${String(Math.floor(entry.startMs / 1000) % 60).padStart(2, "0")}`,
@@ -33,22 +34,22 @@ export default function renderCallPage() {
       onNavigate={navigatePage}
       onAccountAction={account.performAccountAction}
       onExploreSamples={exploreSamples}
-      onViewCall={() => {
+      onViewCall={(): void => {
         if (call.status) {
           window.location.assign(`/dashboard/call?call=${encodeURIComponent(call.status.id)}`);
         }
       }}
-      onStart={() => {
+      onStart={(): void => {
         void call.start();
       }}
       onSignIn={account.performAccountAction}
       onMute={call.toggleMute}
-      onHangUp={() => {
+      onHangUp={(): void => {
         void call.hangUp();
       }}
       onNewCall={call.reset}
       onDismissNotification={call.dismissNotification}
-      onNotificationAction={() => {
+      onNotificationAction={(): void => {
         void call.start();
       }}
     />

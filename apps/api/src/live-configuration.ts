@@ -54,7 +54,33 @@ const descriptions = {
     "Cancel an effective agreement only after a spoken cancellation read-back and explicit confirmation. The server supplies observed evidence.",
 };
 
-export function createSessionConfiguration() {
+type SessionConfiguration = {
+  model: string;
+  instructions: string;
+  input: { type: string; role: string; content: { type: string; text: string }[] }[];
+  store: boolean;
+  client: { data_channel: { allowed_client_events: string[]; allowed_server_events: { type: string }[] } };
+  delegation: {
+    type: string;
+    responses: {
+      model: string;
+      reasoning: { effort: string };
+      max_output_tokens: number;
+      parallel_tool_calls: boolean;
+      instructions: string;
+      tool_choice: string;
+      tools: {
+        type: string;
+        name: string;
+        description: string;
+        strict: boolean;
+        parameters: Record<string, unknown>;
+      }[];
+    };
+  };
+};
+
+export function createSessionConfiguration(): SessionConfiguration {
   return {
     model: "gpt-live-1",
     instructions: voiceInstructions,
@@ -80,7 +106,7 @@ export function createSessionConfiguration() {
           "session.input_transcript.delta",
           "session.output_transcript.delta",
           "error",
-        ].map((type) => ({ type })),
+        ].map((type): { type: string } => ({ type })),
       },
     },
     delegation: {
@@ -92,20 +118,22 @@ export function createSessionConfiguration() {
         parallel_tool_calls: false,
         instructions: backendInstructions,
         tool_choice: "auto",
-        tools: Object.entries(toolArguments).map(([name, schema]) => ({
-          type: "function",
-          name,
-          description: descriptions[name as keyof typeof descriptions],
-          strict: false,
-          parameters: z.toJSONSchema(
-            name === "confirm_handoff"
-              ? toolArguments.confirm_handoff.omit({ evidence: true })
-              : name === "cancel_agreement"
-                ? toolArguments.cancel_agreement.omit({ evidence: true })
-                : schema,
-            { unrepresentable: "any" },
-          ),
-        })),
+        tools: Object.entries(toolArguments).map(
+          ([name, schema]): SessionConfiguration["delegation"]["responses"]["tools"][number] => ({
+            type: "function",
+            name,
+            description: descriptions[name as keyof typeof descriptions],
+            strict: false,
+            parameters: z.toJSONSchema(
+              name === "confirm_handoff"
+                ? toolArguments.confirm_handoff.omit({ evidence: true })
+                : name === "cancel_agreement"
+                  ? toolArguments.cancel_agreement.omit({ evidence: true })
+                  : schema,
+              { unrepresentable: "any" },
+            ),
+          }),
+        ),
       },
     },
   };

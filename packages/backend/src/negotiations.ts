@@ -3,8 +3,13 @@ import { requireCondition } from "./model";
 import { checkAvailability } from "./inventory";
 import { createReadback } from "./readbacks";
 
-export function issueQuote(state: State, callId: string, loadId: string, replacementId: string | null = null) {
-  const call = state.calls.find((call) => call.id === callId)!;
+export function issueQuote(
+  state: State,
+  callId: string,
+  loadId: string,
+  replacementId: string | null = null,
+): ReturnType<typeof describeQuote> {
+  const call = state.calls.find((call): boolean => call.id === callId)!;
   const verification = call.verification;
 
   requireCondition(
@@ -13,7 +18,7 @@ export function issueQuote(state: State, callId: string, loadId: string, replace
     "Verify an eligible carrier first.",
   );
 
-  const inventory = state.inventory.find((entry) => entry.id === loadId);
+  const inventory = state.inventory.find((entry): boolean => entry.id === loadId);
 
   requireCondition(
     inventory && call.inventoryIds.includes(loadId),
@@ -23,7 +28,9 @@ export function issueQuote(state: State, callId: string, loadId: string, replace
 
   requireCondition(checkAvailability(state, loadId, replacementId), "load_unavailable", "Load is already allocated.");
 
-  let pair = state.negotiations.find((pair) => pair.carrierId === verification.carrierId && pair.loadId === loadId);
+  let pair = state.negotiations.find(
+    (pair): boolean => pair.carrierId === verification.carrierId && pair.loadId === loadId,
+  );
 
   if (!pair) {
     pair = {
@@ -39,14 +46,16 @@ export function issueQuote(state: State, callId: string, loadId: string, replace
     state.negotiations.push(pair);
   }
 
-  for (const quote of state.quotes.filter((quote) => quote.callId === callId)) {
+  for (const quote of state.quotes.filter((quote): boolean => quote.callId === callId)) {
     quote.valid = false;
   }
 
   const quote: Quote = {
     evidenceAfterMs: Math.max(
       0,
-      ...state.transcriptFragments.filter((entry) => entry.callId === callId).map((entry) => entry.endMs),
+      ...state.transcriptFragments
+        .filter((entry): boolean => entry.callId === callId)
+        .map((entry): typeof entry.endMs => entry.endMs),
     ),
     id: crypto.randomUUID(),
     callId,
@@ -54,7 +63,7 @@ export function issueQuote(state: State, callId: string, loadId: string, replace
     loadId,
     rateCents: pair.rateCents,
     pairVersion: pair.version,
-    version: state.quotes.filter((quote) => quote.callId === callId).length + 1,
+    version: state.quotes.filter((quote): boolean => quote.callId === callId).length + 1,
     replacementId,
     valid: true,
   };
@@ -64,17 +73,25 @@ export function issueQuote(state: State, callId: string, loadId: string, replace
   call.selectedLoadId = loadId;
   call.record.matched = true;
 
-  if (!call.record.loads.some((load) => load.id === loadId)) {
+  if (!call.record.loads.some((load): boolean => load.id === loadId)) {
     call.record.loads.push(structuredClone(inventory.load));
   }
 
   return describeQuote(state, quote);
 }
 
-export function requireQuote(state: State, callId: string, quoteId: string) {
-  const call = state.calls.find((call) => call.id === callId)!;
+export function requireQuote(
+  state: State,
+  callId: string,
+  quoteId: string,
+): {
+  call: import("./model").CallRecord;
+  quote: Quote;
+  pair: import("./model").Negotiation;
+} {
+  const call = state.calls.find((call): boolean => call.id === callId)!;
 
-  const quote = state.quotes.find((quote) => quote.id === quoteId && quote.callId === callId);
+  const quote = state.quotes.find((quote): boolean => quote.id === quoteId && quote.callId === callId);
 
   requireCondition(
     quote &&
@@ -86,7 +103,9 @@ export function requireQuote(state: State, callId: string, quoteId: string) {
     "Select the load again for a fresh quote and confirmation.",
   );
 
-  const pair = state.negotiations.find((pair) => pair.carrierId === quote.carrierId && pair.loadId === quote.loadId)!;
+  const pair = state.negotiations.find(
+    (pair): boolean => pair.carrierId === quote.carrierId && pair.loadId === quote.loadId,
+  )!;
 
   requireCondition(
     pair.version === quote.pairVersion,
@@ -97,15 +116,28 @@ export function requireQuote(state: State, callId: string, quoteId: string) {
   return { call, quote, pair };
 }
 
-export function describeQuote(state: State, quote: Quote) {
-  const pair = state.negotiations.find((pair) => pair.carrierId === quote.carrierId && pair.loadId === quote.loadId)!;
+export function describeQuote(
+  state: State,
+  quote: Quote,
+): {
+  quoteId: string;
+  readback: string;
+  version: number;
+  loadId: string;
+  rateCents: number;
+  usedRounds: number;
+  remainingRounds: number;
+} {
+  const pair = state.negotiations.find(
+    (pair): boolean => pair.carrierId === quote.carrierId && pair.loadId === quote.loadId,
+  )!;
 
   return {
     quoteId: quote.id,
     readback: createReadback(
       state,
       quote.callId,
-      state.inventory.find((entry) => entry.id === quote.loadId)!.load,
+      state.inventory.find((entry): boolean => entry.id === quote.loadId)!.load,
       quote.rateCents,
       quote.replacementId ? "replace" : "handoff",
     ),
@@ -117,9 +149,14 @@ export function describeQuote(state: State, quote: Quote) {
   };
 }
 
-export function evaluateOffer(state: State, callId: string, quoteId: string, amountCents: number) {
+export function evaluateOffer(
+  state: State,
+  callId: string,
+  quoteId: string,
+  amountCents: number,
+): ReturnType<typeof describeQuote> & { decision: string } {
   const { call, quote, pair } = requireQuote(state, callId, quoteId);
-  const inventory = state.inventory.find((entry) => entry.id === quote.loadId)!;
+  const inventory = state.inventory.find((entry): boolean => entry.id === quote.loadId)!;
 
   requireCondition(
     checkAvailability(state, quote.loadId, quote.replacementId),
@@ -150,7 +187,7 @@ export function evaluateOffer(state: State, callId: string, quoteId: string, amo
       decision = "bargaining_exhausted";
     }
 
-    const load = call.record.loads.find((load) => load.id === quote.loadId)!;
+    const load = call.record.loads.find((load): boolean => load.id === quote.loadId)!;
     load.negotiation.push({ kind: "Carrier offer", rateCents: amountCents });
 
     if (decision !== "bargaining_exhausted") {

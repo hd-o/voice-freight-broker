@@ -13,7 +13,7 @@ import { changeQuery, createCallHref, navigatePage, useQueryParameters } from "@
 
 const pageSize = 5;
 
-export default function renderDashboardPage() {
+export default function renderDashboardPage(): React.JSX.Element {
   const { parameters, readiness } = useQueryParameters();
   const account = useAccount();
   const [feedback, setFeedback] = useState<string>();
@@ -24,12 +24,12 @@ export default function renderDashboardPage() {
     queryKey: ["private", account.user?.id, "dashboard"],
     enabled: !!account.user,
     retry: false,
-    queryFn: async () => {
+    queryFn: async (): Promise<ReturnType<typeof callsSchema.parse>> => {
       const data: { calls: unknown } = await (await requestApi("/dashboard")).json();
       return callsSchema.parse(data.calls);
     },
   });
-  const calls = [...sampleCalls, ...(account.user ? (live.data ?? []) : [])].sort((a, b) =>
+  const calls = [...sampleCalls, ...(account.user ? (live.data ?? []) : [])].sort((a, b): number =>
     b.startedAt.localeCompare(a.startedAt),
   );
   const history = createHistory(calls);
@@ -39,11 +39,11 @@ export default function renderDashboardPage() {
   const currentPage = Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= lastPage ? pageNumber : 1;
   const offset = (currentPage - 1) * pageSize;
 
-  function selectPage(page: number) {
+  function selectPage(page: number): void {
     parameters.set("page", String(page));
     changeQuery(parameters);
   }
-  async function restock() {
+  async function restock(): Promise<void> {
     const id = operationId ?? crypto.randomUUID();
     setOperationId(id);
     setRestocking(true);
@@ -82,7 +82,7 @@ export default function renderDashboardPage() {
             restocking={restocking}
             feedback={feedback}
             error={failure}
-            onRestock={() => {
+            onRestock={(): void => {
               void restock();
             }}
           />
@@ -100,9 +100,9 @@ export default function renderDashboardPage() {
           : "0 calls",
         nextDisabled: currentPage === lastPage,
         previousVisible: currentPage > 1,
-        getCallHref: (id) => createCallHref(id, currentPage),
-        onNext: () => selectPage(currentPage + 1),
-        onPrevious: () => selectPage(currentPage - 1),
+        getCallHref: (id): string => createCallHref(id, currentPage),
+        onNext: (): void => selectPage(currentPage + 1),
+        onPrevious: (): void => selectPage(currentPage - 1),
       }}
     />
   );

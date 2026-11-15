@@ -33,7 +33,7 @@ export function renderNavigation({
   accountPending,
   onNavigate,
   onAccountAction,
-}: NavigationProps) {
+}: NavigationProps): React.JSX.Element {
   return (
     <TooltipProvider delay={0}>
       <nav
@@ -63,7 +63,7 @@ export function renderNavigation({
           </div>
         )}
         <div className="contents md:flex md:flex-col md:gap-2">
-          {navigationItems.map(({ page, label, icon: Icon }) => (
+          {navigationItems.map(({ page, label, icon: Icon }): React.JSX.Element => (
             <Tooltip key={page}>
               <TooltipTrigger
                 render={
@@ -77,7 +77,7 @@ export function renderNavigation({
                 }
                 aria-label={label}
                 aria-current={activePage === page ? "page" : undefined}
-                onClick={(event) => {
+                onClick={(event): void => {
                   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
                     return;
                   }

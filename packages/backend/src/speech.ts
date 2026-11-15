@@ -1,4 +1,4 @@
-export function normalizeSpeech(text: string) {
+export function normalizeSpeech(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
@@ -37,7 +37,7 @@ export function parseSpokenNumber(text: string): number | null {
   for (const word of text
     .trim()
     .split(/\s+/)
-    .filter((word) => word !== "and")) {
+    .filter((word): boolean => word !== "and")) {
     const unit = unitWords.indexOf(word);
     const tens = tensWords.indexOf(word);
 
@@ -58,7 +58,7 @@ export function parseSpokenNumber(text: string): number | null {
   return total + group;
 }
 
-export function normalizeReadback(text: string) {
+export function normalizeReadback(text: string): string {
   const ordinals = [
     "first",
     "second",
@@ -85,26 +85,26 @@ export function normalizeReadback(text: string) {
     .replace(/\b(\d+)(?:st|nd|rd|th)\b/g, "$1")
     .replace(
       /\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth)\b/g,
-      (word) => String(ordinals.indexOf(word) + 1),
+      (word): string => String(ordinals.indexOf(word) + 1),
     )
     .replace(/\bthirtieth\b/g, "30")
     .replace(/\btwentieth\b/g, "20")
     .replace(/\bthirty 1\b/g, "31")
-    .replace(/\btwenty (\d)\b/g, (_, digit: string) => String(20 + Number(digit)))
+    .replace(/\btwenty (\d)\b/g, (_, digit: string): string => String(20 + Number(digit)))
     .replace(
       new RegExp(
         `\\b(january|february|march|april|may|june|july|august|september|october|november|december) ((?:(?:${numbers})\\s+)+?)(?=(?:two thousand|twenty twenty|\\d{4})\\b)`,
         "g",
       ),
-      (_, month: string, day: string) => `${month} ${parseSpokenNumber(day)} `,
+      (_, month: string, day: string): string => `${month} ${parseSpokenNumber(day)} `,
     )
     .replace(/\bpicking up\b/g, "pickup")
     .replace(/\bpickup on\b/g, "pickup")
-    .replace(/\btwenty twenty (\w+)\b/g, (_, word: string) => {
+    .replace(/\btwenty twenty (\w+)\b/g, (_, word: string): string => {
       const year = parseSpokenNumber(word);
       return year !== null && year < 10 ? String(2020 + year) : `twenty twenty ${word}`;
     });
-  return speech.replace(new RegExp(`\\b(?:${numbers})(?:\\s+(?:${numbers}))*\\b`, "g"), (words) =>
+  return speech.replace(new RegExp(`\\b(?:${numbers})(?:\\s+(?:${numbers}))*\\b`, "g"), (words): string =>
     String(parseSpokenNumber(words) ?? words),
   );
 }

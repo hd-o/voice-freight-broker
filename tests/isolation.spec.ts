@@ -7,7 +7,12 @@ type DatabaseBindings = {
   };
 };
 
-async function requestApi(backend: TestHarness, path: string, cookie?: string, body?: unknown) {
+async function requestApi(
+  backend: TestHarness,
+  path: string,
+  cookie?: string,
+  body?: unknown,
+): ReturnType<TestHarness["fetch"]> {
   const { url } = await backend.listen();
 
   return backend.fetch(new URL(`/api${path}`, url), {
@@ -21,7 +26,7 @@ async function requestApi(backend: TestHarness, path: string, cookie?: string, b
   });
 }
 
-async function signIn(backend: TestHarness) {
+async function signIn(backend: TestHarness): Promise<string> {
   const response = await requestApi(backend, "/session", undefined, {
     userId: "administrator",
   });
@@ -36,7 +41,7 @@ async function signIn(backend: TestHarness) {
   return cookie.split(";")[0];
 }
 
-test("backends isolate fixed accounts and reset storage across both Workers", async ({ backend }) => {
+test("backends isolate fixed accounts and reset storage across both Workers", async ({ backend }): Promise<void> => {
   const otherBackend = createTestBackend();
 
   try {

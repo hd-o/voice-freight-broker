@@ -13,7 +13,7 @@ type TestFixtures = {
   database: void;
 };
 
-export function createTestBackend(voiceScenario = "workflow") {
+export function createTestBackend(voiceScenario = "workflow"): TestHarness {
   return createTestHarness({
     root: resolve(import.meta.dirname, ".."),
     workers: [
@@ -36,7 +36,7 @@ export function createTestBackend(voiceScenario = "workflow") {
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   voiceScenario: ["workflow", { scope: "worker", option: true }],
   backend: [
-    async ({ voiceScenario }, use) => {
+    async ({ voiceScenario }, use): Promise<void> => {
       const backend = createTestBackend(voiceScenario);
 
       try {
@@ -49,7 +49,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     { scope: "worker", timeout: 30_000 },
   ],
   browserServer: [
-    async ({ backend }, use) => {
+    async ({ backend }, use): Promise<void> => {
       const browserServer = await createBrowserServer(backend, "http://127.0.0.1:4173");
 
       try {
@@ -60,11 +60,11 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     },
     { scope: "worker" },
   ],
-  baseURL: async ({ browserServer }, use) => {
+  baseURL: async ({ browserServer }, use): Promise<void> => {
     await use(browserServer.url);
   },
   database: [
-    async ({ backend }, use, testInfo) => {
+    async ({ backend }, use, testInfo): Promise<void> => {
       try {
         await backend.getWorker().applyD1Migrations("DB");
         await use();

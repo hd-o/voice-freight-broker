@@ -5,13 +5,13 @@ test.use({
   launchOptions: { ignoreDefaultArgs: ["--disable-back-forward-cache"] },
 });
 
-async function signIn(page: Page, name: string) {
+async function signIn(page: Page, name: string): Promise<void> {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("alertdialog", { name: "Local sign in" }).getByRole("button", { name, exact: true }).click();
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeEnabled();
 }
 
-async function createReviewerCall(request: APIRequestContext, baseURL?: string) {
+async function createReviewerCall(request: APIRequestContext, baseURL?: string): Promise<{ id: string }> {
   if (!baseURL) {
     throw new Error("Browser test server must have a URL");
   }
@@ -38,11 +38,15 @@ async function createReviewerCall(request: APIRequestContext, baseURL?: string) 
   return record;
 }
 
-test("private history stays scoped across logout and browser history", async ({ page, request, baseURL }) => {
+test("private history stays scoped across logout and browser history", async ({
+  page,
+  request,
+  baseURL,
+}): Promise<void> => {
   const record = await createReviewerCall(request, baseURL);
 
   const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", (error): number => errors.push(error.message));
   await page.goto("/dashboard");
   await signIn(page, "Local Reviewer");
   await expect(page.getByRole("img", { name: "Signed in as Local Reviewer", exact: true })).toBeVisible();
@@ -64,7 +68,11 @@ test("private history stays scoped across logout and browser history", async ({ 
   expect(errors).toEqual([]);
 });
 
-test("administrator access is cleared after logout in another tab", async ({ page, request, baseURL }) => {
+test("administrator access is cleared after logout in another tab", async ({
+  page,
+  request,
+  baseURL,
+}): Promise<void> => {
   const record = await createReviewerCall(request, baseURL);
   await page.goto("/dashboard");
   await signIn(page, "Local Administrator");
@@ -79,10 +87,13 @@ test("administrator access is cleared after logout in another tab", async ({ pag
   await otherTab.close();
 });
 
-test("logout blocks overlapping account changes in this tab and another tab", async ({ page, context }) => {
+test("logout blocks overlapping account changes in this tab and another tab", async ({
+  page,
+  context,
+}): Promise<void> => {
   await page.goto("/dashboard");
   await signIn(page, "Local Administrator");
-  const record = await page.evaluate(async () => {
+  const record = await page.evaluate(async (): Promise<{ id: string }> => {
     const headers = { "Content-Type": "application/json" };
     await fetch("/api/local/seed", { method: "POST", headers });
     const response = await fetch("/api/calls", {
@@ -107,25 +118,25 @@ test("logout blocks overlapping account changes in this tab and another tab", as
   await otherTab.goto("/call");
   await expect(otherTab.getByRole("button", { name: "Sign out", exact: true })).toBeEnabled();
 
-  let releaseLogout = () => {};
-  const logoutGate = new Promise<void>((resolve) => {
+  let releaseLogout = (): void => {};
+  const logoutGate = new Promise<void>((resolve): void => {
     releaseLogout = resolve;
   });
-  await page.route("**/api/session", async (route) => {
+  await page.route("**/api/session", async (route): Promise<void> => {
     if (route.request().method() === "DELETE") {
       await logoutGate;
     }
     await route.continue();
   });
   const signIns: string[] = [];
-  context.on("request", (request) => {
+  context.on("request", (request): void => {
     if (request.url().endsWith("/api/session") && request.method() === "POST") {
       signIns.push(request.url());
     }
   });
   try {
     const logout = page.waitForRequest(
-      (request) => request.url().endsWith("/api/session") && request.method() === "DELETE",
+      (request): boolean => request.url().endsWith("/api/session") && request.method() === "DELETE",
     );
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await logout;
@@ -178,14 +189,14 @@ test("logout blocks overlapping account changes in this tab and another tab", as
   }
 });
 
-test("failed logout releases account controls and leaves public samples usable", async ({ page }) => {
+test("failed logout releases account controls and leaves public samples usable", async ({ page }): Promise<void> => {
   await page.goto("/dashboard");
   await signIn(page, "Local Administrator");
-  let releaseLogout = () => {};
-  const logoutGate = new Promise<void>((resolve) => {
+  let releaseLogout = (): void => {};
+  const logoutGate = new Promise<void>((resolve): void => {
     releaseLogout = resolve;
   });
-  await page.route("**/api/session", async (route) => {
+  await page.route("**/api/session", async (route): Promise<void> => {
     if (route.request().method() !== "DELETE") {
       return route.continue();
     }
@@ -194,7 +205,7 @@ test("failed logout releases account controls and leaves public samples usable",
   });
   try {
     const logout = page.waitForRequest(
-      (request) => request.url().endsWith("/api/session") && request.method() === "DELETE",
+      (request): boolean => request.url().endsWith("/api/session") && request.method() === "DELETE",
     );
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await logout;

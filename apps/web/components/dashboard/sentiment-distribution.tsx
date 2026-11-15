@@ -16,7 +16,7 @@ export type SentimentDistributionProps = {
   description: string;
 };
 
-export function renderSentimentDistribution({ segments, description }: SentimentDistributionProps) {
+export function renderSentimentDistribution({ segments, description }: SentimentDistributionProps): React.JSX.Element {
   return (
     <section aria-label="Caller sentiment" className="min-w-0 rounded-[10px] bg-muted p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -24,7 +24,7 @@ export function renderSentimentDistribution({ segments, description }: Sentiment
         <p className="text-xs leading-4 text-muted-foreground">{description}</p>
       </div>
       <div aria-hidden="true" className="mt-4 flex h-2 overflow-hidden rounded-full bg-border">
-        {segments.map((segment) => (
+        {segments.map((segment): React.JSX.Element => (
           <span
             key={segment.label}
             className={sentimentTones[segment.label]}
@@ -34,7 +34,7 @@ export function renderSentimentDistribution({ segments, description }: Sentiment
       </div>
       {segments.length ? (
         <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-xs leading-4 sm:grid-cols-4">
-          {segments.map((segment) => (
+          {segments.map((segment): React.JSX.Element => (
             <li key={segment.label} className="flex items-center gap-2">
               <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${sentimentTones[segment.label]}`} />
               <span>

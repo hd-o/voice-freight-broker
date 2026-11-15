@@ -3,13 +3,16 @@ import { arrayBuffer as readBody } from "node:stream/consumers";
 import type { Socket } from "node:net";
 import type { TestHarness } from "wrangler";
 
-export async function createBrowserServer(backend: TestHarness, frontendURL: string) {
+export async function createBrowserServer(
+  backend: TestHarness,
+  frontendURL: string,
+): Promise<{ url: string; close(): Promise<void> }> {
   const sockets = new Set<Socket>();
-  const server = createServer((request, response) => {
+  const server = createServer((request, response): void => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
 
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
-      void forwardApi().catch((error: unknown) => {
+      void forwardApi().catch((error: unknown): void => {
         console.error("Browser test API proxy failed", error);
         response.writeHead(502);
         response.end("Browser test API unavailable");
@@ -20,18 +23,18 @@ export async function createBrowserServer(backend: TestHarness, frontendURL: str
     const upstream = requestHttp(
       new URL(request.url ?? "/", frontendURL),
       { method: request.method, headers: request.headers },
-      (incoming) => {
+      (incoming): void => {
         response.writeHead(incoming.statusCode ?? 502, incoming.headers);
-        incoming.on("error", (error) => response.destroy(error));
+        incoming.on("error", (error): ReturnType<typeof response.destroy> => response.destroy(error));
         incoming.pipe(response);
       },
     );
 
-    upstream.on("error", (error) => response.destroy(error));
-    response.on("close", () => upstream.destroy());
+    upstream.on("error", (error): ReturnType<typeof response.destroy> => response.destroy(error));
+    response.on("close", (): ReturnType<typeof upstream.destroy> => upstream.destroy());
     request.pipe(upstream);
 
-    async function forwardApi() {
+    async function forwardApi(): Promise<void> {
       const headers = new Headers();
 
       for (const [name, value] of Object.entries(request.headers)) {
@@ -64,18 +67,18 @@ export async function createBrowserServer(backend: TestHarness, frontendURL: str
     }
   });
 
-  server.on("connection", (socket) => {
+  server.on("connection", (socket): void => {
     sockets.add(socket);
-    socket.on("close", () => sockets.delete(socket));
+    socket.on("close", (): boolean => sockets.delete(socket));
   });
 
   // Keep the shared vinext server's HMR connection working on the proxy origin.
-  server.on("upgrade", (request, socket, head) => {
+  server.on("upgrade", (request, socket, head): void => {
     const upstream = requestHttp(new URL(request.url ?? "/", frontendURL), {
       headers: request.headers,
     });
 
-    upstream.on("upgrade", (incoming, connection, data) => {
+    upstream.on("upgrade", (incoming, connection, data): void => {
       socket.write("HTTP/1.1 101 Switching Protocols\r\n");
 
       for (let index = 0; index < incoming.rawHeaders.length; index += 2) {
@@ -90,20 +93,20 @@ export async function createBrowserServer(backend: TestHarness, frontendURL: str
         connection.write(head);
       }
 
-      socket.on("error", () => connection.destroy());
-      connection.on("error", () => socket.destroy());
-      socket.on("close", () => connection.destroy());
+      socket.on("error", (): ReturnType<typeof connection.destroy> => connection.destroy());
+      connection.on("error", (): ReturnType<typeof socket.destroy> => socket.destroy());
+      socket.on("close", (): ReturnType<typeof connection.destroy> => connection.destroy());
       socket.pipe(connection).pipe(socket);
     });
-    upstream.on("error", () => socket.destroy());
-    upstream.on("response", () => socket.destroy());
-    socket.on("close", () => upstream.destroy());
+    upstream.on("error", (): ReturnType<typeof socket.destroy> => socket.destroy());
+    upstream.on("response", (): ReturnType<typeof socket.destroy> => socket.destroy());
+    socket.on("close", (): ReturnType<typeof upstream.destroy> => upstream.destroy());
     upstream.end();
   });
 
-  await new Promise<void>((resolve, reject) => {
+  await new Promise<void>((resolve, reject): void => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
+    server.listen(0, "127.0.0.1", (): void => {
       server.off("error", reject);
       resolve();
     });
@@ -117,13 +120,13 @@ export async function createBrowserServer(backend: TestHarness, frontendURL: str
 
   return {
     url: `http://127.0.0.1:${address.port}`,
-    async close() {
+    async close(): Promise<void> {
       for (const socket of sockets) {
         socket.destroy();
       }
 
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
+      await new Promise<void>((resolve, reject): void => {
+        server.close((error): void => (error ? reject(error) : resolve()));
       });
     },
   };

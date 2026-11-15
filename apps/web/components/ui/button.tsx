@@ -27,11 +27,11 @@ export const getButtonClasses = cva(
 
 export type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof getButtonClasses>;
 
-export function renderButton({ className, variant, size, ...props }: ButtonProps) {
+export function renderButton({ className, variant, size, ...props }: ButtonProps): React.JSX.Element {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={(state) =>
+      className={(state): string =>
         mergeClasses(
           getButtonClasses({ variant, size }),
           typeof className === "function" ? className(state) : className,

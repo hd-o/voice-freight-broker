@@ -6,10 +6,10 @@ import { createOrbRenderer } from "./orb-renderer";
 
 export type VoiceOrbProps = { connected?: boolean; className?: string };
 
-export function renderVoiceOrb({ connected = false, className }: VoiceOrbProps) {
+export function renderVoiceOrb({ connected = false, className }: VoiceOrbProps): React.JSX.Element {
   const canvas = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
+  useEffect((): (() => void) | undefined => {
     if (!connected || !canvas.current) {
       return;
     }

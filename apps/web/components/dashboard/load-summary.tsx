@@ -24,7 +24,14 @@ export type LoadSummaryProps = {
   load: LoadDetails | null;
 };
 
-export function renderLoadSummary({ outcome, eligibility, carrier, mcNumber, selector, load }: LoadSummaryProps) {
+export function renderLoadSummary({
+  outcome,
+  eligibility,
+  carrier,
+  mcNumber,
+  selector,
+  load,
+}: LoadSummaryProps): React.JSX.Element {
   return (
     <section
       aria-label="Call and load summary"
@@ -50,14 +57,14 @@ export function renderLoadSummary({ outcome, eligibility, carrier, mcNumber, sel
           <p className="mt-3 text-muted-foreground">{load.comparison}</p>
           <div className="mt-3 rounded-lg bg-muted p-4">
             <h3 className="mb-2 text-sm font-semibold">Load snapshot</h3>
-            {load.snapshot.map((line) => (
+            {load.snapshot.map((line): React.JSX.Element => (
               <p key={line}>{line}</p>
             ))}
           </div>
           <div className="mt-3 rounded-lg bg-muted p-4">
             <h3 className="mb-2 text-sm font-semibold">Negotiation</h3>
             <dl className="space-y-2">
-              {load.negotiation.map((entry) => (
+              {load.negotiation.map((entry): React.JSX.Element => (
                 <div
                   key={entry.label}
                   className={`flex justify-between gap-4 ${entry.emphasized ? "font-semibold" : ""}`}

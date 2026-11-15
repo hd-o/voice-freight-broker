@@ -9,7 +9,7 @@ const meta = {
     subtitle: "Talk to your AI freight broker.",
   },
   decorators: [
-    (Story) => (
+    (Story): React.JSX.Element => (
       <div className="w-[min(720px,calc(100vw-32px))]">
         <Story />
       </div>

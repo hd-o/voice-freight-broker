@@ -3,7 +3,7 @@ import { mergeClasses } from "@/lib/classes";
 
 export type SkeletonProps = ComponentProps<"div">;
 
-export function renderSkeleton({ className, ...props }: SkeletonProps) {
+export function renderSkeleton({ className, ...props }: SkeletonProps): React.JSX.Element {
   return (
     <div
       data-slot="skeleton"

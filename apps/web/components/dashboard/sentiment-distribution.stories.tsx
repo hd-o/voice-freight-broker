@@ -7,7 +7,7 @@ const meta = {
   component: SentimentDistribution,
   args: { segments: sentiments, description: "20 calls · One rating per call" },
   decorators: [
-    (Story) => (
+    (Story): React.JSX.Element => (
       <div className="w-[900px] max-w-[calc(100vw-32px)]">
         <Story />
       </div>

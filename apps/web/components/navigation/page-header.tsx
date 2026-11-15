@@ -6,7 +6,7 @@ export type PageHeaderProps = {
   children?: ReactNode;
 };
 
-export function renderPageHeader({ title, subtitle, children }: PageHeaderProps) {
+export function renderPageHeader({ title, subtitle, children }: PageHeaderProps): React.JSX.Element {
   return (
     <header className="flex min-w-0 flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">

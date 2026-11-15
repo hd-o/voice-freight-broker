@@ -122,8 +122,8 @@ export const Inactivity: Story = {
 export const LongTranscript: Story = {
   args: {
     ...Connected.args,
-    entries: Array.from({ length: 5 }, (_, index) =>
-      transcriptEntries.map((entry) => ({
+    entries: Array.from({ length: 5 }, (_, index): typeof transcriptEntries =>
+      transcriptEntries.map((entry): (typeof transcriptEntries)[number] => ({
         ...entry,
         id: `${index}-${entry.id}`,
       })),

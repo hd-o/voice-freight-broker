@@ -25,7 +25,7 @@ export const loadSchema = z
       }),
     ),
   })
-  .refine((load) => Date.parse(load.pickupAt) < Date.parse(load.deliveryAt), {
+  .refine((load): boolean => Date.parse(load.pickupAt) < Date.parse(load.deliveryAt), {
     message: "Pickup must precede delivery",
   });
 
@@ -75,12 +75,12 @@ export const callSchema = z
       ),
     }),
   })
-  .superRefine((call, context) => {
+  .superRefine((call, context): void => {
     if (call.endedAt !== null && Date.parse(call.endedAt) < Date.parse(call.startedAt)) {
       context.addIssue({ code: "custom", message: "Call end precedes start" });
     }
 
-    const loadIds = new Set(call.loads.map((load) => load.id));
+    const loadIds = new Set(call.loads.map((load): string => load.id));
     const versions = new Set<string>();
     const effectiveLoads = new Set<string>();
 
@@ -122,7 +122,7 @@ export const callSchema = z
 
 export const callsSchema = z
   .array(callSchema)
-  .refine((calls) => new Set(calls.map((call) => call.id)).size === calls.length, {
+  .refine((calls): boolean => new Set(calls.map((call): string => call.id)).size === calls.length, {
     message: "Duplicate call identity",
   });
 

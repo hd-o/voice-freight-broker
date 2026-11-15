@@ -25,7 +25,7 @@ export function renderAnalysisSummary({
   summary,
   administrator = false,
   onRetry,
-}: AnalysisSummaryProps) {
+}: AnalysisSummaryProps): React.JSX.Element {
   return (
     <section aria-label="Call analysis" className="min-w-0 space-y-4">
       <dl className="grid gap-3 sm:grid-cols-3">
@@ -33,7 +33,7 @@ export function renderAnalysisSummary({
           { label: "Connection", value: connection },
           { label: "Analysis", value: analysisLabels[status] },
           { label: "Sentiment", value: sentiment },
-        ].map((item) => (
+        ].map((item): React.JSX.Element => (
           <div key={item.label} className="min-w-0 space-y-1 rounded-lg bg-muted p-3">
             <dt className="text-xs leading-4 text-muted-foreground">{item.label}</dt>
             <dd className="break-words font-semibold">{item.value}</dd>

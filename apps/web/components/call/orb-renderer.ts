@@ -119,7 +119,7 @@ const fragmentSource = `
 
 /** Procedural cloud renderer adapted from the supplied voice-orb.html reference. */
 
-export function createOrbRenderer(canvas: HTMLCanvasElement) {
+export function createOrbRenderer(canvas: HTMLCanvasElement): (() => void) | undefined {
   const canvasContext = canvas.getContext("webgl", {
     alpha: true,
     premultipliedAlpha: true,
@@ -149,7 +149,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
     return undefined;
   }
 
-  function compileShader(type: number, source: string) {
+  function compileShader(type: number, source: string): WebGLShader {
     const shader = context.createShader(type);
 
     if (!shader) {
@@ -176,14 +176,14 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
       throw new Error("Shader link failed");
     }
   } catch {
-    shaders.forEach((shader) => context.deleteShader(shader));
+    shaders.forEach((shader): void => context.deleteShader(shader));
     context.deleteBuffer(buffer);
     context.deleteProgram(program);
 
     return undefined;
   }
 
-  shaders.forEach((shader) => context.deleteShader(shader));
+  shaders.forEach((shader): void => context.deleteShader(shader));
   context.useProgram(program);
   context.bindBuffer(context.ARRAY_BUFFER, buffer);
   context.bufferData(context.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), context.STATIC_DRAW);
@@ -203,7 +203,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
   let loss = false;
   let disposal = false;
 
-  function drawFrame() {
+  function drawFrame(): void {
     if (loss || disposal) {
       return;
     }
@@ -226,7 +226,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
     canvas.style.opacity = "1";
   }
 
-  function advanceFrame(timestamp: number) {
+  function advanceFrame(timestamp: number): void {
     frame = 0;
 
     if (motion.matches || document.hidden || loss || disposal) {
@@ -239,7 +239,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
     frame = requestAnimationFrame(advanceFrame);
   }
 
-  function scheduleFrame() {
+  function scheduleFrame(): void {
     cancelAnimationFrame(frame);
     previous = 0;
 
@@ -250,7 +250,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
     }
   }
 
-  function handleContextLoss(event: Event) {
+  function handleContextLoss(event: Event): void {
     event.preventDefault();
     loss = true;
     cancelAnimationFrame(frame);
@@ -265,7 +265,7 @@ export function createOrbRenderer(canvas: HTMLCanvasElement) {
   drawFrame();
   scheduleFrame();
 
-  return function destroyOrb() {
+  return function destroyOrb(): void {
     disposal = true;
     cancelAnimationFrame(frame);
     observer.disconnect();

@@ -33,13 +33,13 @@ export function renderCallDetailLayout({
   unavailable = false,
   notice,
   ...navigation
-}: CallDetailLayoutProps) {
+}: CallDetailLayoutProps): React.JSX.Element {
   return (
     <ApplicationLayout {...navigation} activePage="dashboard">
       <div className="space-y-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <PageHeader title="Call details" subtitle="Inspect a saved conversation and its analysis" />
-          <Button variant="outline" disabled={loading} onClick={() => navigation.onNavigate("dashboard")}>
+          <Button variant="outline" disabled={loading} onClick={(): void => navigation.onNavigate("dashboard")}>
             Back to dashboard
           </Button>
         </div>

@@ -59,8 +59,8 @@ export const carrierFixtures: readonly {
 
 export const fixtureVersion = "carriers-v1";
 
-export function verifyCarrier(state: State, callId: string, mcNumber: string, now: string) {
-  const call = state.calls.find((call) => call.id === callId)!;
+export function verifyCarrier(state: State, callId: string, mcNumber: string, now: string): Verification {
+  const call = state.calls.find((call): boolean => call.id === callId)!;
 
   if (call.verification?.status === "eligible") {
     requireCondition(
@@ -72,7 +72,7 @@ export function verifyCarrier(state: State, callId: string, mcNumber: string, no
     return call.verification;
   }
 
-  const fixture = carrierFixtures.find((fixture) => fixture.mcNumber === mcNumber);
+  const fixture = carrierFixtures.find((fixture): boolean => fixture.mcNumber === mcNumber);
 
   const evidence = fixture
     ? {

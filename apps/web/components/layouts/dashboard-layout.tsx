@@ -26,7 +26,7 @@ export function renderDashboardLayout({
   notice,
   controls,
   ...navigation
-}: DashboardLayoutProps) {
+}: DashboardLayoutProps): React.JSX.Element {
   return (
     <ApplicationLayout {...navigation} activePage="dashboard">
       <div className="space-y-8">
@@ -37,7 +37,7 @@ export function renderDashboardLayout({
           <div role="status" aria-label="Loading dashboard" aria-busy="true" className="space-y-8">
             <span className="sr-only">Loading dashboard</span>
             <div className="grid gap-4 xs:grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
-              {[0, 1, 2, 3, 4].map((item) => (
+              {[0, 1, 2, 3, 4].map((item): React.JSX.Element => (
                 <Skeleton key={item} className="h-[132px]" />
               ))}
             </div>
@@ -47,7 +47,7 @@ export function renderDashboardLayout({
         ) : (
           <>
             <div aria-label="Call metrics" className="grid gap-4 xs:grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
-              {metrics.map((metric) => (
+              {metrics.map((metric): React.JSX.Element => (
                 <MetricCard key={metric.label} {...metric} />
               ))}
             </div>

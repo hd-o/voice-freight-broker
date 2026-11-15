@@ -51,10 +51,10 @@ export async function executeTool(
 
   const fingerprint = JSON.stringify({ name, arguments: argumentsData });
 
-  const outcome = await transact<ReceiptOutcome>(binding, (state) => {
+  const outcome = await transact<ReceiptOutcome>(binding, (state): ReceiptOutcome => {
     authorizeCall(state, context, false);
     const id = `${context.callId}:${invocation.invocationId}`;
-    const receipt = state.receipts.find((receipt) => receipt.id === id);
+    const receipt = state.receipts.find((receipt): boolean => receipt.id === id);
 
     if (receipt) {
       requireCondition(
@@ -144,12 +144,12 @@ export async function executeTool(
             : toolArguments.cancel_agreement.parse(argumentsData).agreementId;
         const action = name === "cancel_agreement" ? "cancel" : "handoff";
         const target = resolveTarget(state, context.callId, action, targetId);
-        const call = state.calls.find((entry) => entry.id === context.callId)!;
-        const load = call.record.loads.find((entry) => entry.id === target.loadId)!;
-        const quote = state.quotes.find((entry) => entry.id === targetId);
+        const call = state.calls.find((entry): boolean => entry.id === context.callId)!;
+        const load = call.record.loads.find((entry): boolean => entry.id === target.loadId)!;
+        const quote = state.quotes.find((entry): boolean => entry.id === targetId);
         const failures =
           state.receipts.filter(
-            (entry) =>
+            (entry): boolean =>
               entry.callId === context.callId &&
               entry.fingerprint === fingerprint &&
               "error" in entry &&
@@ -191,6 +191,6 @@ export async function executeTool(
   return outcome.result;
 }
 
-function parseObservedArguments(input: unknown) {
+function parseObservedArguments(input: unknown): object {
   return input && typeof input === "object" && !Array.isArray(input) ? input : {};
 }

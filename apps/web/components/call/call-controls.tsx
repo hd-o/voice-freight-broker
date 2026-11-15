@@ -22,7 +22,7 @@ export function renderCallControls({
   onMute,
   onHangUp,
   onNewCall,
-}: CallControlsProps) {
+}: CallControlsProps): React.JSX.Element {
   if (state === "connecting") {
     return (
       <div className="flex flex-wrap justify-center gap-3">

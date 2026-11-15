@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type ReactElement } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { identitySchema, errorSchema, type Identity } from "@voice-freight/contracts/business";
 import { renderAccountPanel as AccountPanel } from "@/components/navigation/account-panel";
@@ -16,12 +16,12 @@ const accountContext = createContext<{
   user: null,
   loading: false,
   pending: false,
-  performAccountAction: () => {},
+  performAccountAction: (): void => {},
 });
 const accountKey = "freight-local-session";
 const sessionLock = "freight-session-mutation";
 
-export async function requestApi(path: string, method = "GET", body?: unknown) {
+export async function requestApi(path: string, method = "GET", body?: unknown): Promise<Response> {
   const response = await fetch(`/api${path}`, {
     method,
     credentials: "same-origin",
@@ -29,14 +29,14 @@ export async function requestApi(path: string, method = "GET", body?: unknown) {
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(20_000),
-  }).catch(() => {
+  }).catch((): never => {
     throw new Error("Local API unavailable. Start the local workers and apply migrations, then try again.");
   });
   if (!response.ok) {
     if (response.status === 401) {
       window.dispatchEvent(new Event("freight-session-expired"));
     }
-    const error = errorSchema.safeParse(await response.json().catch(() => null));
+    const error = errorSchema.safeParse(await response.json().catch((): null => null));
     throw new Error(
       response.status === 401
         ? "Session expired. Sign in again."
@@ -48,15 +48,15 @@ export async function requestApi(path: string, method = "GET", body?: unknown) {
   return response;
 }
 
-async function fetchIdentity() {
+async function fetchIdentity(): Promise<{ user: Identity | null; identities: Identity[] }> {
   const data: { user: unknown; identities: unknown[] } = await (await requestApi("/identity")).json();
   return {
     user: data.user === null ? null : identitySchema.parse(data.user),
-    identities: data.identities.map((identity) => identitySchema.parse(identity)),
+    identities: data.identities.map((identity): Identity => identitySchema.parse(identity)),
   };
 }
 
-export function renderAccountProvider({ children }: { children: ReactNode }) {
+export function renderAccountProvider({ children }: { children: ReactNode }): ReactElement {
   const cache = useQueryClient();
   const [session, setSession] = useState<string | null>(null);
   const [panel, setPanel] = useState(false);
@@ -82,19 +82,19 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
   });
   const user = session ? (identity.data?.user ?? null) : null;
 
-  useEffect(() => {
+  useEffect((): void | (() => void) => {
     setSession(localStorage.getItem(accountKey));
-    function expireSession() {
+    function expireSession(): void {
       cache.clear();
       localStorage.removeItem(accountKey);
       setSession(null);
       setNotice("Session expired. Sign in again.");
     }
-    function synchronizeAccount() {
+    function synchronizeAccount(): void {
       cache.clear();
       setSession(localStorage.getItem(accountKey));
     }
-    function restoreAccount(event: PageTransitionEvent) {
+    function restoreAccount(event: PageTransitionEvent): void {
       if (!event.persisted) {
         return;
       }
@@ -105,14 +105,14 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
     window.addEventListener("freight-session-expired", expireSession);
     window.addEventListener("storage", synchronizeAccount);
     window.addEventListener("pageshow", restoreAccount);
-    return () => {
+    return (): void => {
       window.removeEventListener("freight-session-expired", expireSession);
       window.removeEventListener("storage", synchronizeAccount);
       window.removeEventListener("pageshow", restoreAccount);
     };
   }, [cache]);
 
-  useEffect(() => {
+  useEffect((): void | (() => void) => {
     if (session && identity.data?.user === null) {
       cache.removeQueries({ queryKey: ["private"] });
       localStorage.removeItem(accountKey);
@@ -120,7 +120,7 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
     }
   }, [session, identity.data, cache]);
 
-  async function mutateSession(action: "sign-in" | "sign-out", command: () => Promise<void>) {
+  async function mutateSession(action: "sign-in" | "sign-out", command: () => Promise<void>): Promise<void> {
     if (mutation.current) {
       return;
     }
@@ -132,17 +132,21 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
     setOperation(action);
     setNotice(undefined);
     try {
-      const completed = await navigator.locks.request(sessionLock, { ifAvailable: true }, async (lock) => {
-        if (!lock) {
-          return false;
-        }
-        await command();
-        return true;
-      });
+      const completed = await navigator.locks.request(
+        sessionLock,
+        { ifAvailable: true },
+        async (lock): Promise<boolean> => {
+          if (!lock) {
+            return false;
+          }
+          await command();
+          return true;
+        },
+      );
       if (!completed) {
         setOperation("waiting");
         // Observe release without queuing the user's account choice.
-        await navigator.locks.request(sessionLock, () => {});
+        await navigator.locks.request(sessionLock, (): void => {});
       }
     } catch (error) {
       setNotice(
@@ -158,8 +162,8 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signIn(id: string) {
-    await mutateSession("sign-in", async () => {
+  async function signIn(id: string): Promise<void> {
+    await mutateSession("sign-in", async (): Promise<void> => {
       cache.removeQueries({ queryKey: ["private"] });
       await requestApi("/session", "POST", { userId: id });
       const marker = crypto.randomUUID();
@@ -170,8 +174,8 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  async function signOut() {
-    await mutateSession("sign-out", async () => {
+  async function signOut(): Promise<void> {
+    await mutateSession("sign-out", async (): Promise<void> => {
       setSession(null);
       localStorage.removeItem(accountKey);
       cache.clear();
@@ -179,7 +183,7 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  function performAccountAction() {
+  function performAccountAction(): void {
     if (mutation.current) {
       return;
     }
@@ -208,7 +212,7 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
           pending={pending || identity.isFetching}
           progress={progress}
           error={pending ? undefined : (notice ?? identity.error?.message)}
-          onSignIn={(id) => {
+          onSignIn={(id): void => {
             void signIn(id);
           }}
         />
@@ -217,6 +221,12 @@ export function renderAccountProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAccount() {
+export function useAccount(): {
+  user: Identity | null;
+  loading: boolean;
+  pending: boolean;
+  notice?: string;
+  performAccountAction: () => void;
+} {
   return useContext(accountContext);
 }

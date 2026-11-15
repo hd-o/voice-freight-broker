@@ -9,21 +9,22 @@ import { useAccount, requestApi } from "@/lib/account";
 import { useQuery } from "@tanstack/react-query";
 import { callSchema } from "@voice-freight/contracts/calls";
 
-export default function renderCallDetailsPage() {
+export default function renderCallDetailsPage(): React.JSX.Element {
   const { parameters, readiness } = useQueryParameters();
   const account = useAccount();
   const selection = parameters.get("call");
-  const sample = sampleCalls.find((call) => call.id === selection);
+  const sample = sampleCalls.find((call): boolean => call.id === selection);
   const privateSelection = selection !== null && !sample;
   const live = useQuery({
     queryKey: ["private", account.user?.id, "call", selection],
     enabled: privateSelection && !!account.user,
     retry: false,
-    queryFn: async () => callSchema.parse(await (await requestApi(`/calls/${encodeURIComponent(selection!)}`)).json()),
+    queryFn: async (): Promise<ReturnType<typeof callSchema.parse>> =>
+      callSchema.parse(await (await requestApi(`/calls/${encodeURIComponent(selection!)}`)).json()),
   });
   const call = sample ?? (account.user ? live.data : undefined);
 
-  function selectLoad(id: string | null) {
+  function selectLoad(id: string | null): void {
     if (id === null) {
       parameters.delete("load");
     } else {
@@ -33,7 +34,7 @@ export default function renderCallDetailsPage() {
     changeQuery(parameters);
   }
 
-  function navigateSection(page: NavigationPage) {
+  function navigateSection(page: NavigationPage): void {
     if (page !== "dashboard") {
       navigatePage(page);
       return;

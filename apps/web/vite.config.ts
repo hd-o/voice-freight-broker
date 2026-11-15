@@ -6,9 +6,9 @@ export default defineConfig({
   plugins: [
     {
       name: "development-cache",
-      configureServer(server) {
+      configureServer(server): void {
         // RSC responses bypass Vite's static response header configuration.
-        server.middlewares.use((request, response, next) => {
+        server.middlewares.use((request, response, next): void => {
           response.setHeader("Cache-Control", "no-store");
 
           // Vite serves CSS as a stylesheet or a JS module based on Accept.
@@ -26,14 +26,14 @@ export default defineConfig({
       name: "vinext-build-diagnostics",
       apply: "build",
       enforce: "post",
-      configEnvironment(name, config) {
+      configEnvironment(name, config): void {
         const output = config.build?.rolldownOptions?.output;
         for (const options of Array.isArray(output) ? output : [output]) {
           const splitting = options?.codeSplitting;
           if (!splitting || typeof splitting !== "object") {
             continue;
           }
-          splitting.groups?.forEach((group, index) => {
+          splitting.groups?.forEach((group, index): void => {
             if (typeof group.name === "function" && !group.debugName) {
               group.debugName = `${name}-chunk-group-${index}`;
             }
@@ -45,7 +45,7 @@ export default defineConfig({
   ],
   build: {
     rolldownOptions: {
-      onLog(level, log, handler) {
+      onLog(level, log, handler): void {
         // vinext's generated RSC imports intentionally share static modules.
         if (
           level === "warn" &&

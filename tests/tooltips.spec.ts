@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("navigation tooltips support hover, keyboard focus, and Escape", async ({ page }) => {
+test("navigation tooltips support hover, keyboard focus, and Escape", async ({ page }): Promise<void> => {
   await page.goto("http://127.0.0.1:6006/iframe.html?id=navigation-navigation--call&viewMode=story");
 
   const call = page.getByRole("link", { name: "Call", exact: true });
@@ -37,7 +37,7 @@ test("navigation tooltips support hover, keyboard focus, and Escape", async ({ p
   await expect(call).toHaveAttribute("aria-current", "page");
 });
 
-test("account tooltips match session labels and stay inside the phone viewport", async ({ page }) => {
+test("account tooltips match session labels and stay inside the phone viewport", async ({ page }): Promise<void> => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   for (const fixture of [

@@ -1,9 +1,10 @@
 import type { Call, Load } from "@voice-freight/contracts/calls";
 import { describeOutcome, listFinalAgreements, summarizeCalls } from "@voice-freight/contracts/reporting";
+import type { CallRecord } from "@/components/dashboard/call-history";
 import type { CallDetail } from "@/components/layouts/call-detail-layout";
 import type { LoadDetails } from "@/components/dashboard/load-summary";
 
-export function formatMoney(cents: number) {
+export function formatMoney(cents: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -12,13 +13,13 @@ export function formatMoney(cents: number) {
   }).format(cents / 100);
 }
 
-export function formatDuration(seconds: number) {
+export function formatDuration(seconds: number): string {
   const duration = Math.round(seconds);
 
   return `${Math.floor(duration / 60)}m ${String(duration % 60).padStart(2, "0")}s`;
 }
 
-export function formatDate(timestamp: string) {
+export function formatDate(timestamp: string): string {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -30,8 +31,8 @@ export function formatDate(timestamp: string) {
   }).format(new Date(timestamp));
 }
 
-export function createHistory(calls: readonly Call[]) {
-  return calls.map((call) => {
+export function createHistory(calls: readonly Call[]): CallRecord[] {
+  return calls.map((call): CallRecord => {
     const agreements = listFinalAgreements(call);
 
     return {
@@ -40,18 +41,18 @@ export function createHistory(calls: readonly Call[]) {
       source: call.source,
       carrier: call.carrier?.name ?? "Unknown carrier",
       load:
-        call.loads.map((load) => `${load.reference}: ${load.origin} → ${load.destination}`).join("; ") ||
+        call.loads.map((load): string => `${load.reference}: ${load.origin} → ${load.destination}`).join("; ") ||
         "No load selected",
       outcome: describeOutcome(call),
       agreements: String(agreements.length),
-      rate: agreements.map((agreement) => formatMoney(agreement.rateCents)).join(" / ") || "No final rate",
+      rate: agreements.map((agreement): string => formatMoney(agreement.rateCents)).join(" / ") || "No final rate",
       sentiment: call.analysis.sentiment,
       analysis: ({ complete: "Complete", pending: "Pending", failed: "Failed" } as const)[call.analysis.status],
     };
   });
 }
 
-export function createMetrics(calls: readonly Call[]) {
+export function createMetrics(calls: readonly Call[]): { label: string; value: string; description: string }[] {
   const report = summarizeCalls(calls);
 
   return [
@@ -87,7 +88,7 @@ export function createMetrics(calls: readonly Call[]) {
 }
 
 export function createLoadDetails(call: Call, load: Load): LoadDetails {
-  const agreement = listFinalAgreements(call).find((agreement) => agreement.loadId === load.id);
+  const agreement = listFinalAgreements(call).find((agreement): boolean => agreement.loadId === load.id);
   const variance = agreement ? agreement.rateCents - load.postedRateCents : null;
   const agreementLabels = {
     effective: "Accepted",
@@ -112,13 +113,13 @@ export function createLoadDetails(call: Call, load: Load): LoadDetails {
     ],
     negotiation: [
       { label: "Posted quote", value: formatMoney(load.postedRateCents) },
-      ...load.negotiation.map((entry, index) => ({
+      ...load.negotiation.map((entry, index): { label: string; value: string } => ({
         label: `${entry.kind} ${index + 1}`,
         value: formatMoney(entry.rateCents),
       })),
       ...call.agreements
-        .filter((entry) => entry.loadId === load.id)
-        .map((entry, index) => ({
+        .filter((entry): boolean => entry.loadId === load.id)
+        .map((entry, index): { label: string; value: string } => ({
           label: `${agreementLabels[entry.status]} agreement ${index + 1}`,
           value: formatMoney(entry.rateCents),
         })),
@@ -136,7 +137,7 @@ export function createCallDetail(
   loadId: string | null,
   onLoadChange: (value: string | null) => void,
 ): CallDetail {
-  const load = loadId === null ? call.loads[0] : call.loads.find((load) => load.id === loadId);
+  const load = loadId === null ? call.loads[0] : call.loads.find((load): boolean => load.id === loadId);
   const duration =
     call.endedAt === null
       ? "Duration unavailable"
@@ -152,7 +153,7 @@ export function createCallDetail(
       carrier: call.carrier?.name ?? "Unknown carrier",
       mcNumber: call.carrier?.mcNumber ?? "Unknown",
       selector: {
-        options: call.loads.map((load) => ({
+        options: call.loads.map((load): { value: string; label: string } => ({
           value: load.id,
           label: load.reference,
         })),
@@ -169,7 +170,7 @@ export function createCallDetail(
       connection: call.connection,
     },
     transcriptComplete: call.transcript.complete,
-    transcript: call.transcript.entries.map((entry) => ({
+    transcript: call.transcript.entries.map((entry): CallDetail["transcript"][number] => ({
       ...entry,
       label: entry.speaker === "carrier" ? "Carrier" : "Northstar",
       time: `${String(Math.floor(entry.offsetSeconds / 60)).padStart(2, "0")}:${String(entry.offsetSeconds % 60).padStart(2, "0")}`,

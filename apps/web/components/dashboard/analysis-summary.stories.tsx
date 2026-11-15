@@ -14,7 +14,7 @@ const meta = {
     onRetry: fn(),
   },
   decorators: [
-    (Story) => (
+    (Story): React.JSX.Element => (
       <div className="w-[838px] max-w-[calc(100vw-32px)]">
         <Story />
       </div>

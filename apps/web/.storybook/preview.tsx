@@ -3,11 +3,11 @@ import type { Preview } from "@storybook/react-vite";
 import "@fontsource-variable/inter";
 import "../app/globals.css";
 
-function renderTheme({ theme, children }: { theme: "light" | "dark"; children: ReactNode }) {
-  useEffect(() => {
+function renderTheme({ theme, children }: { theme: "light" | "dark"; children: ReactNode }): React.JSX.Element {
+  useEffect((): (() => void) => {
     document.documentElement.dataset.theme = theme;
 
-    return () => {
+    return (): void => {
       delete document.documentElement.dataset.theme;
     };
   }, [theme]);
@@ -34,7 +34,7 @@ const preview: Preview = {
   },
   initialGlobals: { theme: "light" },
   decorators: [
-    (Story, context) => (
+    (Story, context): React.JSX.Element => (
       <Theme theme={context.globals.theme === "dark" ? "dark" : "light"}>
         <Story />
       </Theme>

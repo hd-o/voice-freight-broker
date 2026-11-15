@@ -5,9 +5,10 @@ import { issueQuote, requireQuote } from "./negotiations";
 import { requireEvidence } from "./evidence";
 import { createReadback } from "./readbacks";
 
-export function beginRenegotiation(state: State, callId: string, agreementId: string) {
+export function beginRenegotiation(state: State, callId: string, agreementId: string): ReturnType<typeof issueQuote> {
   const agreement = state.agreements.find(
-    (agreement) => agreement.id === agreementId && agreement.callId === callId && agreement.status === "effective",
+    (agreement): boolean =>
+      agreement.id === agreementId && agreement.callId === callId && agreement.status === "effective",
   );
 
   requireCondition(agreement, "agreement_unavailable", "Only this active call's effective agreements may be replaced.");
@@ -20,7 +21,15 @@ export function confirmHandoff(
   callId: string,
   quoteId: string,
   evidence: { readbackId: string; callerId: string },
-) {
+): {
+  agreementId: string;
+  cancellationReadback: string;
+  loadId: string;
+  rateCents: number;
+  version: number;
+  status: string;
+  handoff: string;
+} {
   const { call, quote } = requireQuote(state, callId, quoteId);
   requireEvidence(state, callId, "handoff", quoteId, evidence);
 
@@ -32,7 +41,7 @@ export function confirmHandoff(
 
   const previous = quote.replacementId
     ? state.agreements.find(
-        (agreement) =>
+        (agreement): boolean =>
           agreement.id === quote.replacementId && agreement.callId === callId && agreement.status === "effective",
       )
     : null;
@@ -43,12 +52,14 @@ export function confirmHandoff(
     "The replacement target is no longer effective.",
   );
 
-  const load = call.record.loads.find((load) => load.id === quote.loadId)!;
+  const load = call.record.loads.find((load): boolean => load.id === quote.loadId)!;
 
   const agreement: Agreement = {
     evidenceAfterMs: Math.max(
       0,
-      ...state.transcriptFragments.filter((entry) => entry.callId === callId).map((entry) => entry.endMs),
+      ...state.transcriptFragments
+        .filter((entry): boolean => entry.callId === callId)
+        .map((entry): number => entry.endMs),
     ),
     id: crypto.randomUUID(),
     callId,
@@ -87,18 +98,23 @@ export function cancelAgreement(
   callId: string,
   agreementId: string,
   evidence: { readbackId: string; callerId: string },
-) {
+): {
+  agreementId: string;
+  status: string;
+  released: boolean;
+} {
   requireEvidence(state, callId, "cancel", agreementId, evidence);
 
   const agreement = state.agreements.find(
-    (agreement) => agreement.id === agreementId && agreement.callId === callId && agreement.status === "effective",
+    (agreement): boolean =>
+      agreement.id === agreementId && agreement.callId === callId && agreement.status === "effective",
   )!;
 
   agreement.status = "cancelled";
   agreement.cancellationEvidence = evidence;
-  const call = state.calls.find((call) => call.id === callId)!;
+  const call = state.calls.find((call): boolean => call.id === callId)!;
 
-  for (const quote of state.quotes.filter((quote) => quote.replacementId === agreementId)) {
+  for (const quote of state.quotes.filter((quote): boolean => quote.replacementId === agreementId)) {
     quote.valid = false;
 
     if (call.quoteId === quote.id) {
@@ -111,12 +127,12 @@ export function cancelAgreement(
   return { agreementId, status: "cancelled", released: true };
 }
 
-export function synchronizeAgreements(state: State, callId: string) {
-  const call = state.calls.find((call) => call.id === callId)!;
+export function synchronizeAgreements(state: State, callId: string): void {
+  const call = state.calls.find((call): boolean => call.id === callId)!;
 
   call.record.agreements = state.agreements
-    .filter((agreement) => agreement.callId === callId)
-    .map((agreement) => ({
+    .filter((agreement): boolean => agreement.callId === callId)
+    .map((agreement): State["calls"][number]["record"]["agreements"][number] => ({
       id: agreement.id,
       loadId: agreement.load.id,
       version: agreement.version,

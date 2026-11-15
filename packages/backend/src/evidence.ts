@@ -5,7 +5,17 @@ import { authorizeCall } from "./authorization";
 import { requireQuote } from "./negotiations";
 import { transact } from "./repository";
 
-export function resolveTarget(state: State, callId: string, action: "handoff" | "cancel", targetId: string) {
+export function resolveTarget(
+  state: State,
+  callId: string,
+  action: "handoff" | "cancel",
+  targetId: string,
+): {
+  carrierId: string;
+  loadId: string;
+  rateCents: number;
+  contextVersion: string;
+} {
   if (action === "handoff") {
     const { quote } = requireQuote(state, callId, targetId);
 
@@ -18,7 +28,8 @@ export function resolveTarget(state: State, callId: string, action: "handoff" | 
   }
 
   const agreement = state.agreements.find(
-    (agreement) => agreement.id === targetId && agreement.callId === callId && agreement.status === "effective",
+    (agreement): boolean =>
+      agreement.id === targetId && agreement.callId === callId && agreement.status === "effective",
   );
 
   requireCondition(agreement, "agreement_unavailable", "Agreement is not effective in this call.");
@@ -36,13 +47,15 @@ export async function recordEvidence(
   context: CallContext,
   input: EvidenceInput,
   now = new Date().toISOString(),
-) {
+): Promise<{
+  id: string;
+}> {
   const event = evidenceSchema.parse(input);
 
-  return transact(binding, (state) => {
+  return transact(binding, (state): { id: string } => {
     const call = authorizeCall(state, context);
     const target = resolveTarget(state, call.id, event.action, event.targetId);
-    const existing = state.evidence.find((entry) => entry.id === event.id);
+    const existing = state.evidence.find((entry): boolean => entry.id === event.id);
 
     if (existing) {
       requireCondition(
@@ -62,7 +75,7 @@ export async function recordEvidence(
 
     if (event.speaker === "carrier") {
       const readback = state.evidence.find(
-        (entry) =>
+        (entry): boolean =>
           entry.id === event.readbackId &&
           entry.callId === call.id &&
           entry.speaker === "broker" &&
@@ -84,7 +97,7 @@ export async function recordEvidence(
       recordedAt: now,
     });
 
-    if (!state.liveSessions.some((entry) => entry.id === call.id)) {
+    if (!state.liveSessions.some((entry): boolean => entry.id === call.id)) {
       call.record.transcript.entries.push({
         id: event.id,
         speaker: event.speaker,
@@ -103,12 +116,14 @@ export function requireEvidence(
   action: "handoff" | "cancel",
   targetId: string,
   references: { readbackId: string; callerId: string },
-) {
+): void {
   const target = resolveTarget(state, callId, action, targetId);
 
-  const readback = state.evidence.find((entry) => entry.id === references.readbackId && entry.callId === callId);
+  const readback = state.evidence.find(
+    (entry): boolean => entry.id === references.readbackId && entry.callId === callId,
+  );
 
-  const caller = state.evidence.find((entry) => entry.id === references.callerId && entry.callId === callId);
+  const caller = state.evidence.find((entry): boolean => entry.id === references.callerId && entry.callId === callId);
 
   requireCondition(
     readback?.speaker === "broker" &&

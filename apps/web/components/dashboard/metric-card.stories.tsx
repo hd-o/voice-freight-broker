@@ -7,7 +7,7 @@ const meta = {
   component: MetricCard,
   args: metrics[0],
   decorators: [
-    (Story) => (
+    (Story): React.JSX.Element => (
       <div className="w-[250px] max-w-full">
         <Story />
       </div>

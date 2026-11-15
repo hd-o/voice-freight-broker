@@ -5,7 +5,7 @@ import records from "../../web/data/calls.json";
 
 const calls = callsSchema.parse(records);
 
-it("validates timestamp chronology independently of ISO fractional precision", () => {
+it("validates timestamp chronology independently of ISO fractional precision", (): void => {
   const timestamp = "2026-11-11T16:42:00Z";
   const fraction = "2026-11-11T16:42:00.500Z";
 
@@ -38,8 +38,8 @@ it("validates timestamp chronology independently of ISO fractional precision", (
   ).toBe(true);
 });
 
-it("validates the bundled public sample records and their references", () => {
-  expect(calls.every((call) => call.source === "Sample" && call.endedAt !== null)).toBe(true);
+it("validates the bundled public sample records and their references", (): void => {
+  expect(calls.every((call): boolean => call.source === "Sample" && call.endedAt !== null)).toBe(true);
   expect(callsSchema.safeParse([...records, records[0]]).success).toBe(false);
   expect(
     callSchema.safeParse({
@@ -55,7 +55,7 @@ it("validates the bundled public sample records and their references", () => {
   ).toBe(false);
 });
 
-it("uses the same call population for history, duration, sentiment and agreement reporting", () => {
+it("uses the same call population for history, duration, sentiment and agreement reporting", (): void => {
   const report = summarizeCalls(calls);
 
   expect(report).toMatchObject({
@@ -68,7 +68,9 @@ it("uses the same call population for history, duration, sentiment and agreement
     finalAgreementCount: 4,
     averageVarianceCents: 9500,
   });
-  expect(report.sentiments.map(({ label, count }) => ({ label, count }))).toEqual([
+  expect(
+    report.sentiments.map(({ label, count }): { label: typeof label; count: number } => ({ label, count })),
+  ).toEqual([
     { label: "Positive", count: 3 },
     { label: "Neutral", count: 1 },
     { label: "Negative", count: 1 },
@@ -76,9 +78,9 @@ it("uses the same call population for history, duration, sentiment and agreement
   ]);
 });
 
-it("counts calls once and excludes unresolved errors only when no agreement survived", () => {
-  const retainedCall = calls.find((call) => call.id === "retained");
-  const error = calls.find((call) => call.id === "error");
+it("counts calls once and excludes unresolved errors only when no agreement survived", (): void => {
+  const retainedCall = calls.find((call): boolean => call.id === "retained");
+  const error = calls.find((call): boolean => call.id === "error");
 
   if (!retainedCall || !error) {
     throw new Error("Required error fixtures are missing");
@@ -97,8 +99,8 @@ it("counts calls once and excludes unresolved errors only when no agreement surv
   });
 });
 
-it("excludes cancelled and superseded agreements and preserves signed variance", () => {
-  const harbor = calls.find((call) => call.id === "harbor");
+it("excludes cancelled and superseded agreements and preserves signed variance", (): void => {
+  const harbor = calls.find((call): boolean => call.id === "harbor");
 
   if (!harbor) {
     throw new Error("Required agreement history fixture is missing");
@@ -111,7 +113,7 @@ it("excludes cancelled and superseded agreements and preserves signed variance",
 
   const cancellation = callSchema.parse({
     ...harbor,
-    agreements: harbor.agreements.map((agreement) => ({
+    agreements: harbor.agreements.map((agreement): typeof agreement => ({
       ...agreement,
       status: "cancelled",
     })),
@@ -132,7 +134,7 @@ it("excludes cancelled and superseded agreements and preserves signed variance",
   expect(summarizeCalls([discount]).averageVarianceCents).toBe(-10000);
 });
 
-it("shows unavailable denominators and omits active sessions from end-of-call metrics", () => {
+it("shows unavailable denominators and omits active sessions from end-of-call metrics", (): void => {
   expect(summarizeCalls([])).toMatchObject({
     callCount: 0,
     durationCount: 0,

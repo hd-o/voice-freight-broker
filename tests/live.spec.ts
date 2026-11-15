@@ -4,7 +4,7 @@ test("a simulated multi-load call saves cancellation, replacement, transcript an
   page,
   request,
   baseURL,
-}) => {
+}): Promise<void> => {
   if (!baseURL) {
     throw new Error("Browser test origin is required");
   }
@@ -15,7 +15,7 @@ test("a simulated multi-load call saves cancellation, replacement, transcript an
     expect((await request.post(path, { headers: { Origin: baseURL }, data })).ok()).toBe(true);
   }
   const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", (error): number => errors.push(error.message));
   await page.goto("/call");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("button", { name: "Local Reviewer", exact: true }).click();
@@ -47,18 +47,20 @@ test("a simulated multi-load call saves cancellation, replacement, transcript an
   expect(errors).toEqual([]);
 });
 
-test("microphone denial leaves paid startup untouched and allows a retry", async ({ page }) => {
-  await page.route("**/api/live/configuration", (route) => route.fulfill({ json: { provider: "openai" } }));
-  await page.addInitScript(() => {
+test("microphone denial leaves paid startup untouched and allows a retry", async ({ page }): Promise<void> => {
+  await page.route("**/api/live/configuration", (route): Promise<void> =>
+    route.fulfill({ json: { provider: "openai" } }),
+  );
+  await page.addInitScript((): void => {
     Object.defineProperty(navigator, "mediaDevices", {
       value: {
-        getUserMedia: () => Promise.reject(new DOMException("Microphone denied", "NotAllowedError")),
+        getUserMedia: (): Promise<never> => Promise.reject(new DOMException("Microphone denied", "NotAllowedError")),
       },
       configurable: true,
     });
   });
   let paidStarts = 0;
-  page.on("request", (request) => {
+  page.on("request", (request): void => {
     if (new URL(request.url()).pathname === "/api/live/calls") {
       paidStarts++;
     }
@@ -73,7 +75,11 @@ test("microphone denial leaves paid startup untouched and allows a retry", async
   expect(paidStarts).toBe(0);
 });
 
-test("a status failure ends the call without reviving disposed audio", async ({ page, request, baseURL }) => {
+test("a status failure ends the call without reviving disposed audio", async ({
+  page,
+  request,
+  baseURL,
+}): Promise<void> => {
   if (!baseURL) {
     throw new Error("Browser test origin is required");
   }
@@ -84,7 +90,7 @@ test("a status failure ends the call without reviving disposed audio", async ({ 
     expect((await request.post(path, { headers: { Origin: baseURL }, data })).ok()).toBe(true);
   }
   let polls = 0;
-  await page.route("**/api/calls/*/live", async (route) => {
+  await page.route("**/api/calls/*/live", async (route): Promise<void> => {
     polls++;
     if (polls === 1) {
       await route.fulfill({

@@ -7,7 +7,7 @@ const meta = {
   title: "Navigation/Account Panel",
   component: AccountPanel,
   decorators: [
-    (Story) => (
+    (Story): React.JSX.Element => (
       <AlertDialog open>
         <Story />
       </AlertDialog>

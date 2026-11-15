@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const origin = "http://127.0.0.1:4173";
 
-test("sign-in failure keeps public samples available", async ({ page }) => {
+test("sign-in failure keeps public samples available", async ({ page }): Promise<void> => {
   await page.goto(`${origin}/call`);
   await page.getByRole("button", { name: "Sign in to start a call" }).click();
   const dialog = page.getByRole("alertdialog", { name: "Local sign in" });
@@ -12,15 +12,15 @@ test("sign-in failure keeps public samples available", async ({ page }) => {
   await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();
 });
 
-test.beforeEach(async ({ page }) => {
-  await page.route("**/api{,/**}", (route) => route.abort("connectionrefused"));
+test.beforeEach(async ({ page }): Promise<void> => {
+  await page.route("**/api{,/**}", (route): Promise<void> => route.abort("connectionrefused"));
 });
 
-test("public static routes load directly and navigation works without an API", async ({ page }) => {
+test("public static routes load directly and navigation works without an API", async ({ page }): Promise<void> => {
   const errors: string[] = [];
   const requests: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("request", (request) => {
+  page.on("pageerror", (error): number => errors.push(error.message));
+  page.on("request", (request): void => {
     if (new URL(request.url()).pathname.startsWith("/api")) {
       requests.push(request.url());
     }
@@ -44,7 +44,9 @@ test("public static routes load directly and navigation works without an API", a
   expect(requests).toEqual([]);
 });
 
-test("whole history rows open a dedicated details page with load and navigation history", async ({ page }) => {
+test("whole history rows open a dedicated details page with load and navigation history", async ({
+  page,
+}): Promise<void> => {
   await page.goto(`${origin}/dashboard`);
   const metrics = page.getByLabel("Call metrics");
   await expect(metrics.getByText("60%", { exact: true })).toBeVisible();
@@ -128,13 +130,13 @@ test("whole history rows open a dedicated details page with load and navigation 
   await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();
 });
 
-test("call details show loading until the browser reads the selected call", async ({ page }) => {
-  let releaseScripts = () => {};
-  const scripts = new Promise<void>((resolve) => {
+test("call details show loading until the browser reads the selected call", async ({ page }): Promise<void> => {
+  let releaseScripts = (): void => {};
+  const scripts = new Promise<void>((resolve): void => {
     releaseScripts = resolve;
   });
 
-  await page.route("**/*", async (route) => {
+  await page.route("**/*", async (route): Promise<void> => {
     if (route.request().resourceType() !== "script") {
       await route.fallback();
       return;
@@ -161,7 +163,7 @@ test("call details show loading until the browser reads the selected call", asyn
   await expect(page.getByRole("heading", { name: "No call selected" })).toBeVisible();
 });
 
-test("pending and missing sample data keep statuses and useful recovery visible", async ({ page }) => {
+test("pending and missing sample data keep statuses and useful recovery visible", async ({ page }): Promise<void> => {
   await page.goto(`${origin}/dashboard/call?call=mesa`);
   const details = page.getByRole("region", {
     name: "Call details",

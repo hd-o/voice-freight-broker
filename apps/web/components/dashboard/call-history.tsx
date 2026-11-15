@@ -34,7 +34,7 @@ export function renderCallHistory({
   getCallHref,
   onNext,
   onPrevious,
-}: CallHistoryProps) {
+}: CallHistoryProps): React.JSX.Element {
   const headingId = useId();
 
   return (
@@ -61,7 +61,7 @@ export function renderCallHistory({
                   "Agreed rate",
                   "Sentiment",
                   "Analysis",
-                ].map((heading) => (
+                ].map((heading): React.JSX.Element => (
                   <th
                     key={heading}
                     scope="col"
@@ -73,7 +73,7 @@ export function renderCallHistory({
               </tr>
             </thead>
             <tbody>
-              {rows.map((call) => (
+              {rows.map((call): React.JSX.Element => (
                 <tr
                   key={call.id}
                   className="relative h-14 border-b border-border hover:bg-muted/50 focus-within:bg-muted/50"

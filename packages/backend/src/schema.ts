@@ -7,9 +7,13 @@ export const revision = sqliteTable("revision", {
   version: integer().notNull(),
 });
 
-export const guard = sqliteTable("guard", { id: text().primaryKey(), valid: integer().notNull() }, (table) => [
-  check("revision_conflict", sql`${table.valid} = 1`),
-]);
+export const guard = sqliteTable(
+  "guard",
+  { id: text().primaryKey(), valid: integer().notNull() },
+  (table): (ReturnType<typeof check> | ReturnType<ReturnType<typeof uniqueIndex>["on"]>)[] => [
+    check("revision_conflict", sql`${table.valid} = 1`),
+  ],
+);
 
 export const users = sqliteTable("users", {
   id: text().primaryKey(),
@@ -37,7 +41,7 @@ export const negotiations = sqliteTable(
     id: text().primaryKey(),
     data: text({ mode: "json" }).$type<State["negotiations"][number]>().notNull(),
   },
-  (table) => [
+  (table): (ReturnType<typeof check> | ReturnType<ReturnType<typeof uniqueIndex>["on"]>)[] => [
     uniqueIndex("negotiation_pair").on(
       sql`json_extract(${table.data}, '$.carrierId')`,
       sql`json_extract(${table.data}, '$.loadId')`,
@@ -56,7 +60,7 @@ export const agreements = sqliteTable(
     id: text().primaryKey(),
     data: text({ mode: "json" }).$type<State["agreements"][number]>().notNull(),
   },
-  (table) => [
+  (table): (ReturnType<typeof check> | ReturnType<ReturnType<typeof uniqueIndex>["on"]>)[] => [
     uniqueIndex("effective_allocation")
       .on(sql`json_extract(${table.data}, '$.load.id')`)
       .where(sql`json_extract(${table.data}, '$.status') = 'effective'`),
@@ -79,7 +83,7 @@ export const events = sqliteTable(
     id: text().primaryKey(),
     data: text({ mode: "json" }).$type<State["events"][number]>().notNull(),
   },
-  (table) => [
+  (table): (ReturnType<typeof check> | ReturnType<ReturnType<typeof uniqueIndex>["on"]>)[] => [
     uniqueIndex("distinct_price")
       .on(sql`json_extract(${table.data}, '$.pairId')`, sql`json_extract(${table.data}, '$.amountCents')`)
       .where(sql`json_extract(${table.data}, '$.consumed') = 1`),
@@ -97,7 +101,7 @@ export const spendingPeriods = sqliteTable(
     id: text().primaryKey(),
     data: text({ mode: "json" }).$type<State["spendingPeriods"][number]>().notNull(),
   },
-  (table) => [
+  (table): (ReturnType<typeof check> | ReturnType<ReturnType<typeof uniqueIndex>["on"]>)[] => [
     check(
       "spending_microdollars",
       sql`json_extract(${table.data}, '$.spentMicrodollars') >= 0 AND typeof(json_extract(${table.data}, '$.spentMicrodollars')) = 'integer'`,
@@ -111,7 +115,7 @@ export const reservations = sqliteTable(
     id: text().primaryKey(),
     data: text({ mode: "json" }).$type<State["reservations"][number]>().notNull(),
   },
-  (table) => [
+  (table): (ReturnType<typeof check> | ReturnType<ReturnType<typeof uniqueIndex>["on"]>)[] => [
     check(
       "reservation_microdollars",
       sql`json_extract(${table.data}, '$.reservedMicrodollars') >= 0 AND typeof(json_extract(${table.data}, '$.reservedMicrodollars')) = 'integer' AND json_extract(${table.data}, '$.chargedMicrodollars') >= 0 AND typeof(json_extract(${table.data}, '$.chargedMicrodollars')) = 'integer'`,
@@ -129,7 +133,7 @@ export const providerUsage = sqliteTable(
     id: text().primaryKey(),
     data: text({ mode: "json" }).$type<State["providerUsage"][number]>().notNull(),
   },
-  (table) => [
+  (table): (ReturnType<typeof check> | ReturnType<ReturnType<typeof uniqueIndex>["on"]>)[] => [
     check(
       "usage_microdollars",
       sql`json_extract(${table.data}, '$.costMicrodollars') >= 0 AND typeof(json_extract(${table.data}, '$.costMicrodollars')) = 'integer'`,

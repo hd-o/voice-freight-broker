@@ -1,3 +1,4 @@
+import type { Session } from "./model";
 import type { Identity } from "@voice-freight/contracts/business";
 import { requireCondition } from "./model";
 import { readState, transact } from "./repository";
@@ -8,7 +9,7 @@ export const localIdentities = [
   { id: "administrator", name: "Local Administrator", role: "administrator" },
 ] satisfies Identity[];
 
-export function checkLocalAuthentication(environment: string | undefined, mode: string | undefined) {
+export function checkLocalAuthentication(environment: string | undefined, mode: string | undefined): void {
   requireCondition(
     environment === "local" && mode === "local",
     "auth_unavailable",
@@ -17,13 +18,17 @@ export function checkLocalAuthentication(environment: string | undefined, mode: 
   );
 }
 
-export async function signIn(binding: D1Database, userId: string, now = new Date().toISOString()) {
-  return transact(binding, (state) => {
-    const user = localIdentities.find((user) => user.id === userId);
+export async function signIn(
+  binding: D1Database,
+  userId: string,
+  now = new Date().toISOString(),
+): Promise<{ user: Identity; session: Session }> {
+  return transact(binding, (state): { user: Identity; session: Session } => {
+    const user = localIdentities.find((user): boolean => user.id === userId);
 
     requireCondition(user, "invalid_identity", "Choose a local test identity.", 400);
 
-    if (!state.users.some((entry) => entry.id === user.id)) {
+    if (!state.users.some((entry): boolean => entry.id === user.id)) {
       state.users.push(user);
     }
 
@@ -39,24 +44,28 @@ export async function signIn(binding: D1Database, userId: string, now = new Date
   });
 }
 
-export async function queryIdentity(binding: D1Database, token: string | undefined, now = new Date().toISOString()) {
+export async function queryIdentity(
+  binding: D1Database,
+  token: string | undefined,
+  now = new Date().toISOString(),
+): Promise<Identity | null> {
   if (!token) {
     return null;
   }
 
   const { state } = await readState(binding);
 
-  const session = state.sessions.find((entry) => entry.id === token && entry.expiresAt > now);
+  const session = state.sessions.find((entry): boolean => entry.id === token && entry.expiresAt > now);
 
-  return session ? (state.users.find((user) => user.id === session.userId) ?? null) : null;
+  return session ? (state.users.find((user): boolean => user.id === session.userId) ?? null) : null;
 }
 
-export async function signOut(binding: D1Database, token: string | undefined) {
+export async function signOut(binding: D1Database, token: string | undefined): Promise<void> {
   if (!token) {
     return;
   }
 
-  await transact(binding, (state) => {
-    state.sessions = state.sessions.filter((session) => session.id !== token);
+  await transact(binding, (state): void => {
+    state.sessions = state.sessions.filter((session): boolean => session.id !== token);
   });
 }

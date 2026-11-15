@@ -15,9 +15,13 @@ export type AccountActionProps = {
   onAccountAction: () => void;
 };
 
-export function renderAccountAction({ signedIn, pending = false, onAccountAction }: AccountActionProps) {
+export function renderAccountAction({
+  signedIn,
+  pending = false,
+  onAccountAction,
+}: AccountActionProps): React.JSX.Element {
   const [readiness, setReadiness] = useState(false);
-  useEffect(() => {
+  useEffect((): void => {
     setReadiness(true);
   }, []);
   const label = signedIn ? "Sign out" : "Sign in";

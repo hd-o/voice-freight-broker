@@ -18,24 +18,27 @@ import { LiveCall } from "../src/live-call";
 
 const clock = "2026-11-13T12:00:00.000Z";
 
-beforeEach(async () => {
+beforeEach(async (): Promise<void> => {
   const { state } = await readState(env.DB);
-  await env.DB.batch(Object.keys(state).map((name) => env.DB.prepare(`DELETE FROM ${name}`)));
+  await env.DB.batch(Object.keys(state).map((name): D1PreparedStatement => env.DB.prepare(`DELETE FROM ${name}`)));
   await seedDatabase(env.DB, clock);
 });
 
-afterEach(async () => {
+afterEach(async (): Promise<void> => {
   const { state } = await readState(env.DB);
   for (const session of state.liveSessions) {
     const stub = env.CALLS.get(env.CALLS.idFromName(session.id));
-    await runInDurableObject(stub, async (_instance, context) => {
+    await runInDurableObject(stub, async (_instance, context): Promise<void> => {
       await context.storage.deleteAlarm();
       await context.storage.deleteAll();
     });
   }
 });
 
-async function openCall(userId = "reviewer", now = new Date().toISOString()) {
+async function openCall(
+  userId = "reviewer",
+  now = new Date().toISOString(),
+): Promise<{ id: string; context: { userId: string; callId: string }; stub: DurableObjectStub<LiveCall> }> {
   const { id } = await reserveLiveCall(env.DB, userId, crypto.randomUUID(), now);
   const context = { userId, callId: id };
   const stub = env.CALLS.get(env.CALLS.idFromName(id));
@@ -43,7 +46,11 @@ async function openCall(userId = "reviewer", now = new Date().toISOString()) {
   return { id, context, stub };
 }
 
-function createTranscriptEvent(speaker: "input" | "output", delta: string, startMs: number) {
+function createTranscriptEvent(
+  speaker: "input" | "output",
+  delta: string,
+  startMs: number,
+): { type: string; event_id: string; start_ms: number; end_ms: number; delta: string } {
   return {
     type: `session.${speaker}_transcript.delta`,
     event_id: crypto.randomUUID(),
@@ -58,7 +65,12 @@ function createFunctionEvent(
   argumentsData: unknown,
   callId = crypto.randomUUID(),
   delegationId = crypto.randomUUID(),
-) {
+): {
+  type: string;
+  event_id: string;
+  delegation_id: string;
+  event: { type: string; item: { type: string; call_id: string; name: string; arguments: string } };
+} {
   return {
     type: "response.event",
     event_id: crypto.randomUUID(),
@@ -75,7 +87,7 @@ function createFunctionEvent(
   };
 }
 
-it("configures native Responses delegation with the requested model and browser permissions", () => {
+it("configures native Responses delegation with the requested model and browser permissions", (): void => {
   const session = createSessionConfiguration();
   expect(session.model).toBe("gpt-live-1");
   expect(session.delegation).toMatchObject({
@@ -91,14 +103,14 @@ it("configures native Responses delegation with the requested model and browser 
   expect(JSON.stringify(session.delegation.responses.tools)).not.toContain("readbackId");
 });
 
-it("reserves atomically across reviewers, deduplicates starts, and rejects insufficient allowance", async () => {
+it("reserves atomically across reviewers, deduplicates starts, and rejects insufficient allowance", async (): Promise<void> => {
   const operationId = crypto.randomUUID();
   const first = await reserveLiveCall(env.DB, "reviewer", operationId, clock);
   expect(await reserveLiveCall(env.DB, "reviewer", operationId, clock)).toEqual(first);
   await expect(reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), clock)).rejects.toMatchObject({
     code: "concurrent_limit",
   });
-  await transact(env.DB, (state) => {
+  await transact(env.DB, (state): void => {
     state.spendingPeriods.push({
       id: "2026-11",
       spentMicrodollars: monthlyLimitMicrodollars - callReservationMicrodollars * 2,
@@ -108,10 +120,10 @@ it("reserves atomically across reviewers, deduplicates starts, and rejects insuf
     reserveLiveCall(env.DB, "reviewer-two", crypto.randomUUID(), clock),
     reserveLiveCall(env.DB, "administrator", crypto.randomUUID(), clock),
   ]);
-  expect(competing.filter((entry) => entry.status === "fulfilled")).toHaveLength(1);
+  expect(competing.filter((entry): boolean => entry.status === "fulfilled")).toHaveLength(1);
   const { state } = await readState(env.DB);
   expect(calculateAvailableMicrodollars(state, clock)).toBe(0);
-  await transact(env.DB, (draft) => {
+  await transact(env.DB, (draft): void => {
     for (const session of draft.liveSessions) {
       session.state = "ended";
     }
@@ -121,7 +133,7 @@ it("reserves atomically across reviewers, deduplicates starts, and rejects insuf
   });
 });
 
-it("accounts cumulative voice, response IDs, failures, fractional rounding and month boundaries", async () => {
+it("accounts cumulative voice, response IDs, failures, fractional rounding and month boundaries", async (): Promise<void> => {
   const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), "2026-11-30T23:59:50.000Z");
   const context = { callId: id, userId: "reviewer" };
   await ingestProviderEvent(
@@ -182,16 +194,16 @@ it("accounts cumulative voice, response IDs, failures, fractional rounding and m
   );
   expect(state.reservations[0].chargedMicrodollars).toBe(12594);
   expect(state.providerUsage).toHaveLength(3);
-  expect(state.providerUsage.every((entry) => Number.isSafeInteger(entry.costMicrodollars))).toBe(true);
+  expect(state.providerUsage.every((entry): boolean => Number.isSafeInteger(entry.costMicrodollars))).toBe(true);
   expect(calculateAvailableMicrodollars(state, "2026-12-01T00:00:05Z")).toBe(
     monthlyLimitMicrodollars - 4167 - (callReservationMicrodollars - 12594),
   );
 });
 
-it("releases unattempted starts but retains reservations for uncertain provider failures", async () => {
+it("releases unattempted starts but retains reservations for uncertain provider failures", async (): Promise<void> => {
   const first = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID());
   const stub = env.CALLS.get(env.CALLS.idFromName(first.id));
-  await runInDurableObject(stub, async (_instance, context) => {
+  await runInDurableObject(stub, async (_instance, context): Promise<void> => {
     const coordinator = new LiveCall(context, {
       ...env,
       VOICE_PROVIDER: "openai",
@@ -201,25 +213,32 @@ it("releases unattempted starts but retains reservations for uncertain provider 
       code: "provider_unavailable",
     });
   });
-  expect((await readState(env.DB)).state.reservations.find((entry) => entry.id === first.id)?.settled).toBe(true);
+  expect((await readState(env.DB)).state.reservations.find((entry): boolean => entry.id === first.id)?.settled).toBe(
+    true,
+  );
   const second = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID());
   const provider = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 503 }));
   try {
-    await runInDurableObject(env.CALLS.get(env.CALLS.idFromName(second.id)), async (_instance, context) => {
-      const coordinator = new LiveCall(context, {
-        ...env,
-        VOICE_PROVIDER: "openai",
-        OPENAI_API_KEY: "test-key",
-      });
-      await expect(coordinator.start({ userId: "reviewer", callId: second.id }, "offer")).rejects.toMatchObject({
-        code: "provider_unavailable",
-      });
-    });
-    expect((await readState(env.DB)).state.reservations.find((entry) => entry.id === second.id)?.settled).toBe(false);
+    await runInDurableObject(
+      env.CALLS.get(env.CALLS.idFromName(second.id)),
+      async (_instance, context): Promise<void> => {
+        const coordinator = new LiveCall(context, {
+          ...env,
+          VOICE_PROVIDER: "openai",
+          OPENAI_API_KEY: "test-key",
+        });
+        await expect(coordinator.start({ userId: "reviewer", callId: second.id }, "offer")).rejects.toMatchObject({
+          code: "provider_unavailable",
+        });
+      },
+    );
+    expect((await readState(env.DB)).state.reservations.find((entry): boolean => entry.id === second.id)?.settled).toBe(
+      false,
+    );
     const retry = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID());
     provider.mockRejectedValue(new TypeError("Network outcome unknown"));
     const retryStub = env.CALLS.get(env.CALLS.idFromName(retry.id));
-    await runInDurableObject(retryStub, async (_instance, context) => {
+    await runInDurableObject(retryStub, async (_instance, context): Promise<void> => {
       const coordinator = new LiveCall(context, {
         ...env,
         VOICE_PROVIDER: "openai",
@@ -229,8 +248,8 @@ it("releases unattempted starts but retains reservations for uncertain provider 
         code: "provider_unavailable",
       });
     });
-    await transact(env.DB, (state) => {
-      state.liveSessions.find((entry) => entry.id === retry.id)!.closingAt = new Date(
+    await transact(env.DB, (state): void => {
+      state.liveSessions.find((entry): boolean => entry.id === retry.id)!.closingAt = new Date(
         Date.now() - 11_000,
       ).toISOString();
     });
@@ -243,13 +262,17 @@ it("releases unattempted starts but retains reservations for uncertain provider 
   }
 });
 
-it("runs the full coordinator and Tools RPC workflow with cancellation, replacement and saved final facts", async () => {
+it("runs the full coordinator and Tools RPC workflow with cancellation, replacement and saved final facts", async (): Promise<void> => {
   const { id, context, stub } = await openCall();
   await stub.runFixture("workflow");
   const before = await queryCall(env.DB, context);
-  expect(before.agreements.map((entry) => entry.status)).toEqual(["cancelled", "superseded", "effective"]);
+  expect(before.agreements.map((entry): typeof entry.status => entry.status)).toEqual([
+    "cancelled",
+    "superseded",
+    "effective",
+  ]);
   const output = await stub.getFixtureOutput();
-  expect(output.filter((event) => event.type === "response.item.create")).toHaveLength(11);
+  expect(output.filter((event): boolean => event.type === "response.item.create")).toHaveLength(11);
   await stub.end();
   const final = await queryCall(env.DB, context);
   expect(final.transcript.complete).toBe(true);
@@ -257,22 +280,22 @@ it("runs the full coordinator and Tools RPC workflow with cancellation, replacem
   expect(final.loads).toHaveLength(2);
   expect((await queryDashboard(env.DB, "reviewer")).report.finalAgreementCount).toBe(1);
   const { state } = await readState(env.DB);
-  expect(state.reservations.find((entry) => entry.id === id)?.settled).toBe(true);
+  expect(state.reservations.find((entry): boolean => entry.id === id)?.settled).toBe(true);
   expect(state.evidence).toHaveLength(8);
-  expect(final.transcript.entries.filter((entry) => entry.speaker === "carrier")).toHaveLength(4);
-  expect(final.transcript.entries.filter((entry) => entry.text.startsWith("Please confirm"))).toHaveLength(4);
+  expect(final.transcript.entries.filter((entry): boolean => entry.speaker === "carrier")).toHaveLength(4);
+  expect(final.transcript.entries.filter((entry): boolean => entry.text.startsWith("Please confirm"))).toHaveLength(4);
   const late = createFunctionEvent("confirm_handoff", { quoteId: "old" });
   await stub.observeFixture(late);
   expect((await queryCall(env.DB, context)).agreements).toEqual(final.agreements);
 });
 
-it("rejects invented, ambiguous, overlapping and stale confirmations while replaying saved tool results", async () => {
+it("rejects invented, ambiguous, overlapping and stale confirmations while replaying saved tool results", async (): Promise<void> => {
   const { context, stub } = await openCall();
   const verify = createFunctionEvent("verify_carrier", { mcNumber: "123456" });
   await stub.observeFixture(verify);
   await stub.observeFixture({ ...verify, event_id: "verify-replay" });
   await stub.observeFixture(createFunctionEvent("select_load", { loadId: "seed-v1-01" }));
-  let current = (await readState(env.DB)).state.calls.find((call) => call.id === context.callId)!;
+  let current = (await readState(env.DB)).state.calls.find((call): boolean => call.id === context.callId)!;
   const quoteId = current.quoteId!;
   await stub.observeFixture(
     createFunctionEvent("confirm_handoff", {
@@ -291,29 +314,29 @@ it("rejects invented, ambiguous, overlapping and stale confirmations while repla
   await stub.observeFixture(createFunctionEvent("confirm_handoff", { quoteId }));
   expect((await queryCall(env.DB, context)).agreements).toHaveLength(0);
   await stub.observeFixture(createFunctionEvent("select_load", { loadId: "seed-v1-02" }));
-  current = (await readState(env.DB)).state.calls.find((call) => call.id === context.callId)!;
+  current = (await readState(env.DB)).state.calls.find((call): boolean => call.id === context.callId)!;
   await stub.observeFixture(createFunctionEvent("confirm_handoff", { quoteId: current.quoteId }));
   expect((await queryCall(env.DB, context)).agreements).toHaveLength(0);
   await stub.observeFixture(createFunctionEvent("verify_carrier", { mcNumber: "234567" }));
-  expect((await readState(env.DB)).state.calls.find((call) => call.id === context.callId)?.quoteId).toBe(
+  expect((await readState(env.DB)).state.calls.find((call): boolean => call.id === context.callId)?.quoteId).toBe(
     current.quoteId,
   );
   const { state } = await readState(env.DB);
-  expect(state.receipts.filter((receipt) => receipt.id.endsWith(verify.event.item.call_id))).toHaveLength(1);
+  expect(state.receipts.filter((receipt): boolean => receipt.id.endsWith(verify.event.item.call_id))).toHaveLength(1);
 });
 
-it("finalizes abandoned calls and closes with spending headroom, preserving uncertain usage", async () => {
+it("finalizes abandoned calls and closes with spending headroom, preserving uncertain usage", async (): Promise<void> => {
   const { id, context, stub } = await openCall();
-  await transact(env.DB, (state) => {
-    const session = state.liveSessions.find((entry) => entry.id === id)!;
+  await transact(env.DB, (state): void => {
+    const session = state.liveSessions.find((entry): boolean => entry.id === id)!;
     session.lastInputAt = new Date(Date.now() - 50_000).toISOString();
   });
   await runDurableObjectAlarm(stub);
   expect((await queryLiveStatus(env.DB, context)).notice).toContain("15 seconds");
   await stub.observeFixture(createTranscriptEvent("input", "Still here.", 1000));
   expect((await queryLiveStatus(env.DB, context)).notice).toBeNull();
-  await transact(env.DB, (state) => {
-    state.reservations.find((entry) => entry.id === id)!.reservedMicrodollars = shutdownHeadroomMicrodollars;
+  await transact(env.DB, (state): void => {
+    state.reservations.find((entry): boolean => entry.id === id)!.reservedMicrodollars = shutdownHeadroomMicrodollars;
   });
   await runDurableObjectAlarm(stub);
   expect(await queryLiveStatus(env.DB, context)).toMatchObject({
@@ -329,10 +352,12 @@ it("finalizes abandoned calls and closes with spending headroom, preserving unce
     event: { type: "response.created", response: { id: "unfinished" } },
   });
   await other.stub.end();
-  expect((await readState(env.DB)).state.reservations.find((entry) => entry.id === other.id)?.settled).toBe(false);
+  expect((await readState(env.DB)).state.reservations.find((entry): boolean => entry.id === other.id)?.settled).toBe(
+    false,
+  );
 });
 
-it("authorizes SDP creation and hang-up through the real API and blocks browser evidence paths", async () => {
+it("authorizes SDP creation and hang-up through the real API and blocks browser evidence paths", async (): Promise<void> => {
   const headers = {
     Origin: "http://localhost",
     "Content-Type": "application/json",
@@ -377,11 +402,11 @@ it("authorizes SDP creation and hang-up through the real API and blocks browser 
   ).toBe(200);
 });
 
-it("requires the exact rate and a fresh read-back, then rejects confirmations after hang-up", async () => {
+it("requires the exact rate and a fresh read-back, then rejects confirmations after hang-up", async (): Promise<void> => {
   const { context, stub } = await openCall();
   await stub.observeFixture(createFunctionEvent("verify_carrier", { mcNumber: "123456" }));
   await stub.observeFixture(createFunctionEvent("select_load", { loadId: "seed-v1-01" }));
-  const quoteId = (await readState(env.DB)).state.calls.find((entry) => entry.id === context.callId)!.quoteId;
+  const quoteId = (await readState(env.DB)).state.calls.find((entry): boolean => entry.id === context.callId)!.quoteId;
   await stub.observeFixture(
     createTranscriptEvent("output", "Summit Transport, load NS-seed-v1-01, at $2,000.50. Please confirm.", 1000),
   );
@@ -397,7 +422,7 @@ it("requires the exact rate and a fresh read-back, then rejects confirmations af
   expect((await queryCall(env.DB, context)).agreements).toHaveLength(0);
 });
 
-it("enforces UTC daily limits, reclaims abandoned unattempted starts and renews the next day", async () => {
+it("enforces UTC daily limits, reclaims abandoned unattempted starts and renews the next day", async (): Promise<void> => {
   for (let index = 0; index < 6; index++) {
     await reserveLiveCall(
       env.DB,
@@ -411,14 +436,14 @@ it("enforces UTC daily limits, reclaims abandoned unattempted starts and renews 
   ).rejects.toMatchObject({ code: "daily_limit" });
   await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), "2026-11-14T00:00:00.000Z");
   const { state } = await readState(env.DB);
-  expect(state.reservations.filter((entry) => entry.settled)).toHaveLength(6);
-  expect(state.calls.filter((entry) => entry.finalSnapshot)).toHaveLength(6);
+  expect(state.reservations.filter((entry): typeof entry.settled => entry.settled)).toHaveLength(6);
+  expect(state.calls.filter((entry): typeof entry.finalSnapshot => entry.finalSnapshot)).toHaveLength(6);
 });
 
-it("preserves usage and agreement facts when a restarted coordinator finalizes the call", async () => {
+it("preserves usage and agreement facts when a restarted coordinator finalizes the call", async (): Promise<void> => {
   const { id, context, stub } = await openCall();
   await stub.runFixture("workflow");
-  await runInDurableObject(stub, async (_instance, storage) => {
+  await runInDurableObject(stub, async (_instance, storage): Promise<void> => {
     const restarted = new LiveCall(storage, {
       ...env,
       VOICE_PROVIDER: "openai",
@@ -431,10 +456,10 @@ it("preserves usage and agreement facts when a restarted coordinator finalizes t
     transcript: { complete: false },
   });
   expect((await queryDashboard(env.DB, "reviewer")).report.finalAgreementCount).toBe(1);
-  expect((await readState(env.DB)).state.reservations.find((entry) => entry.id === id)?.settled).toBe(false);
+  expect((await readState(env.DB)).state.reservations.find((entry): boolean => entry.id === id)?.settled).toBe(false);
 });
 
-it("retains ordered fragments, deduplicates replay, and drains transcripts without changing final facts", async () => {
+it("retains ordered fragments, deduplicates replay, and drains transcripts without changing final facts", async (): Promise<void> => {
   const { id, context, stub } = await openCall();
   const first = {
     ...createTranscriptEvent("output", "Hel", 0),
@@ -443,23 +468,27 @@ it("retains ordered fragments, deduplicates replay, and drains transcripts witho
   await stub.observeFixture(first);
   await stub.observeFixture({ ...first, event_id: "a-second", delta: "lo" });
   await stub.observeFixture(first);
-  expect((await queryLiveStatus(env.DB, context)).transcript.map((entry) => entry.text)).toEqual(["Hello"]);
+  expect((await queryLiveStatus(env.DB, context)).transcript.map((entry): typeof entry.text => entry.text)).toEqual([
+    "Hello",
+  ]);
   await stub.end();
-  const snapshot = (await readState(env.DB)).state.calls.find((entry) => entry.id === id)!.finalSnapshot;
+  const snapshot = (await readState(env.DB)).state.calls.find((entry): boolean => entry.id === id)!.finalSnapshot;
   await ingestProviderEvent(env.DB, context, createTranscriptEvent("input", "Thanks.", 1000));
-  expect((await queryCall(env.DB, context)).transcript.entries.map((entry) => entry.text)).toEqual([
+  expect((await queryCall(env.DB, context)).transcript.entries.map((entry): typeof entry.text => entry.text)).toEqual([
     "Hello",
     "Thanks.",
   ]);
-  expect((await readState(env.DB)).state.calls.find((entry) => entry.id === id)!.finalSnapshot).toEqual(snapshot);
+  expect((await readState(env.DB)).state.calls.find((entry): boolean => entry.id === id)!.finalSnapshot).toEqual(
+    snapshot,
+  );
   expect((await readState(env.DB)).state.transcriptFragments).toHaveLength(3);
 });
 
-it("checks complete spoken amounts and action intent while allowing fresh read-backs after acknowledgments", async () => {
+it("checks complete spoken amounts and action intent while allowing fresh read-backs after acknowledgments", async (): Promise<void> => {
   const { context, stub } = await openCall();
   await stub.observeFixture(createFunctionEvent("verify_carrier", { mcNumber: "123456" }));
   await stub.observeFixture(createFunctionEvent("select_load", { loadId: "seed-v1-01" }));
-  let quoteId = (await readState(env.DB)).state.calls.find((entry) => entry.id === context.callId)!.quoteId;
+  let quoteId = (await readState(env.DB)).state.calls.find((entry): boolean => entry.id === context.callId)!.quoteId;
   for (const [index, text] of [
     "Summit Transport, load NS-seed-v1-01, at two thousand dollars and twenty five cents. Please confirm.",
     "Cancel Summit Transport, load NS-seed-v1-01, at two thousand dollars. Please confirm.",
@@ -470,7 +499,7 @@ it("checks complete spoken amounts and action intent while allowing fresh read-b
     expect((await queryCall(env.DB, context)).agreements).toHaveLength(0);
   }
   await stub.observeFixture(createFunctionEvent("evaluate_offer", { quoteId, amountCents: 200025 }));
-  quoteId = (await readState(env.DB)).state.calls.find((entry) => entry.id === context.callId)!.quoteId;
+  quoteId = (await readState(env.DB)).state.calls.find((entry): boolean => entry.id === context.callId)!.quoteId;
   await stub.observeFixture(
     createTranscriptEvent(
       "output",
@@ -483,7 +512,7 @@ it("checks complete spoken amounts and action intent while allowing fresh read-b
   expect((await queryCall(env.DB, context)).agreements).toMatchObject([{ rateCents: 200025 }]);
   await stub.observeFixture(createTranscriptEvent("output", "Let me check.", 7000));
   await stub.observeFixture(createFunctionEvent("select_load", { loadId: "seed-v1-02" }));
-  quoteId = (await readState(env.DB)).state.calls.find((entry) => entry.id === context.callId)!.quoteId;
+  quoteId = (await readState(env.DB)).state.calls.find((entry): boolean => entry.id === context.callId)!.quoteId;
   await stub.observeFixture(
     createTranscriptEvent(
       "output",
@@ -496,24 +525,24 @@ it("checks complete spoken amounts and action intent while allowing fresh read-b
   expect((await queryCall(env.DB, context)).agreements).toHaveLength(2);
 });
 
-it("continues new work in a delegation after replaying a submitted function call", async () => {
+it("continues new work in a delegation after replaying a submitted function call", async (): Promise<void> => {
   const { stub, context } = await openCall();
   const first = createFunctionEvent("verify_carrier", { mcNumber: "123456" }, "first", "delegation");
   await stub.observeFixture(first);
   await stub.observeFixture({ ...first, event_id: "replayed-envelope" });
   await stub.observeFixture(createFunctionEvent("select_load", { loadId: "seed-v1-01" }, "second", "delegation"));
-  expect((await stub.getFixtureOutput()).filter((event) => event.type === "response.create")).toHaveLength(2);
-  expect((await readState(env.DB)).state.receipts.filter((receipt) => receipt.callId === context.callId)).toHaveLength(
-    2,
-  );
+  expect((await stub.getFixtureOutput()).filter((event): boolean => event.type === "response.create")).toHaveLength(2);
+  expect(
+    (await readState(env.DB)).state.receipts.filter((receipt): boolean => receipt.callId === context.callId),
+  ).toHaveLength(2);
 });
 
-it("repairs interrupted closing states before settling or timing out", async () => {
+it("repairs interrupted closing states before settling or timing out", async (): Promise<void> => {
   const first = await openCall();
   await first.stub.observeFixture(createFunctionEvent("verify_carrier", { mcNumber: "123456" }));
   await first.stub.observeFixture(createFunctionEvent("select_load", { loadId: "seed-v1-01" }));
-  await transact(env.DB, (state) => {
-    state.liveSessions.find((entry) => entry.id === first.id)!.state = "ending";
+  await transact(env.DB, (state): void => {
+    state.liveSessions.find((entry): boolean => entry.id === first.id)!.state = "ending";
   });
   await first.stub.observeFixture({
     type: "session.closed",
@@ -521,13 +550,15 @@ it("repairs interrupted closing states before settling or timing out", async () 
     usage: { seconds: 1 },
   });
   expect((await queryCall(env.DB, first.context)).endedAt).not.toBeNull();
-  expect((await readState(env.DB)).state.quotes.every((entry) => !entry.valid)).toBe(true);
+  expect((await readState(env.DB)).state.quotes.every((entry): boolean => !entry.valid)).toBe(true);
   const second = await openCall("reviewer-two");
-  await transact(env.DB, (state) => {
-    state.liveSessions.find((entry) => entry.id === second.id)!.state = "ending";
+  await transact(env.DB, (state): void => {
+    state.liveSessions.find((entry): boolean => entry.id === second.id)!.state = "ending";
   });
   await runDurableObjectAlarm(second.stub);
-  const closingAt = (await readState(env.DB)).state.liveSessions.find((entry) => entry.id === second.id)!.closingAt;
+  const closingAt = (await readState(env.DB)).state.liveSessions.find(
+    (entry): boolean => entry.id === second.id,
+  )!.closingAt;
   expect(closingAt).not.toBeNull();
   vi.useFakeTimers({ toFake: ["Date"] });
   try {
@@ -535,7 +566,9 @@ it("repairs interrupted closing states before settling or timing out", async () 
     await runDurableObjectAlarm(second.stub);
     expect((await queryLiveStatus(env.DB, second.context)).state).toBe("ended");
     expect((await queryCall(env.DB, second.context)).endedAt).not.toBeNull();
-    expect((await readState(env.DB)).state.reservations.find((entry) => entry.id === second.id)?.settled).toBe(false);
+    expect((await readState(env.DB)).state.reservations.find((entry): boolean => entry.id === second.id)?.settled).toBe(
+      false,
+    );
     await expect(reserveLiveCall(env.DB, "reviewer-two", crypto.randomUUID())).rejects.toMatchObject({
       code: "concurrent_limit",
     });
@@ -544,7 +577,7 @@ it("repairs interrupted closing states before settling or timing out", async () 
   }
 });
 
-it("commits a paused description read-back once, even after rejected bargaining", async () => {
+it("commits a paused description read-back once, even after rejected bargaining", async (): Promise<void> => {
   const { context, stub } = await openCall();
   await executeTool(env.DB, context, "verify_carrier", { invocationId: "verify", arguments: { mcNumber: "123456" } });
   const quote = await executeTool(env.DB, context, "select_load", {
@@ -569,7 +602,7 @@ it("commits a paused description read-back once, even after rejected bargaining"
   expect((await queryCall(env.DB, context)).agreements).toHaveLength(1);
 });
 
-it("rejects incorrect descriptions and trailing corrections, with actionable recovery", async () => {
+it("rejects incorrect descriptions and trailing corrections, with actionable recovery", async (): Promise<void> => {
   const { context, stub } = await openCall();
   await executeTool(env.DB, context, "verify_carrier", { invocationId: "verify", arguments: { mcNumber: "123456" } });
   const quote = await executeTool(env.DB, context, "select_load", {
@@ -603,7 +636,7 @@ it("rejects incorrect descriptions and trailing corrections, with actionable rec
     ).rejects.toMatchObject({ code: "evidence_required", message: expect.stringContaining(quote.readback) });
   }
   const { state } = await readState(env.DB);
-  const failure = state.receipts.find((entry) => entry.id.endsWith(":invalid-1"));
+  const failure = state.receipts.find((entry): boolean => entry.id.endsWith(":invalid-1"));
   expect(failure && "error" in failure && failure.error.message).toContain("Two confirmation attempts failed");
   await stub.observeFixture(createTranscriptEvent("output", quote.readback, 35000));
   await stub.observeFixture(createTranscriptEvent("input", "Yes, confirmed", 37000));
@@ -640,8 +673,8 @@ it("rejects incorrect descriptions and trailing corrections, with actionable rec
   expect((await queryCall(env.DB, context)).agreements).toHaveLength(1);
 });
 
-it("distinguishes identical route/date loads with stable spoken options", async () => {
-  await transact(env.DB, (state) => {
+it("distinguishes identical route/date loads with stable spoken options", async (): Promise<void> => {
+  await transact(env.DB, (state): void => {
     addInventory(state, "second", clock);
   });
   const { context, stub } = await openCall();
@@ -653,8 +686,8 @@ it("distinguishes identical route/date loads with stable spoken options", async 
   if (!("loads" in search)) {
     throw new Error("Expected loads");
   }
-  expect(search.loads.find((load) => load.id === "seed-v1-01")?.spokenLabel).toContain("option 1");
-  expect(search.loads.find((load) => load.id === "second-01")?.spokenLabel).toContain("option 2");
+  expect(search.loads.find((load): boolean => load.id === "seed-v1-01")?.spokenLabel).toContain("option 1");
+  expect(search.loads.find((load): boolean => load.id === "second-01")?.spokenLabel).toContain("option 2");
   const quote = await executeTool(env.DB, context, "select_load", {
     invocationId: "select",
     arguments: { loadId: "seed-v1-01" },
@@ -704,7 +737,7 @@ it("distinguishes identical route/date loads with stable spoken options", async 
   ).rejects.toMatchObject({ code: "evidence_required" });
 });
 
-it("uses fresh action-specific descriptions for replacement and cancellation", async () => {
+it("uses fresh action-specific descriptions for replacement and cancellation", async (): Promise<void> => {
   const { context, stub } = await openCall();
   await executeTool(env.DB, context, "verify_carrier", { invocationId: "verify", arguments: { mcNumber: "123456" } });
   const quote = await executeTool(env.DB, context, "select_load", {
@@ -771,7 +804,7 @@ it("uses fresh action-specific descriptions for replacement and cancellation", a
     clock,
     true,
   );
-  expect((await queryCall(env.DB, context)).agreements.map((entry) => entry.status)).toEqual([
+  expect((await queryCall(env.DB, context)).agreements.map((entry): typeof entry.status => entry.status)).toEqual([
     "superseded",
     "cancelled",
   ]);

@@ -28,7 +28,7 @@ export const toolArguments = {
       destination: z.string().trim().min(1).max(100).optional(),
       equipment: z.string().trim().min(1).max(100).optional(),
     })
-    .refine((query) => query.reference || query.origin || query.destination || query.equipment, {
+    .refine((query): string | undefined => query.reference || query.origin || query.destination || query.equipment, {
       message: "Provide a reference or route/equipment preference",
     }),
   select_load: z.strictObject({ loadId: referenceSchema }),

@@ -25,7 +25,7 @@ export const maximumResponseMicrodollars = Math.ceil(
 
 export const shutdownHeadroomMicrodollars = maximumResponseMicrodollars * 2 + 50_000;
 
-export function calculateCallReservationMicrodollars(durationSeconds = maximumCallSeconds) {
+export function calculateCallReservationMicrodollars(durationSeconds = maximumCallSeconds): number {
   return Math.ceil(
     ((durationSeconds * modelPrices.voiceMicrodollarsPerMinute) / 60 +
       maximumResponseCount * maximumResponseMicrodollars +
@@ -54,7 +54,14 @@ export type UsageConfiguration = {
   GLOBAL_DAILY_CALLS?: string;
 };
 
-export function resolveUsageLimits(configuration: UsageConfiguration) {
+export function resolveUsageLimits(configuration: UsageConfiguration): {
+  maximumCallSeconds: number;
+  inactivitySeconds: number;
+  reviewerConcurrency: number;
+  globalConcurrency: number;
+  reviewerDailyCalls: number;
+  globalDailyCalls: number;
+} {
   const limit = z.coerce.number().int().positive().max(10_000);
 
   return {
@@ -67,19 +74,19 @@ export function resolveUsageLimits(configuration: UsageConfiguration) {
   };
 }
 
-export function resolvePeriod(now: string) {
+export function resolvePeriod(now: string): string {
   return now.slice(0, 7);
 }
 
-export function calculateAvailableMicrodollars(state: State, now: string) {
+export function calculateAvailableMicrodollars(state: State, now: string): number {
   const spentMicrodollars =
-    state.spendingPeriods.find((period) => period.id === resolvePeriod(now))?.spentMicrodollars ?? 0;
+    state.spendingPeriods.find((period): boolean => period.id === resolvePeriod(now))?.spentMicrodollars ?? 0;
 
   // Unresolved reservations carry forward, including those from earlier months.
   const reservedMicrodollars = state.reservations
-    .filter((reservation) => !reservation.settled)
+    .filter((reservation): boolean => !reservation.settled)
     .reduce(
-      (totalMicrodollars, reservation) =>
+      (totalMicrodollars, reservation): number =>
         totalMicrodollars + Math.max(0, reservation.reservedMicrodollars - reservation.chargedMicrodollars),
       0,
     );
@@ -87,7 +94,13 @@ export function calculateAvailableMicrodollars(state: State, now: string) {
   return monthlyLimitMicrodollars - spentMicrodollars - reservedMicrodollars;
 }
 
-export function chargeUsage(state: State, callId: string, id: string, periodId: string, costMicrodollars: number) {
+export function chargeUsage(
+  state: State,
+  callId: string,
+  id: string,
+  periodId: string,
+  costMicrodollars: number,
+): void {
   requireCondition(
     Number.isSafeInteger(costMicrodollars) && costMicrodollars >= 0,
     "accounting_unavailable",
@@ -95,7 +108,7 @@ export function chargeUsage(state: State, callId: string, id: string, periodId: 
     503,
   );
 
-  const previous = state.providerUsage.find((usage) => usage.id === id);
+  const previous = state.providerUsage.find((usage): boolean => usage.id === id);
 
   if (previous) {
     requireCondition(
@@ -108,11 +121,11 @@ export function chargeUsage(state: State, callId: string, id: string, periodId: 
     return;
   }
 
-  const reservation = state.reservations.find((entry) => entry.id === callId);
+  const reservation = state.reservations.find((entry): boolean => entry.id === callId);
 
   requireCondition(reservation, "accounting_unavailable", "A spending reservation is required.", 503);
 
-  let period = state.spendingPeriods.find((entry) => entry.id === periodId);
+  let period = state.spendingPeriods.find((entry): boolean => entry.id === periodId);
 
   if (!period) {
     period = { id: periodId, spentMicrodollars: 0 };
@@ -124,10 +137,10 @@ export function chargeUsage(state: State, callId: string, id: string, periodId: 
   state.providerUsage.push({ id, callId, periodId, costMicrodollars });
 }
 
-export function chargeVoice(state: State, callId: string, seconds: number) {
-  const session = state.liveSessions.find((entry) => entry.id === callId);
-  const call = state.calls.find((entry) => entry.id === callId);
-  const reservation = state.reservations.find((entry) => entry.id === callId);
+export function chargeVoice(state: State, callId: string, seconds: number): void {
+  const session = state.liveSessions.find((entry): boolean => entry.id === callId);
+  const call = state.calls.find((entry): boolean => entry.id === callId);
+  const reservation = state.reservations.find((entry): boolean => entry.id === callId);
 
   requireCondition(
     session && call && reservation && Number.isFinite(seconds) && seconds >= 0,
@@ -157,7 +170,7 @@ export function chargeVoice(state: State, callId: string, seconds: number) {
     );
 
     const id = `${callId}:voice:${periodId}`;
-    const existing = state.providerUsage.find((entry) => entry.id === id);
+    const existing = state.providerUsage.find((entry): boolean => entry.id === id);
     const previousMicrodollars = existing?.costMicrodollars ?? 0;
 
     if (cumulativeMicrodollars > previousMicrodollars) {
@@ -187,10 +200,11 @@ export function calculateResponseCostMicrodollars(
   cachedInputTokens: number,
   outputTokens: number,
   prices: ModelPrices = modelPrices,
-) {
+): number {
   requireCondition(
-    [inputTokens, cachedInputTokens, outputTokens].every((tokens) => Number.isSafeInteger(tokens) && tokens >= 0) &&
-      cachedInputTokens <= inputTokens,
+    [inputTokens, cachedInputTokens, outputTokens].every(
+      (tokens): boolean => Number.isSafeInteger(tokens) && tokens >= 0,
+    ) && cachedInputTokens <= inputTokens,
     "accounting_unavailable",
     "Delegated usage is unavailable.",
     503,

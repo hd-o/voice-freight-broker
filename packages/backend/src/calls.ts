@@ -1,14 +1,19 @@
+import type { Call } from "@voice-freight/contracts/calls";
 import { finalizationSchema, type CallContext } from "@voice-freight/contracts/business";
 import { authorizeCall, resolveIdentity } from "./authorization";
 import { requireCondition } from "./model";
 import { transact } from "./repository";
 import type { State } from "./model";
 
-export async function createCall(binding: D1Database, userId: string, now = new Date().toISOString()) {
-  return transact(binding, (state) => initializeCall(state, userId, now));
+export async function createCall(
+  binding: D1Database,
+  userId: string,
+  now = new Date().toISOString(),
+): Promise<{ id: string }> {
+  return transact(binding, (state): { id: string } => initializeCall(state, userId, now));
 }
 
-export function initializeCall(state: State, userId: string, now: string) {
+export function initializeCall(state: State, userId: string, now: string): { id: string } {
   resolveIdentity(state, userId);
 
   requireCondition(state.inventory.length > 0, "inventory_unavailable", "Seed local inventory before creating calls.");
@@ -18,7 +23,7 @@ export function initializeCall(state: State, userId: string, now: string) {
   state.calls.push({
     id,
     ownerId: userId,
-    inventoryIds: state.inventory.map((entry) => entry.id),
+    inventoryIds: state.inventory.map((entry): string => entry.id),
     verification: null,
     selectedLoadId: null,
     quoteId: null,
@@ -52,10 +57,10 @@ export async function finalizeCall(
     transcriptComplete: boolean;
   },
   now = new Date().toISOString(),
-) {
+): Promise<Call> {
   const command = finalizationSchema.parse(input);
 
-  return transact(binding, (state) => completeCall(state, context, command, now));
+  return transact(binding, (state): Call => completeCall(state, context, command, now));
 }
 
 export function completeCall(
@@ -66,7 +71,7 @@ export function completeCall(
     transcriptComplete: boolean;
   },
   now: string,
-) {
+): Call {
   const call = authorizeCall(state, context, false);
 
   if (call.finalSnapshot) {
@@ -87,7 +92,8 @@ export function completeCall(
 
   call.record.outcomeReason = call.record.unresolvedError
     ? "System error"
-    : call.record.agreements.length && !call.record.agreements.some((agreement) => agreement.status === "effective")
+    : call.record.agreements.length &&
+        !call.record.agreements.some((agreement): boolean => agreement.status === "effective")
       ? "All agreements cancelled"
       : call.verification?.status === "ineligible"
         ? "Carrier ineligible"
@@ -97,7 +103,7 @@ export function completeCall(
             ? "No matching load"
             : "Caller ended";
 
-  for (const quote of state.quotes.filter((quote) => quote.callId === call.id)) {
+  for (const quote of state.quotes.filter((quote): boolean => quote.callId === call.id)) {
     quote.valid = false;
   }
 

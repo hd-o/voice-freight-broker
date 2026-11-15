@@ -10,8 +10,15 @@ const routes = [
   ["Savannah, GA", "Charlotte, NC", "Dry van", 250],
 ] as const;
 
-export function addInventory(state: State, batchId: string, now: string) {
-  const existing = state.inventory.filter((entry) => entry.batchId === batchId);
+export function addInventory(
+  state: State,
+  batchId: string,
+  now: string,
+): {
+  added: number;
+  batchId: string;
+} {
+  const existing = state.inventory.filter((entry): boolean => entry.batchId === batchId);
 
   if (existing.length) {
     return { added: 0, batchId };
@@ -51,9 +58,10 @@ export function addInventory(state: State, batchId: string, now: string) {
   return { added: 20, batchId };
 }
 
-export function checkAvailability(state: State, loadId: string, replacementId: string | null = null) {
+export function checkAvailability(state: State, loadId: string, replacementId: string | null = null): boolean {
   return !state.agreements.some(
-    (agreement) => agreement.load.id === loadId && agreement.status === "effective" && agreement.id !== replacementId,
+    (agreement): boolean =>
+      agreement.load.id === loadId && agreement.status === "effective" && agreement.id !== replacementId,
   );
 }
 
@@ -66,8 +74,8 @@ export function searchLoads(
     destination?: string;
     equipment?: string;
   },
-) {
-  const call = state.calls.find((call) => call.id === callId)!;
+): { loads: ReturnType<typeof describeLoad>[] } {
+  const call = state.calls.find((call): boolean => call.id === callId)!;
 
   requireCondition(
     call.verification?.status === "eligible",
@@ -75,13 +83,13 @@ export function searchLoads(
     "Verify an eligible carrier first.",
   );
 
-  const normalize = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+  const normalize = (value: string): string => value.trim().replace(/\s+/g, " ").toLowerCase();
 
   const loads = state.inventory
-    .filter((entry) => call.inventoryIds.includes(entry.id) && checkAvailability(state, entry.id))
-    .map((entry) => entry.load)
+    .filter((entry): boolean => call.inventoryIds.includes(entry.id) && checkAvailability(state, entry.id))
+    .map((entry): State["inventory"][number]["load"] => entry.load)
     .filter(
-      (load) =>
+      (load): boolean =>
         (!query.reference || normalize(load.reference) === normalize(query.reference)) &&
         (!query.origin || normalize(load.origin).includes(normalize(query.origin))) &&
         (!query.destination || normalize(load.destination).includes(normalize(query.destination))) &&
@@ -93,5 +101,5 @@ export function searchLoads(
     call.record.matched = true;
   }
 
-  return { loads: loads.map((load) => describeLoad(state, callId, load)) };
+  return { loads: loads.map((load): ReturnType<typeof describeLoad> => describeLoad(state, callId, load)) };
 }

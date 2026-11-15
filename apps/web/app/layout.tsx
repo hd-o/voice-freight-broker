@@ -6,7 +6,7 @@ export const metadata = {
   icons: { icon: "/favicon.svg" },
 };
 
-export default function renderLayout({ children }: { children: ReactNode }) {
+export default function renderLayout({ children }: { children: ReactNode }): React.JSX.Element {
   return (
     <html lang="en">
       <body>

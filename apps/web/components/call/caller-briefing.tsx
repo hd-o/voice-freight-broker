@@ -7,7 +7,7 @@ export type CallerBriefingProps = {
   className?: string;
 };
 
-export function renderCallerBriefing({ carriers, className }: CallerBriefingProps) {
+export function renderCallerBriefing({ carriers, className }: CallerBriefingProps): React.JSX.Element {
   return (
     <section
       className={mergeClasses("rounded-[10px] border border-border bg-surface p-6", className)}
@@ -21,7 +21,7 @@ export function renderCallerBriefing({ carriers, className }: CallerBriefingProp
       </p>
       <h3 className="mt-4 text-xs leading-4 text-muted-foreground">Demo carriers</h3>
       <ul className="mt-2 space-y-2">
-        {carriers.map((carrier) => (
+        {carriers.map((carrier): React.JSX.Element => (
           <li key={carrier.mcNumber} className="rounded-lg bg-muted px-3 py-2.5">
             <p>{carrier.name}</p>
             <p className="mt-0.5 text-xs leading-4 text-muted-foreground">MC {carrier.mcNumber}</p>

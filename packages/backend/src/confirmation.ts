@@ -11,10 +11,13 @@ export function captureConfirmation(
   context: CallContext,
   action: "handoff" | "cancel",
   targetId: string,
-) {
+): {
+  readbackId: string;
+  callerId: string;
+} {
   const call = authorizeCall(state, context);
   const target = resolveTarget(state, call.id, action, targetId);
-  const load = call.record.loads.find((entry) => entry.id === target.loadId);
+  const load = call.record.loads.find((entry): boolean => entry.id === target.loadId);
 
   requireCondition(
     load && call.record.carrier,
@@ -23,12 +26,12 @@ export function captureConfirmation(
   );
 
   const fragments = state.transcriptFragments
-    .filter((entry) => entry.callId === call.id)
-    .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence);
+    .filter((entry): boolean => entry.callId === call.id)
+    .sort((a, b): number => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence);
 
   // A confirmation must be the latest caller speech. Never search backward for
   // an earlier 'yes' after a correction or a different request.
-  const lastCaller = fragments.findLastIndex((entry) => entry.speaker === "carrier");
+  const lastCaller = fragments.findLastIndex((entry): boolean => entry.speaker === "carrier");
 
   requireCondition(
     lastCaller >= 0,
@@ -43,7 +46,7 @@ export function captureConfirmation(
   }
 
   const caller = fragments.slice(firstCaller, lastCaller + 1);
-  const callerText = caller.map((entry) => entry.text).join("");
+  const callerText = caller.map((entry): typeof entry.text => entry.text).join("");
 
   const affirmative =
     /^(yes|yes please|yes confirmed|yes i confirm|i confirm|confirmed|that is correct|that s correct|correct|go ahead|yes go ahead)( thank you| thanks)?$/;
@@ -54,8 +57,8 @@ export function captureConfirmation(
     "Confirmation is unclear. Read back the details and ask the caller to say yes or confirmed.",
   );
 
-  const latestQuote = state.quotes.find((entry) => entry.id === targetId);
-  const agreement = state.agreements.find((entry) => entry.id === targetId);
+  const latestQuote = state.quotes.find((entry): boolean => entry.id === targetId);
+  const agreement = state.agreements.find((entry): boolean => entry.id === targetId);
   const evidenceAfterMs = latestQuote?.evidenceAfterMs ?? agreement?.evidenceAfterMs ?? 0;
 
   let firstBroker = firstCaller - 1;
@@ -75,7 +78,7 @@ export function captureConfirmation(
   }
 
   const broker = fragments.slice(firstBroker, firstCaller);
-  const brokerSpeech = broker.map((entry) => entry.text).join("");
+  const brokerSpeech = broker.map((entry): typeof entry.text => entry.text).join("");
   // Earlier bargaining may contain rejected prices or negation. Validate the
   // latest explicit read-back, without treating pauses as turn boundaries.
   const readbackStart = [
@@ -86,7 +89,7 @@ export function captureConfirmation(
 
   const numericRates = [
     ...brokerText.matchAll(/\$\s*([\d,]+(?:\.\d{1,2})?)(?!\d|\.\d)|\b(?<![-\d.,])([\d,]+(?:\.\d{1,2})?)\s+dollars\b/gi),
-  ].map((match) => Math.round(Number((match[1] ?? match[2]).replaceAll(",", "")) * 100));
+  ].map((match): number => Math.round(Number((match[1] ?? match[2]).replaceAll(",", "")) * 100));
 
   const numberWords = [...unitWords, ...tensWords, "hundred", "thousand", "and"].join("|");
 
@@ -96,7 +99,7 @@ export function captureConfirmation(
     ),
   ];
 
-  const spokenRates = spokenMatches.map((match) => {
+  const spokenRates = spokenMatches.map((match): number | null => {
     const dollars = parseSpokenNumber(match[1]);
     const cents = match[2] ? parseSpokenNumber(match[2]) : 0;
 
@@ -107,8 +110,9 @@ export function captureConfirmation(
 
   const hasRate =
     rates.length > 0 &&
-    rates.every((rateCents) => rateCents === target.rateCents) &&
-    (normalized.match(/\bcents\b/g)?.length ?? 0) === spokenMatches.filter((match) => match[2]).length;
+    rates.every((rateCents): boolean => rateCents === target.rateCents) &&
+    (normalized.match(/\bcents\b/g)?.length ?? 0) ===
+      spokenMatches.filter((match): (typeof match)[2] => match[2]).length;
 
   const hasCarrier = normalized.includes(normalizeSpeech(call.record.carrier.name));
   const spokenLabel = describeLoad(state, call.id, load).spokenLabel;

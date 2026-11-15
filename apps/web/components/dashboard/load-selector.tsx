@@ -24,7 +24,7 @@ export function renderLoadSelector({
   open,
   onValueChange,
   onOpenChange,
-}: LoadSelectorProps) {
+}: LoadSelectorProps): React.JSX.Element {
   const labelId = useId();
 
   return (
@@ -56,7 +56,7 @@ export function renderLoadSelector({
           <Select.Positioner sideOffset={4} className="z-50 outline-none" alignItemWithTrigger={false}>
             <Select.Popup className="max-h-[var(--available-height)] w-[var(--anchor-width)] overflow-y-auto rounded-lg border border-border bg-surface p-1 text-foreground shadow-lg">
               <Select.List>
-                {options.map((option) => (
+                {options.map((option): React.JSX.Element => (
                   <Select.Item
                     key={option.value}
                     value={option.value}

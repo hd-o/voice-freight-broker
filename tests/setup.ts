@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 
-export default async function prepareTestWorkers() {
+export default async function prepareTestWorkers(): Promise<() => Promise<void>> {
   const root = resolve(import.meta.dirname, "..");
 
   await promisify(execFile)(
@@ -19,7 +19,7 @@ export default async function prepareTestWorkers() {
   const previousDirectory = process.env.TMPDIR;
   process.env.TMPDIR = temporaryDirectory;
 
-  return async () => {
+  return async (): Promise<void> => {
     if (previousDirectory === undefined) {
       delete process.env.TMPDIR;
     } else {

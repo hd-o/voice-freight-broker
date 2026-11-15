@@ -25,7 +25,7 @@ export { LiveCall } from "./live-call";
 
 const app = new Hono<{ Bindings: Env & LiveBindings }>();
 
-app.use("/api/*", async (context, next) => {
+app.use("/api/*", async (context, next): Promise<void> => {
   context.header("Cache-Control", "private, no-store");
   context.header("Vary", "Cookie");
   if (!["GET", "HEAD"].includes(context.req.method)) {
@@ -42,7 +42,7 @@ app.use("/api/*", async (context, next) => {
   await next();
 });
 
-app.onError((error, context) => {
+app.onError((error, context): Response => {
   if (error instanceof ZodError || error instanceof SyntaxError) {
     return context.json(
       {
@@ -65,14 +65,16 @@ app.onError((error, context) => {
   );
 });
 
-async function resolveUser(context: import("hono").Context<{ Bindings: Env & LiveBindings }>) {
+async function resolveUser(
+  context: import("hono").Context<{ Bindings: Env & LiveBindings }>,
+): Promise<NonNullable<Awaited<ReturnType<typeof queryIdentity>>>> {
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
   const user = await queryIdentity(context.env.DB, getCookie(context, "freight_session"));
   requireCondition(user, "unauthenticated", "Sign in to continue.", 401);
   return user;
 }
 
-app.get("/api/identity", async (context) => {
+app.get("/api/identity", async (context): Promise<Response> => {
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
   return context.json({
     user: await queryIdentity(context.env.DB, getCookie(context, "freight_session")),
@@ -80,7 +82,7 @@ app.get("/api/identity", async (context) => {
   });
 });
 
-app.post("/api/session", async (context) => {
+app.post("/api/session", async (context): Promise<Response> => {
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
   const input = z.strictObject({ userId: z.string() }).parse(await context.req.json());
   await signOut(context.env.DB, getCookie(context, "freight_session"));
@@ -95,20 +97,20 @@ app.post("/api/session", async (context) => {
   return context.json({ user });
 });
 
-app.delete("/api/session", async (context) => {
+app.delete("/api/session", async (context): Promise<Response> => {
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
   await signOut(context.env.DB, getCookie(context, "freight_session"));
   deleteCookie(context, "freight_session", { path: "/api" });
   return context.json({ user: null });
 });
 
-app.get("/api/dashboard", async (context) =>
+app.get("/api/dashboard", async (context): Promise<Response> =>
   context.json(await queryDashboard(context.env.DB, (await resolveUser(context)).id)),
 );
-app.get("/api/calls", async (context) =>
+app.get("/api/calls", async (context): Promise<Response> =>
   context.json(await queryDashboard(context.env.DB, (await resolveUser(context)).id)),
 );
-app.get("/api/calls/:callId", async (context) =>
+app.get("/api/calls/:callId", async (context): Promise<Response> =>
   context.json(
     await queryCall(context.env.DB, {
       userId: (await resolveUser(context)).id,
@@ -116,12 +118,12 @@ app.get("/api/calls/:callId", async (context) =>
     }),
   ),
 );
-app.post("/api/calls", async (context) => {
+app.post("/api/calls", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   z.strictObject({}).parse(await context.req.json());
   return context.json(await createCall(context.env.DB, user.id), 201);
 });
-app.post("/api/live/calls", async (context) => {
+app.post("/api/live/calls", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   const input = liveStartSchema.parse(await context.req.json());
   if (context.env.ENVIRONMENT === "local" && context.env.VOICE_PROVIDER === "stub") {
@@ -140,13 +142,13 @@ app.post("/api/live/calls", async (context) => {
   );
   return context.json(result, 201);
 });
-app.get("/api/live/configuration", async (context) => {
+app.get("/api/live/configuration", async (context): Promise<Response> => {
   await resolveUser(context);
   return context.json({
     provider: context.env.ENVIRONMENT === "local" && context.env.VOICE_PROVIDER === "stub" ? "stub" : "openai",
   });
 });
-app.get("/api/calls/:callId/live", async (context) => {
+app.get("/api/calls/:callId/live", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   return context.json(
     await queryLiveStatus(context.env.DB, {
@@ -155,7 +157,7 @@ app.get("/api/calls/:callId/live", async (context) => {
     }),
   );
 });
-app.post("/api/calls/:callId/connected", async (context) => {
+app.post("/api/calls/:callId/connected", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   z.strictObject({}).parse(await context.req.json());
   const callId = context.req.param("callId");
@@ -163,7 +165,7 @@ app.post("/api/calls/:callId/connected", async (context) => {
   await context.env.CALLS.get(context.env.CALLS.idFromName(callId)).connectAudio();
   return context.json({ id: callId });
 });
-app.post("/api/calls/:callId/hangup", async (context) => {
+app.post("/api/calls/:callId/hangup", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   const input = z.strictObject({ interrupted: z.boolean().optional() }).parse(await context.req.json());
   const callId = context.req.param("callId");
@@ -173,11 +175,11 @@ app.post("/api/calls/:callId/hangup", async (context) => {
   );
   return context.json({ id: callId });
 });
-app.post("/api/calls/:callId/end", async (context) => {
+app.post("/api/calls/:callId/end", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   const { state } = await readState(context.env.DB);
   requireCondition(
-    !state.liveSessions.some((entry) => entry.id === context.req.param("callId")),
+    !state.liveSessions.some((entry): boolean => entry.id === context.req.param("callId")),
     "coordinator_required",
     "Use the live call hang-up action.",
   );
@@ -189,11 +191,11 @@ app.post("/api/calls/:callId/end", async (context) => {
     ),
   );
 });
-app.post("/api/calls/:callId/tools/:name", async (context) => {
+app.post("/api/calls/:callId/tools/:name", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   const { state } = await readState(context.env.DB);
   requireCondition(
-    !state.liveSessions.some((entry) => entry.id === context.req.param("callId")),
+    !state.liveSessions.some((entry): boolean => entry.id === context.req.param("callId")),
     "coordinator_required",
     "Live business actions belong to the voice coordinator.",
   );
@@ -206,18 +208,18 @@ app.post("/api/calls/:callId/tools/:name", async (context) => {
     ),
   );
 });
-app.post("/api/inventory/restock", async (context) => {
+app.post("/api/inventory/restock", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   const input = z.strictObject({ operationId: z.string().uuid() }).parse(await context.req.json());
   return context.json(await restockInventory(context.env.DB, user.id, input.operationId));
 });
-app.post("/api/local/seed", async (context) => {
+app.post("/api/local/seed", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   requireCondition(user.role === "administrator", "forbidden", "Administrator access required.", 403);
   return context.json(await seedDatabase(context.env.DB));
 });
 
-app.get("/api/health", async (context) => {
+app.get("/api/health", async (context): Promise<Response> => {
   const status = statusSchema.parse({
     service: "api",
     database: await checkDatabase(context.env.DB),

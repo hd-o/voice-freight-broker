@@ -21,8 +21,8 @@ export const Empty: Story = { args: { entries: [] } };
 
 export const LongConversation: Story = {
   args: {
-    entries: Array.from({ length: 5 }, (_, index) =>
-      transcriptEntries.map((entry) => ({
+    entries: Array.from({ length: 5 }, (_, index): typeof transcriptEntries =>
+      transcriptEntries.map((entry): (typeof transcriptEntries)[number] => ({
         ...entry,
         id: `${index}-${entry.id}`,
       })),
@@ -32,7 +32,7 @@ export const LongConversation: Story = {
 
 export const LongMessage: Story = {
   args: {
-    entries: transcriptEntries.slice(0, 1).map((entry) => ({
+    entries: transcriptEntries.slice(0, 1).map((entry): (typeof transcriptEntries)[number] => ({
       ...entry,
       text: "Could you confirm the pickup window and the delivery appointment? I need to coordinate with my dispatcher before accepting this load. Please include any loading requirements and the shipper’s contact details.",
     })),

@@ -7,8 +7,8 @@ import "@fontsource-variable/inter";
 import "@/app/globals.css";
 import { renderAccountProvider as AccountProvider } from "@/lib/account";
 
-export function renderProviders({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+export function renderProviders({ children }: { children: ReactNode }): React.JSX.Element {
+  const [queryClient] = useState((): QueryClient => new QueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>

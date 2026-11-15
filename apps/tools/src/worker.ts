@@ -8,16 +8,18 @@ import {
   type ToolName,
   type EvidenceInput,
 } from "@voice-freight/contracts/business";
-import { executeTool } from "@voice-freight/backend/business";
+import { executeTool, type ToolResult } from "@voice-freight/backend/business";
 import { recordEvidence } from "@voice-freight/backend/evidence";
 import { BusinessError } from "@voice-freight/backend/model";
+
+type ToolResponse = ToolResult | { error: { code: string; message: string } };
 
 export class Tools extends WorkerEntrypoint<Env> {
   async executeObserved(
     context: CallContext,
     name: ToolName,
     invocation: { invocationId: string; arguments: unknown },
-  ) {
+  ): Promise<ToolResponse> {
     try {
       return await executeTool(
         this.env.DB,
@@ -40,7 +42,11 @@ export class Tools extends WorkerEntrypoint<Env> {
     }
   }
 
-  async execute(context: CallContext, name: ToolName, invocation: { invocationId: string; arguments: unknown }) {
+  async execute(
+    context: CallContext,
+    name: ToolName,
+    invocation: { invocationId: string; arguments: unknown },
+  ): Promise<ToolResponse> {
     try {
       return await executeTool(this.env.DB, callContextSchema.parse(context), name, invocation);
     } catch (error) {
@@ -64,33 +70,54 @@ export class Tools extends WorkerEntrypoint<Env> {
     }
   }
 
-  async recordEvidence(context: CallContext, evidence: EvidenceInput) {
+  async recordEvidence(context: CallContext, evidence: EvidenceInput): ReturnType<typeof recordEvidence> {
     return recordEvidence(this.env.DB, callContextSchema.parse(context), evidenceSchema.parse(evidence));
   }
 
-  async verify_carrier(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
+  async verify_carrier(
+    context: CallContext,
+    invocation: { invocationId: string; arguments: unknown },
+  ): Promise<ToolResponse> {
     return this.execute(context, "verify_carrier", invocation);
   }
-  async search_loads(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
+  async search_loads(
+    context: CallContext,
+    invocation: { invocationId: string; arguments: unknown },
+  ): Promise<ToolResponse> {
     return this.execute(context, "search_loads", invocation);
   }
-  async select_load(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
+  async select_load(
+    context: CallContext,
+    invocation: { invocationId: string; arguments: unknown },
+  ): Promise<ToolResponse> {
     return this.execute(context, "select_load", invocation);
   }
-  async evaluate_offer(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
+  async evaluate_offer(
+    context: CallContext,
+    invocation: { invocationId: string; arguments: unknown },
+  ): Promise<ToolResponse> {
     return this.execute(context, "evaluate_offer", invocation);
   }
-  async begin_renegotiation(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
+  async begin_renegotiation(
+    context: CallContext,
+    invocation: { invocationId: string; arguments: unknown },
+  ): Promise<ToolResponse> {
     return this.execute(context, "begin_renegotiation", invocation);
   }
-  async confirm_handoff(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
+  async confirm_handoff(
+    context: CallContext,
+    invocation: { invocationId: string; arguments: unknown },
+  ): Promise<ToolResponse> {
     return this.execute(context, "confirm_handoff", invocation);
   }
-  async cancel_agreement(context: CallContext, invocation: { invocationId: string; arguments: unknown }) {
+  async cancel_agreement(
+    context: CallContext,
+    invocation: { invocationId: string; arguments: unknown },
+  ): Promise<ToolResponse> {
     return this.execute(context, "cancel_agreement", invocation);
   }
 
-  async getStatus() {
+  async getStatus(): Promise<ReturnType<typeof statusSchema.parse>> {
     return statusSchema.parse({
       service: "tools",
       database: await checkDatabase(this.env.DB),
@@ -99,7 +126,7 @@ export class Tools extends WorkerEntrypoint<Env> {
 }
 
 export default {
-  fetch() {
+  fetch(): Response {
     return new Response("Not found", { status: 404 });
   },
 } satisfies ExportedHandler<Env>;

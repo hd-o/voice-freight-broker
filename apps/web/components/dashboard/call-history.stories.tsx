@@ -16,7 +16,7 @@ const meta = {
     onPrevious: fn(),
   },
   decorators: [
-    (Story) => (
+    (Story): React.JSX.Element => (
       <div className="w-[1312px] max-w-[calc(100vw-32px)]">
         <Story />
       </div>

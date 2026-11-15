@@ -12,15 +12,15 @@ export type TooltipTriggerProps = TooltipPrimitive.Trigger.Props;
 export type TooltipContentProps = TooltipPrimitive.Popup.Props &
   Pick<TooltipPrimitive.Positioner.Props, "side" | "sideOffset" | "align" | "alignOffset">;
 
-export function renderTooltipProvider({ delay = 300, ...props }: TooltipProviderProps) {
+export function renderTooltipProvider({ delay = 300, ...props }: TooltipProviderProps): React.JSX.Element {
   return <TooltipPrimitive.Provider delay={delay} {...props} />;
 }
 
-export function renderTooltip(props: TooltipProps) {
+export function renderTooltip(props: TooltipProps): React.JSX.Element {
   return <TooltipPrimitive.Root {...props} />;
 }
 
-export function renderTooltipTrigger(props: TooltipTriggerProps) {
+export function renderTooltipTrigger(props: TooltipTriggerProps): React.JSX.Element {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
@@ -31,7 +31,7 @@ export function renderTooltipContent({
   align = "center",
   alignOffset = 0,
   ...props
-}: TooltipContentProps) {
+}: TooltipContentProps): React.JSX.Element {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner
@@ -44,7 +44,7 @@ export function renderTooltipContent({
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
-          className={(state) =>
+          className={(state): string =>
             mergeClasses(
               "max-w-[min(20rem,var(--available-width))] rounded-md bg-primary px-3 py-1.5 text-xs leading-4 text-primary-foreground shadow-md wrap-anywhere",
               typeof className === "function" ? className(state) : className,

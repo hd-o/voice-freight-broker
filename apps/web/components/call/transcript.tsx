@@ -20,7 +20,7 @@ export function renderTranscript({
   heading = "Transcript",
   emptyMessage = "Your conversation will appear here when the call starts.",
   className,
-}: TranscriptProps) {
+}: TranscriptProps): React.JSX.Element {
   return (
     <section
       aria-label={heading}
@@ -31,7 +31,7 @@ export function renderTranscript({
         <p className="text-muted-foreground">{emptyMessage}</p>
       ) : (
         <ol className="space-y-4">
-          {entries.map((entry) => (
+          {entries.map((entry): React.JSX.Element => (
             <li
               key={entry.id}
               className={mergeClasses("flex flex-col gap-1", entry.speaker === "carrier" && "items-end")}

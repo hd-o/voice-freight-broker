@@ -7,7 +7,12 @@ export type DashboardControlsProps = {
   onRestock: () => void;
 };
 
-export function renderDashboardControls({ restocking, feedback, error, onRestock }: DashboardControlsProps) {
+export function renderDashboardControls({
+  restocking,
+  feedback,
+  error,
+  onRestock,
+}: DashboardControlsProps): React.JSX.Element {
   return (
     <section aria-label="Dashboard data" className="space-y-3">
       <Button variant="outline" disabled={restocking} onClick={onRestock}>

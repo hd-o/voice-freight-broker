@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 
 test.use({ voiceScenario: "budget-start" });
-test("explains renewal without creating a call", async ({ page }) => {
+test("explains renewal without creating a call", async ({ page }): Promise<void> => {
   await page.goto("/call");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("button", { name: "Local Reviewer", exact: true }).click();

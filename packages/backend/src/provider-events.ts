@@ -36,12 +36,12 @@ export async function ingestProviderEvent(
   context: CallContext,
   input: unknown,
   now = new Date().toISOString(),
-) {
+): Promise<boolean> {
   const event = providerEventSchema.parse(input);
 
-  return transact(binding, (state) => {
+  return transact(binding, (state): boolean => {
     const call = authorizeCall(state, context, false);
-    const session = state.liveSessions.find((entry) => entry.id === call.id);
+    const session = state.liveSessions.find((entry): boolean => entry.id === call.id);
 
     requireCondition(session, "call_unavailable", "Live call unavailable.", 404);
 
@@ -56,7 +56,7 @@ export async function ingestProviderEvent(
 
       if (fragment.delta) {
         state.transcriptFragments.push({
-          sequence: state.transcriptFragments.filter((entry) => entry.callId === call.id).length,
+          sequence: state.transcriptFragments.filter((entry): boolean => entry.callId === call.id).length,
           id: `${call.id}:${fragment.event_id}`,
           callId: call.id,
           speaker: event.type === "session.input_transcript.delta" ? "carrier" : "broker",
@@ -66,9 +66,9 @@ export async function ingestProviderEvent(
         });
 
         call.record.transcript.entries = state.transcriptFragments
-          .filter((entry) => entry.callId === call.id)
-          .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence)
-          .map((entry) => ({
+          .filter((entry): boolean => entry.callId === call.id)
+          .sort((a, b): number => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence)
+          .map((entry): (typeof call.record.transcript.entries)[number] => ({
             id: entry.id,
             speaker: entry.speaker,
             offsetSeconds: Math.floor(entry.startMs / 1000),
@@ -134,7 +134,7 @@ export async function ingestProviderEvent(
               response.usage.input_tokens,
               response.usage.input_tokens_details?.cached_tokens ?? 0,
               response.usage.output_tokens,
-              state.reservations.find((entry) => entry.id === call.id)!.prices,
+              state.reservations.find((entry): boolean => entry.id === call.id)!.prices,
             ),
           );
 

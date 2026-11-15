@@ -48,7 +48,7 @@ export function renderCallLayout({
   onNotificationAction,
   notice,
   ...actions
-}: CallLayoutProps) {
+}: CallLayoutProps): React.JSX.Element {
   const status =
     state === "ready"
       ? "Ready when you are"

@@ -11,7 +11,7 @@ const meta = {
   title: "UI/Tooltip",
   component: TooltipContent,
   args: { children: "Helpful context", side: "top" },
-  render: (args) => (
+  render: (args): React.JSX.Element => (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger render={<Button variant="outline" />}>Hover or focus</TooltipTrigger>

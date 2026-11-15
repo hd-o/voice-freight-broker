@@ -61,7 +61,7 @@ export function renderCallNotification({
   onDismiss,
   onAction,
   className,
-}: CallNotificationProps) {
+}: CallNotificationProps): React.JSX.Element {
   const notification = notifications[kind];
   const failure =
     kind === "microphone" || kind === "connection" || kind === "interruption" || kind === "analysisFailure";

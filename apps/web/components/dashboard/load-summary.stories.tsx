@@ -23,7 +23,7 @@ const meta = {
     load: firstLoad,
   },
   decorators: [
-    (Story) => (
+    (Story): React.JSX.Element => (
       <div className="w-[392px] max-w-[calc(100vw-32px)]">
         <Story />
       </div>

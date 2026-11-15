@@ -3,21 +3,21 @@
 import { useSyncExternalStore } from "react";
 import type { NavigationPage } from "@/components/navigation/navigation";
 
-function subscribeNavigation(onChange: () => void) {
+function subscribeNavigation(onChange: () => void): () => void {
   window.addEventListener("popstate", onChange);
 
-  return () => window.removeEventListener("popstate", onChange);
+  return (): void => window.removeEventListener("popstate", onChange);
 }
 
-function readQuery() {
+function readQuery(): string {
   return window.location.search;
 }
 
-function readServerQuery() {
+function readServerQuery(): null {
   return null;
 }
 
-export function useQueryParameters() {
+export function useQueryParameters(): { parameters: URLSearchParams; readiness: boolean } {
   const query = useSyncExternalStore<string | null>(subscribeNavigation, readQuery, readServerQuery);
 
   return {
@@ -26,18 +26,18 @@ export function useQueryParameters() {
   };
 }
 
-export function changeQuery(parameters: URLSearchParams) {
+export function changeQuery(parameters: URLSearchParams): void {
   const query = parameters.toString();
 
   window.history.pushState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-export function navigatePage(page: NavigationPage) {
+export function navigatePage(page: NavigationPage): void {
   window.location.assign(`/${page}`);
 }
 
-export function createCallHref(id: string, page = 1) {
+export function createCallHref(id: string, page = 1): string {
   const parameters = new URLSearchParams({ call: id });
 
   if (page > 1) {

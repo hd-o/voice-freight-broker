@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import * as tables from "./schema";
 import { BusinessError, type State } from "./model";
 
-export async function readState(binding: D1Database) {
+export async function readState(binding: D1Database): Promise<{ version: number; state: State }> {
   const database = drizzle(binding);
 
   const [
@@ -46,22 +46,22 @@ export async function readState(binding: D1Database) {
   return {
     version: revision[0].version,
     state: {
-      users: users.map((row) => row.data),
-      sessions: sessions.map((row) => row.data),
-      calls: calls.map((row) => row.data),
-      inventory: inventory.map((row) => row.data),
-      negotiations: negotiations.map((row) => row.data),
-      quotes: quotes.map((row) => row.data),
-      agreements: agreements.map((row) => row.data),
-      evidence: evidence.map((row) => row.data),
-      receipts: receipts.map((row) => row.data),
-      events: events.map((row) => row.data),
-      analysis: analysis.map((row) => row.data),
-      spendingPeriods: spendingPeriods.map((row) => row.data),
-      reservations: reservations.map((row) => row.data),
-      providerUsage: providerUsage.map((row) => row.data),
-      liveSessions: liveSessions.map((row) => row.data),
-      transcriptFragments: transcriptFragments.map((row) => row.data),
+      users: users.map((row): State["users"][number] => row.data),
+      sessions: sessions.map((row): State["sessions"][number] => row.data),
+      calls: calls.map((row): State["calls"][number] => row.data),
+      inventory: inventory.map((row): State["inventory"][number] => row.data),
+      negotiations: negotiations.map((row): State["negotiations"][number] => row.data),
+      quotes: quotes.map((row): State["quotes"][number] => row.data),
+      agreements: agreements.map((row): State["agreements"][number] => row.data),
+      evidence: evidence.map((row): State["evidence"][number] => row.data),
+      receipts: receipts.map((row): State["receipts"][number] => row.data),
+      events: events.map((row): State["events"][number] => row.data),
+      analysis: analysis.map((row): State["analysis"][number] => row.data),
+      spendingPeriods: spendingPeriods.map((row): State["spendingPeriods"][number] => row.data),
+      reservations: reservations.map((row): State["reservations"][number] => row.data),
+      providerUsage: providerUsage.map((row): State["providerUsage"][number] => row.data),
+      liveSessions: liveSessions.map((row): State["liveSessions"][number] => row.data),
+      transcriptFragments: transcriptFragments.map((row): State["transcriptFragments"][number] => row.data),
     } satisfies State,
   };
 }
@@ -82,7 +82,7 @@ export async function transact<T>(binding: D1Database, command: (state: State) =
     ];
 
     for (const name of Object.keys(state) as (keyof State)[]) {
-      const previous = new Map(originals[name].map((row) => [row.id, JSON.stringify(row)]));
+      const previous = new Map(originals[name].map((row): [string, string] => [row.id, JSON.stringify(row)]));
 
       for (const row of state[name]) {
         const data = JSON.stringify(row);

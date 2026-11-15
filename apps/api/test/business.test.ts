@@ -24,13 +24,13 @@ type AgreementResult = {
   version: number;
 };
 
-beforeEach(async () => {
+beforeEach(async (): Promise<void> => {
   const { state } = await readState(env.DB);
-  await env.DB.batch(Object.keys(state).map((name) => env.DB.prepare(`DELETE FROM ${name}`)));
+  await env.DB.batch(Object.keys(state).map((name): D1PreparedStatement => env.DB.prepare(`DELETE FROM ${name}`)));
   await seedDatabase(env.DB, clock);
 });
 
-async function openCall(userId = "reviewer", mcNumber = "123456") {
+async function openCall(userId = "reviewer", mcNumber = "123456"): Promise<CallContext> {
   const { id } = await createCall(env.DB, userId, clock);
   const context = { userId, callId: id };
   await invoke(context, "verify_carrier", { mcNumber });
@@ -41,13 +41,13 @@ async function invoke(
   name: ToolName,
   argumentsData: unknown,
   invocationId = crypto.randomUUID(),
-) {
+): ReturnType<typeof executeTool> {
   return executeTool(env.DB, context, name, { invocationId, arguments: argumentsData }, clock);
 }
-async function select(context: CallContext, loadId = firstLoad) {
+async function select(context: CallContext, loadId = firstLoad): Promise<QuoteResult> {
   return (await invoke(context, "select_load", { loadId })) as QuoteResult;
 }
-async function offer(context: CallContext, quote: QuoteResult, amountCents: number) {
+async function offer(context: CallContext, quote: QuoteResult, amountCents: number): Promise<QuoteResult> {
   return (await invoke(context, "evaluate_offer", {
     quoteId: quote.quoteId,
     amountCents,
@@ -58,7 +58,7 @@ async function recordConfirmation(
   targetId: string,
   action: "handoff" | "cancel" = "handoff",
   confirmed = true,
-) {
+): Promise<{ readbackId: string; callerId: string }> {
   const readbackId = crypto.randomUUID();
   const callerId = crypto.randomUUID();
   await recordEvidence(
@@ -92,14 +92,14 @@ async function recordConfirmation(
   );
   return { readbackId, callerId };
 }
-async function confirm(context: CallContext, quote: QuoteResult) {
+async function confirm(context: CallContext, quote: QuoteResult): Promise<AgreementResult> {
   const evidence = await recordConfirmation(context, quote.quoteId);
   return (await invoke(context, "confirm_handoff", {
     quoteId: quote.quoteId,
     evidence,
   })) as AgreementResult;
 }
-async function request(path: string, method = "GET", body?: unknown, cookie?: string) {
+async function request(path: string, method = "GET", body?: unknown, cookie?: string): Promise<Response> {
   return SELF.fetch(`http://localhost${path}`, {
     method,
     headers: {
@@ -110,13 +110,13 @@ async function request(path: string, method = "GET", body?: unknown, cookie?: st
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
-async function authenticate(userId: string) {
+async function authenticate(userId: string): Promise<string> {
   const response = await request("/api/session", "POST", { userId });
   expect(response.status).toBe(200);
   return response.headers.get("set-cookie")!.split(";")[0];
 }
 
-it("allows corrections before binding and rejects carrier switches without changing state", async () => {
+it("allows corrections before binding and rejects carrier switches without changing state", async (): Promise<void> => {
   const { id } = await createCall(env.DB, "reviewer", clock);
   const context = { userId: "reviewer", callId: id };
   for (const [mcNumber, status] of [
@@ -162,7 +162,7 @@ it("allows corrections before binding and rejects carrier switches without chang
   ).toMatchObject({ rateCents: 200000 });
 });
 
-it("persists three distinct prices across reviewers/calls, repeats, and exhausted quote acceptance", async () => {
+it("persists three distinct prices across reviewers/calls, repeats, and exhausted quote acceptance", async (): Promise<void> => {
   const context = await openCall();
   let quote = await select(context);
   const initialQuote = quote;
@@ -203,7 +203,7 @@ it("persists three distinct prices across reviewers/calls, repeats, and exhauste
   expect((await readState(env.DB)).state.negotiations[0].prices).toEqual([250000, 260000, 270000]);
 });
 
-it("accepts allowed prices and permits multiple agreements with immutable finalization and pending analysis", async () => {
+it("accepts allowed prices and permits multiple agreements with immutable finalization and pending analysis", async (): Promise<void> => {
   const context = await openCall();
   const quote = await offer(context, await select(context), 219999);
   expect(quote).toMatchObject({
@@ -247,7 +247,7 @@ it("accepts allowed prices and permits multiple agreements with immutable finali
   expect((await readState(env.DB)).state).toEqual(beforeReplay);
 });
 
-it("atomically resolves competing inventory claims, replays, and confirmed cancellation releases availability", async () => {
+it("atomically resolves competing inventory claims, replays, and confirmed cancellation releases availability", async (): Promise<void> => {
   const first = await openCall();
   const second = await openCall("reviewer-two", "234567");
   const quoteA = await select(first);
@@ -260,7 +260,7 @@ it("atomically resolves competing inventory claims, replays, and confirmed cance
     invoke(first, "confirm_handoff", { quoteId: quoteA.quoteId, evidence: evidenceA }, idA),
     invoke(second, "confirm_handoff", { quoteId: quoteB.quoteId, evidence: evidenceB }, idB),
   ]);
-  expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+  expect(results.filter((result): boolean => result.status === "fulfilled")).toHaveLength(1);
   expect((await readState(env.DB)).state.agreements).toHaveLength(1);
   const winnerIndex = results[0].status === "fulfilled" ? 0 : 1;
   const winner = winnerIndex === 0 ? first : second;
@@ -295,7 +295,7 @@ it("atomically resolves competing inventory claims, replays, and confirmed cance
     loads: [{ id: firstLoad }],
   });
   const beforeReplay = (await readState(env.DB)).state;
-  const failures = beforeReplay.receipts.filter((receipt) => receipt.id === `${loser.callId}:${loserId}`);
+  const failures = beforeReplay.receipts.filter((receipt): boolean => receipt.id === `${loser.callId}:${loserId}`);
   expect(failures).toMatchObject([{ error: { code: "load_unavailable", status: 409 } }]);
   const failure = failures[0];
   if (!("error" in failure)) {
@@ -308,7 +308,7 @@ it("atomically resolves competing inventory claims, replays, and confirmed cance
   await confirm(loser, await select(loser));
 });
 
-it("keeps an allocation during renegotiation and rolls back failed or stale replacement evidence", async () => {
+it("keeps an allocation during renegotiation and rolls back failed or stale replacement evidence", async (): Promise<void> => {
   const context = await openCall();
   const original = await confirm(context, await select(context));
   let replacement = (await invoke(context, "begin_renegotiation", {
@@ -342,7 +342,7 @@ it("keeps an allocation during renegotiation and rolls back failed or stale repl
   const updated = await confirm(context, replacement);
   expect(updated).toMatchObject({ version: 2, rateCents: 210000 });
   const call = await queryCall(env.DB, context);
-  expect(call.agreements.map((entry) => entry.status)).toEqual(["superseded", "effective"]);
+  expect(call.agreements.map((entry): typeof entry.status => entry.status)).toEqual(["superseded", "effective"]);
   expect((await queryDashboard(env.DB, "reviewer")).report.finalAgreementCount).toBe(0);
   await invoke(context, "begin_renegotiation", {
     agreementId: updated.agreementId,
@@ -353,7 +353,9 @@ it("keeps an allocation during renegotiation and rolls back failed or stale repl
     { connection: "Ended normally", transcriptComplete: true },
     "2026-11-13T12:01:00.000Z",
   );
-  expect(final.agreements.filter((entry) => entry.status === "effective")).toMatchObject([{ rateCents: 210000 }]);
+  expect(final.agreements.filter((entry): boolean => entry.status === "effective")).toMatchObject([
+    { rateCents: 210000 },
+  ]);
   await expect(
     invoke(context, "cancel_agreement", {
       agreementId: updated.agreementId,
@@ -362,7 +364,7 @@ it("keeps an allocation during renegotiation and rolls back failed or stale repl
   ).rejects.toMatchObject({ code: "call_ended" });
 });
 
-it("invalidates load changes and shared versions while preserving state on rejected ownership and late evidence", async () => {
+it("invalidates load changes and shared versions while preserving state on rejected ownership and late evidence", async (): Promise<void> => {
   const first = await openCall();
   const quote = await select(first);
   const evidence = await recordConfirmation(first, quote.quoteId);
@@ -387,11 +389,13 @@ it("invalidates load changes and shared versions while preserving state on rejec
     }),
   ).rejects.toMatchObject({ code: "call_unavailable" });
   expect((await readState(env.DB)).state).toEqual(before);
-  expect((await queryDashboard(env.DB, "reviewer-two")).calls.map((call) => call.id)).toEqual([second.callId]);
+  expect((await queryDashboard(env.DB, "reviewer-two")).calls.map((call): typeof call.id => call.id)).toEqual([
+    second.callId,
+  ]);
   expect((await queryDashboard(env.DB, "administrator")).calls).toHaveLength(2);
 });
 
-it("restocks additively and repeatably with fixed membership and current fixture dates", async () => {
+it("restocks additively and repeatably with fixed membership and current fixture dates", async (): Promise<void> => {
   const context = await openCall();
   const quote = await offer(context, await select(context), 250000);
   const id = crypto.randomUUID();
@@ -404,7 +408,9 @@ it("restocks additively and repeatably with fixed membership and current fixture
   expect(state.calls[0].inventoryIds).toHaveLength(20);
   expect(state.negotiations[0].prices).toEqual([250000]);
   expect(
-    state.inventory.every((entry) => entry.load.pickupAt > clock && entry.load.deliveryAt > entry.load.pickupAt),
+    state.inventory.every(
+      (entry): boolean => entry.load.pickupAt > clock && entry.load.deliveryAt > entry.load.pickupAt,
+    ),
   ).toBe(true);
   await expect(select(context, `stock-${id}-01`)).rejects.toMatchObject({
     code: "load_unavailable",
@@ -419,8 +425,10 @@ it("restocks additively and repeatably with fixed membership and current fixture
   });
 });
 
-it("uses equivalent REST and private RPC rules, validates arguments, origin, sessions, and hosted auth", async () => {
-  expect(() => checkLocalAuthentication("hosted", "local")).toThrow("disabled");
+it("uses equivalent REST and private RPC rules, validates arguments, origin, sessions, and hosted auth", async (): Promise<void> => {
+  expect((): ReturnType<typeof checkLocalAuthentication> => checkLocalAuthentication("hosted", "local")).toThrow(
+    "disabled",
+  );
   expect((await request("/api/dashboard")).status).toBe(401);
   const cookie = await authenticate("reviewer");
   const created = await request("/api/calls", "POST", {}, cookie);
@@ -468,7 +476,7 @@ it("uses equivalent REST and private RPC rules, validates arguments, origin, ses
   const rpcQuote = await env.TOOLS.select_load(context, selection);
   const restQuote = await request(`/api/calls/${id}/tools/select_load`, "POST", selection, cookie);
   expect(await restQuote.json()).toEqual(rpcQuote);
-  async function compareAdapters(name: ToolName, argumentsData: unknown) {
+  async function compareAdapters(name: ToolName, argumentsData: unknown): Promise<unknown> {
     const operation = {
       invocationId: crypto.randomUUID(),
       arguments: argumentsData,
@@ -523,7 +531,7 @@ it("uses equivalent REST and private RPC rules, validates arguments, origin, ses
       arguments: { loadId: firstLoad, userId: "administrator" },
     }),
   ).toMatchObject({ error: { code: "invalid_input" } });
-  expect((await readState(env.DB)).state.receipts.some((receipt) => receipt.id === `${id}:bad`)).toBe(false);
+  expect((await readState(env.DB)).state.receipts.some((receipt): boolean => receipt.id === `${id}:bad`)).toBe(false);
   const otherCookie = await authenticate("reviewer-two");
   expect((await request(`/api/calls/${id}`, "GET", undefined, otherCookie)).status).toBe(404);
   expect((await request("/api/inventory/restock", "POST", { operationId: crypto.randomUUID() }, cookie)).status).toBe(

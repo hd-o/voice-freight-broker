@@ -19,20 +19,24 @@ export async function reserveLiveCall(
   operationId: string,
   now = new Date().toISOString(),
   limits = usageLimits,
-) {
-  return transact(binding, (state) => {
+): Promise<{
+  id: string;
+}> {
+  return transact(binding, (state): { id: string } => {
     resolveIdentity(state, userId);
 
-    const previous = state.reservations.find((entry) => entry.ownerId === userId && entry.operationId === operationId);
+    const previous = state.reservations.find(
+      (entry): boolean => entry.ownerId === userId && entry.operationId === operationId,
+    );
 
     if (previous) {
       return { id: previous.id };
     }
 
     for (const session of state.liveSessions.filter(
-      (entry) => entry.state === "connecting" && !entry.providerAttempted,
+      (entry): boolean => entry.state === "connecting" && !entry.providerAttempted,
     )) {
-      const reservation = state.reservations.find((entry) => entry.id === session.id)!;
+      const reservation = state.reservations.find((entry): boolean => entry.id === session.id)!;
 
       if (Date.parse(now) - Date.parse(reservation.createdAt) < 30_000) {
         continue;
@@ -53,22 +57,23 @@ export async function reserveLiveCall(
     }
 
     const active = state.liveSessions.filter(
-      (session) => session.state !== "ended" || (session.providerAttempted && !session.providerClosed),
+      (session): boolean => session.state !== "ended" || (session.providerAttempted && !session.providerClosed),
     );
 
     requireCondition(
       active.length < limits.globalConcurrency &&
-        active.filter((session) => state.calls.find((call) => call.id === session.id)?.ownerId === userId).length <
-          limits.reviewerConcurrency,
+        active.filter(
+          (session): boolean => state.calls.find((call): boolean => call.id === session.id)?.ownerId === userId,
+        ).length < limits.reviewerConcurrency,
       "concurrent_limit",
       "Another call is active or waiting for confirmed termination. Try again after it finishes.",
     );
 
-    const today = state.reservations.filter((entry) => entry.createdAt.slice(0, 10) === now.slice(0, 10));
+    const today = state.reservations.filter((entry): boolean => entry.createdAt.slice(0, 10) === now.slice(0, 10));
 
     requireCondition(
       today.length < limits.globalDailyCalls &&
-        today.filter((entry) => entry.ownerId === userId).length < limits.reviewerDailyCalls,
+        today.filter((entry): boolean => entry.ownerId === userId).length < limits.reviewerDailyCalls,
       "daily_limit",
       "Daily call limit reached. Calls renew at 00:00 UTC.",
     );
@@ -125,7 +130,7 @@ export async function reserveLiveCall(
 export async function queryLiveStatus(binding: D1Database, context: CallContext): Promise<LiveStatus> {
   const { state } = await readState(binding);
   const call = authorizeCall(state, context, false);
-  const session = state.liveSessions.find((entry) => entry.id === call.id);
+  const session = state.liveSessions.find((entry): boolean => entry.id === call.id);
   requireCondition(session, "call_unavailable", "Live call unavailable.", 404);
 
   return {
@@ -140,9 +145,9 @@ export async function queryLiveStatus(binding: D1Database, context: CallContext)
 
 export function collectTranscript(state: State, callId: string): LiveStatus["transcript"] {
   const fragments = state.transcriptFragments
-    .filter((fragment) => fragment.callId === callId)
-    .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence)
-    .map(({ id, speaker, startMs, endMs, text }) => ({
+    .filter((fragment): boolean => fragment.callId === callId)
+    .sort((a, b): number => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence)
+    .map(({ id, speaker, startMs, endMs, text }): LiveStatus["transcript"][number] => ({
       id,
       speaker,
       startMs,
@@ -166,14 +171,18 @@ export function collectTranscript(state: State, callId: string): LiveStatus["tra
   return groups;
 }
 
-export async function prepareBudgetFixture(binding: D1Database, scenario: string, now = new Date().toISOString()) {
+export async function prepareBudgetFixture(
+  binding: D1Database,
+  scenario: string,
+  now = new Date().toISOString(),
+): Promise<void> {
   if (scenario !== "budget-start") {
     return;
   }
 
-  await transact(binding, (state) => {
+  await transact(binding, (state): void => {
     const id = resolvePeriod(now);
-    const period = state.spendingPeriods.find((entry) => entry.id === id);
+    const period = state.spendingPeriods.find((entry): boolean => entry.id === id);
 
     if (period) {
       period.spentMicrodollars = Math.max(period.spentMicrodollars, 24_999_999);
