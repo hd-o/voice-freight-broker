@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { callsSchema } from "@voice-freight/contracts/calls";
@@ -9,11 +11,13 @@ import { DashboardControls } from "@/components/dashboard/dashboard-controls";
 import { sampleCalls } from "@/lib/samples";
 import { createHistory, createMetrics } from "@/lib/reporting";
 import { useAccount, requestApi } from "@/lib/account";
-import { changeQuery, createCallHref, navigatePage, useQueryParameters } from "@/lib/navigation";
+import { changeQuery, createCallHref, useQueryParameters } from "@/lib/navigation";
 
 const pageSize = 5;
 
 export default function DashboardPage(): React.JSX.Element {
+  const router = useRouter();
+  const navigatePage = (page: "call" | "dashboard"): void => router.push(`/${page}`);
   const { parameters, readiness } = useQueryParameters();
   const account = useAccount();
   const [feedback, setFeedback] = useState<string>();
@@ -110,6 +114,7 @@ export default function DashboardPage(): React.JSX.Element {
         nextDisabled: currentPage === lastPage,
         previousVisible: currentPage > 1,
         getCallHref: (id): string => createCallHref(id, currentPage),
+        onOpenCall: (href): void => router.push(href),
         onNext: (): void => selectPage(currentPage + 1),
         onPrevious: (): void => selectPage(currentPage - 1),
       }}

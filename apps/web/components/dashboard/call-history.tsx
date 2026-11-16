@@ -22,6 +22,7 @@ export type CallHistoryProps = {
   nextDisabled?: boolean;
   previousVisible?: boolean;
   getCallHref: (id: string) => string;
+  onOpenCall?: (href: string) => void;
   onNext: () => void;
   onPrevious: () => void;
 };
@@ -32,6 +33,7 @@ export function CallHistory({
   nextDisabled = false,
   previousVisible = false,
   getCallHref,
+  onOpenCall,
   onNext,
   onPrevious,
 }: CallHistoryProps): React.JSX.Element {
@@ -81,6 +83,20 @@ export function CallHistory({
                   <th scope="row" className="px-3 py-4 font-normal whitespace-nowrap">
                     <a
                       href={getCallHref(call.id)}
+                      onClick={(event): void => {
+                        if (
+                          !onOpenCall ||
+                          event.button !== 0 ||
+                          event.metaKey ||
+                          event.ctrlKey ||
+                          event.shiftKey ||
+                          event.altKey
+                        ) {
+                          return;
+                        }
+                        event.preventDefault();
+                        onOpenCall(getCallHref(call.id));
+                      }}
                       className="rounded text-left after:absolute after:inset-0"
                       aria-label={`View call from ${call.carrier}, ${call.date}`}
                     >

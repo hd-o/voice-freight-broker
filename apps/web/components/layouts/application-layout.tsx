@@ -1,7 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Navigation, type NavigationPage } from "@/components/navigation/navigation";
+
+export const applicationShellContext = createContext(false);
 
 export type ApplicationLayoutProps = {
   activePage: NavigationPage;
@@ -22,6 +24,12 @@ export function ApplicationLayout({
   onAccountAction,
   children,
 }: ApplicationLayoutProps): React.JSX.Element {
+  const shared = useContext(applicationShellContext);
+
+  if (shared) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-svh bg-background text-foreground">
       <a

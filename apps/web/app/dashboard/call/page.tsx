@@ -1,15 +1,19 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { CallDetailLayout } from "@/components/layouts/call-detail-layout";
 import type { NavigationPage } from "@/components/navigation/navigation";
 import { sampleCalls } from "@/lib/samples";
 import { createCallDetail } from "@/lib/reporting";
-import { changeQuery, navigatePage, useQueryParameters } from "@/lib/navigation";
+import { changeQuery, useQueryParameters } from "@/lib/navigation";
 import { useAccount, requestApi } from "@/lib/account";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { callSchema } from "@voice-freight/contracts/calls";
 
 export default function CallDetailsPage(): React.JSX.Element {
+  const router = useRouter();
+  const navigatePage = (page: NavigationPage): void => router.push(`/${page}`);
   const { parameters, readiness } = useQueryParameters();
   const account = useAccount();
   const queryClient = useQueryClient();
@@ -62,7 +66,7 @@ export default function CallDetailsPage(): React.JSX.Element {
       query.set("page", historyPage);
     }
 
-    window.location.assign(`/dashboard${query.size ? `?${query}` : ""}`);
+    router.push(`/dashboard${query.size ? `?${query}` : ""}`);
   }
 
   const detail = call ? createCallDetail(call, parameters.get("load"), selectLoad) : null;

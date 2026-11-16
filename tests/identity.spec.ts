@@ -41,6 +41,40 @@ async function createReviewerCall(request: APIRequestContext, baseURL?: string):
   return record;
 }
 
+test("keeps the account sidebar mounted when navigating between pages", async ({ page }): Promise<void> => {
+  let identityRequests = 0;
+  await page.addInitScript((): void => localStorage.setItem("freight-local-session", "test-session"));
+  await page.route("**/api/identity", async (route): Promise<void> => {
+    identityRequests++;
+    await route.fulfill({
+      json: { user: { id: "reviewer", name: "Local Reviewer", role: "reviewer" }, identities: [] },
+    });
+  });
+  await page.route("**/api/dashboard", async (route): Promise<void> => {
+    await route.fulfill({ json: { calls: [] } });
+  });
+  await page.goto("/call");
+  await expect(page.getByRole("img", { name: "Signed in as Local Reviewer" })).toBeVisible();
+  await page.getByRole("navigation", { name: "Main navigation" }).evaluate((navigation): void => {
+    navigation.setAttribute("data-test-instance", "original");
+  });
+  await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Call Dashboard" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveAttribute(
+    "data-test-instance",
+    "original",
+  );
+  await expect(page.getByRole("img", { name: "Signed in as Local Reviewer" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeEnabled();
+  expect(identityRequests).toBe(1);
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Voice Call Demo" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveAttribute(
+    "data-test-instance",
+    "original",
+  );
+});
+
 test("private history stays scoped across logout and browser history", async ({
   page,
   request,

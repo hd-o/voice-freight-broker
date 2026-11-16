@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Providers } from "@/components/providers";
+import { SharedApplicationLayout } from "@/components/layouts/shared-application-layout";
 
 export const metadata = {
   title: "Voice Freight Broker",
@@ -10,7 +11,9 @@ export default function Layout({ children }: { children: ReactNode }): React.JSX
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <SharedApplicationLayout>{children}</SharedApplicationLayout>
+        </Providers>
       </body>
     </html>
   );

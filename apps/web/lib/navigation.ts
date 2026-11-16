@@ -1,7 +1,6 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { NavigationPage } from "@/components/navigation/navigation";
 
 function subscribeNavigation(onChange: () => void): () => void {
   window.addEventListener("popstate", onChange);
@@ -31,10 +30,6 @@ export function changeQuery(parameters: URLSearchParams): void {
 
   window.history.pushState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
   window.dispatchEvent(new PopStateEvent("popstate"));
-}
-
-export function navigatePage(page: NavigationPage): void {
-  window.location.assign(`/${page}`);
 }
 
 export function createCallHref(id: string, page = 1): string {

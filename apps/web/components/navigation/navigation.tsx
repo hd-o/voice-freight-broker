@@ -17,6 +17,7 @@ export type NavigationProps = {
   signedIn: boolean;
   accountName?: string;
   accountPending?: boolean;
+  accountLoading?: boolean;
   onNavigate: (page: NavigationPage) => void;
   onAccountAction: () => void;
 };
@@ -26,6 +27,7 @@ export function Navigation({
   signedIn,
   accountName,
   accountPending,
+  accountLoading,
   onNavigate,
   onAccountAction,
 }: NavigationProps): React.JSX.Element {
@@ -88,7 +90,12 @@ export function Navigation({
           ))}
         </div>
         <div className="md:absolute md:bottom-2.5">
-          <AccountAction signedIn={signedIn} pending={accountPending} onAccountAction={onAccountAction} />
+          <AccountAction
+            signedIn={signedIn}
+            pending={accountPending}
+            loading={accountLoading}
+            onAccountAction={onAccountAction}
+          />
         </div>
       </nav>
     </TooltipProvider>

@@ -69,6 +69,7 @@ async function fetchIdentity(): Promise<{ user: Identity | null; identities: Ide
 export function AccountProvider({ children }: { children: ReactNode }): ReactElement {
   const cache = useQueryClient();
   const [session, setSession] = useState<string | null>(null);
+  const [restored, setRestored] = useState(false);
   const [panel, setPanel] = useState(false);
   const [operation, setOperation] = useState<"sign-in" | "sign-out" | "waiting" | null>(null);
   const [notice, setNotice] = useState<string>();
@@ -97,6 +98,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
 
   useEffect((): void | (() => void) => {
     setSession(localStorage.getItem(accountKey));
+    setRestored(true);
 
     function expireSession(): void {
       cache.clear();
@@ -224,7 +226,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     <accountContext.Provider
       value={{
         user,
-        loading: !!session && identity.isPending,
+        loading: !restored || (!!session && identity.isPending),
         pending,
         notice: progress ?? notice,
         performAccountAction,

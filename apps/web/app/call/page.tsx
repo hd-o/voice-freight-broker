@@ -1,15 +1,19 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { useQuery } from "@tanstack/react-query";
 import { callSchema } from "@voice-freight/contracts/calls";
 import type { TranscriptEntry } from "@/components/call/transcript";
 import { CallLayout } from "@/components/layouts/call-layout";
 import { demoCarriers } from "@/components/call/carrier-fixtures";
-import { navigatePage } from "@/lib/navigation";
+import type { NavigationPage } from "@/components/navigation/navigation";
 import { useAccount, requestApi } from "@/lib/account";
 import { useLiveCall } from "@/lib/live";
 
 export default function CallPage(): React.JSX.Element {
+  const router = useRouter();
+  const navigatePage = (page: NavigationPage): void => router.push(`/${page}`);
   const account = useAccount();
   const call = useLiveCall(account.user?.id);
   const analysis = useQuery({
@@ -50,6 +54,7 @@ export default function CallPage(): React.JSX.Element {
       onNavigate={navigatePage}
       onAccountAction={account.performAccountAction}
       onExploreSamples={exploreSamples}
+      onOpenCall={(href): void => router.push(href)}
       callHref={call.status ? `/dashboard/call?call=${encodeURIComponent(call.status.id)}` : undefined}
       onStart={(): void => {
         void call.start();

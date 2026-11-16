@@ -23,6 +23,7 @@ export type CallLayoutProps = CallControlsProps & {
   onAccountAction: () => void;
   onExploreSamples: () => void;
   callHref?: string;
+  onOpenCall?: (href: string) => void;
   onDismissNotification: () => void;
   onNotificationAction: () => void;
   notice?: string;
@@ -47,6 +48,7 @@ export function CallLayout({
   onAccountAction,
   onExploreSamples,
   callHref,
+  onOpenCall,
   onDismissNotification,
   onNotificationAction,
   notice,
@@ -119,7 +121,24 @@ export function CallLayout({
                       </p>
                     )}
                     {callHref && (
-                      <a href={callHref} className="text-sm font-medium underline-offset-4 hover:underline">
+                      <a
+                        href={callHref}
+                        className="text-sm font-medium underline-offset-4 hover:underline"
+                        onClick={(event): void => {
+                          if (
+                            !onOpenCall ||
+                            event.button !== 0 ||
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey
+                          ) {
+                            return;
+                          }
+                          event.preventDefault();
+                          onOpenCall(callHref);
+                        }}
+                      >
                         View this call in dashboard →
                       </a>
                     )}
