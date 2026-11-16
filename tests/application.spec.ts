@@ -8,7 +8,7 @@ test("sign-in failure keeps public samples available", async ({ page }): Promise
   const dialog = page.getByRole("alertdialog", { name: "Local sign in" });
   await expect(dialog.getByRole("alert")).toContainText("Local API unavailable");
   await dialog.getByRole("button", { name: "Close" }).click();
-  await page.getByRole("button", { name: "Explore sample calls" }).click();
+  await page.getByRole("link", { name: "Explore sample calls" }).click();
   await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();
 });
 
@@ -31,7 +31,7 @@ test("public static routes load directly and navigation works without an API", a
   await expect(page.getByRole("heading", { name: "Voice Call Demo" })).toBeVisible();
   await expect(page.getByRole("navigation")).toHaveCSS("position", "fixed");
   await expect(page.getByText("MC 123456")).toBeVisible();
-  await page.getByRole("button", { name: "Explore sample calls" }).click();
+  await page.getByRole("link", { name: "Explore sample calls" }).click();
   await expect(page).toHaveURL(`${origin}/dashboard`);
   await expect(page.getByRole("heading", { name: "Call Dashboard" })).toBeVisible();
   await expect(page.getByRole("combobox")).toHaveCount(0);
@@ -99,7 +99,7 @@ test("whole history rows open a dedicated details page with load and navigation 
   await expect(details.getByRole("heading", { name: "Dallas → Atlanta" })).toBeVisible();
   await page.goForward();
   await expect(details.getByRole("heading", { name: "Memphis → Denver" })).toBeVisible();
-  await page.getByRole("button", { name: "Back to dashboard" }).click();
+  await page.getByRole("link", { name: "Back to dashboard" }).click();
   await expect(page).toHaveURL(`${origin}/dashboard`);
   await expect(details).toHaveCount(0);
   await page.goBack();
@@ -122,7 +122,7 @@ test("whole history rows open a dedicated details page with load and navigation 
   await page.mouse.click(statusCell.x + statusCell.width - 4, statusCell.y + statusCell.height - 4);
   await expect(page).toHaveURL(`${origin}/dashboard/call?call=retained&page=2`);
   await expect(details.getByRole("heading", { name: "Phoenix → Dallas" })).toBeVisible();
-  await page.getByRole("button", { name: "Back to dashboard" }).click();
+  await page.getByRole("link", { name: "Back to dashboard" }).click();
   await expect(page).toHaveURL(`${origin}/dashboard?page=2`);
   await expect(page.getByText("Showing 6–8 of 8 calls")).toBeVisible();
 
@@ -199,7 +199,7 @@ test("pending and missing sample data keep statuses and useful recovery visible"
 
   await page.goto(`${origin}/dashboard/call?call=missing`);
   await expect(details.getByRole("heading", { name: "Call unavailable" })).toBeVisible();
-  await page.getByRole("button", { name: "Back to dashboard" }).click();
+  await page.getByRole("link", { name: "Back to dashboard" }).click();
   await expect(details).toHaveCount(0);
 
   await page.goto(`${origin}/dashboard/call?call=summit-1042&load=missing`);

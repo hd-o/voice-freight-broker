@@ -114,7 +114,6 @@ export default function DashboardPage(): React.JSX.Element {
         nextDisabled: currentPage === lastPage,
         previousVisible: currentPage > 1,
         getCallHref: (id): string => createCallHref(id, currentPage),
-        onOpenCall: (href): void => router.push(href),
         onNext: (): void => selectPage(currentPage + 1),
         onPrevious: (): void => selectPage(currentPage - 1),
       }}

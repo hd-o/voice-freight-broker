@@ -6,7 +6,7 @@ import { CallDetailLayout } from "@/components/layouts/call-detail-layout";
 import type { NavigationPage } from "@/components/navigation/navigation";
 import { sampleCalls } from "@/lib/samples";
 import { createCallDetail } from "@/lib/reporting";
-import { changeQuery, useQueryParameters } from "@/lib/navigation";
+import { changeQuery, createDashboardHref, useQueryParameters } from "@/lib/navigation";
 import { useAccount, requestApi } from "@/lib/account";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { callSchema } from "@voice-freight/contracts/calls";
@@ -59,14 +59,7 @@ export default function CallDetailsPage(): React.JSX.Element {
       return;
     }
 
-    const historyPage = parameters.get("page");
-    const query = new URLSearchParams();
-
-    if (historyPage !== null) {
-      query.set("page", historyPage);
-    }
-
-    router.push(`/dashboard${query.size ? `?${query}` : ""}`);
+    router.push(createDashboardHref(parameters));
   }
 
   const detail = call ? createCallDetail(call, parameters.get("load"), selectLoad) : null;
@@ -89,6 +82,7 @@ export default function CallDetailsPage(): React.JSX.Element {
       accountName={account.user?.name}
       accountPending={account.pending}
       onNavigate={navigateSection}
+      dashboardHref={createDashboardHref(parameters)}
       onAccountAction={account.performAccountAction}
       notice={
         account.notice ??

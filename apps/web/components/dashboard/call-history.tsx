@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -22,7 +23,6 @@ export type CallHistoryProps = {
   nextDisabled?: boolean;
   previousVisible?: boolean;
   getCallHref: (id: string) => string;
-  onOpenCall?: (href: string) => void;
   onNext: () => void;
   onPrevious: () => void;
 };
@@ -33,7 +33,6 @@ export function CallHistory({
   nextDisabled = false,
   previousVisible = false,
   getCallHref,
-  onOpenCall,
   onNext,
   onPrevious,
 }: CallHistoryProps): React.JSX.Element {
@@ -81,27 +80,13 @@ export function CallHistory({
                   className="relative h-14 border-b border-border hover:bg-muted/50 focus-within:bg-muted/50"
                 >
                   <th scope="row" className="px-3 py-4 font-normal whitespace-nowrap">
-                    <a
+                    <Link
                       href={getCallHref(call.id)}
-                      onClick={(event): void => {
-                        if (
-                          !onOpenCall ||
-                          event.button !== 0 ||
-                          event.metaKey ||
-                          event.ctrlKey ||
-                          event.shiftKey ||
-                          event.altKey
-                        ) {
-                          return;
-                        }
-                        event.preventDefault();
-                        onOpenCall(getCallHref(call.id));
-                      }}
                       className="rounded text-left after:absolute after:inset-0"
                       aria-label={`View call from ${call.carrier}, ${call.date}`}
                     >
                       {call.date}
-                    </a>
+                    </Link>
                   </th>
                   <td className="px-3 py-4">{call.source}</td>
                   <td className="max-w-56 px-3 py-4 break-words">{call.carrier}</td>

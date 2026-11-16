@@ -36,12 +36,12 @@ export const Callbacks: Story = {
   play: async ({ canvasElement, args }): Promise<void> => {
     const canvas = within(canvasElement);
 
-    await userEvent.click(canvas.getByRole("button", { name: "Dashboard" }));
+    await userEvent.click(canvas.getByRole("link", { name: "Dashboard" }));
     await expect(args.onNavigate).toHaveBeenLastCalledWith("dashboard");
 
-    await userEvent.click(canvas.getByRole("button", { name: /^Call$/ }));
+    await userEvent.click(canvas.getByRole("link", { name: /^Call$/ }));
     await expect(args.onNavigate).toHaveBeenLastCalledWith("call");
     await expect(args.onNavigate).toHaveBeenCalledTimes(2);
-    await expect(canvas.getByRole("button", { name: /^Call$/ })).toHaveAttribute("aria-current", "page");
+    await expect(canvas.getByRole("link", { name: /^Call$/ })).toHaveAttribute("aria-current", "page");
   },
 };

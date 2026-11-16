@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { LayoutGrid, Phone, UserRound } from "lucide-react";
 import { getButtonClasses } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -18,7 +19,8 @@ export type NavigationProps = {
   accountName?: string;
   accountPending?: boolean;
   accountLoading?: boolean;
-  onNavigate: (page: NavigationPage) => void;
+  onNavigate?: (page: NavigationPage) => void;
+  dashboardHref?: string;
   onAccountAction: () => void;
 };
 
@@ -29,6 +31,7 @@ export function Navigation({
   accountPending,
   accountLoading,
   onNavigate,
+  dashboardHref = "/dashboard",
   onAccountAction,
 }: NavigationProps): React.JSX.Element {
   return (
@@ -64,8 +67,8 @@ export function Navigation({
             <Tooltip key={page}>
               <TooltipTrigger
                 render={
-                  <a
-                    href={`/${page}`}
+                  <Link
+                    href={page === "dashboard" ? dashboardHref : `/${page}`}
                     className={getButtonClasses({
                       size: "icon",
                       variant: activePage === page ? "default" : "secondary",
@@ -75,7 +78,14 @@ export function Navigation({
                 aria-label={label}
                 aria-current={activePage === page ? "page" : undefined}
                 onClick={(event): void => {
-                  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                  if (
+                    !onNavigate ||
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  ) {
                     return;
                   }
 

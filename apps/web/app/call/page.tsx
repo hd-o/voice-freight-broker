@@ -25,10 +25,6 @@ export default function CallPage(): React.JSX.Element {
       callSchema.parse(await (await requestApi(`/calls/${encodeURIComponent(call.status!.id)}`)).json()),
   });
 
-  function exploreSamples(): void {
-    navigatePage("dashboard");
-  }
-
   return (
     <CallLayout
       analysis={account.user && call.state === "ended" ? analysis.data?.analysis : undefined}
@@ -53,8 +49,6 @@ export default function CallPage(): React.JSX.Element {
       notice={account.notice ?? call.notice}
       onNavigate={navigatePage}
       onAccountAction={account.performAccountAction}
-      onExploreSamples={exploreSamples}
-      onOpenCall={(href): void => router.push(href)}
       callHref={call.status ? `/dashboard/call?call=${encodeURIComponent(call.status.id)}` : undefined}
       onStart={(): void => {
         void call.start();

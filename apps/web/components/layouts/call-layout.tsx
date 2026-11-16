@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { Call } from "@voice-freight/contracts/calls";
 import { ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
 import { PageHeader } from "@/components/navigation/page-header";
@@ -21,9 +22,7 @@ export type CallLayoutProps = CallControlsProps & {
   administrator?: boolean;
   onNavigate: ApplicationLayoutProps["onNavigate"];
   onAccountAction: () => void;
-  onExploreSamples: () => void;
   callHref?: string;
-  onOpenCall?: (href: string) => void;
   onDismissNotification: () => void;
   onNotificationAction: () => void;
   notice?: string;
@@ -46,9 +45,7 @@ export function CallLayout({
   administrator,
   onNavigate,
   onAccountAction,
-  onExploreSamples,
   callHref,
-  onOpenCall,
   onDismissNotification,
   onNotificationAction,
   notice,
@@ -90,7 +87,7 @@ export function CallLayout({
         <CallerBriefing carriers={carriers} className="xl:min-h-[492px]" />
         <div className="grid min-w-0 overflow-hidden rounded-[10px] border border-border bg-surface md:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">
           {state === "ready" ? (
-            <CallIntroduction onExploreSamples={onExploreSamples} className="min-h-[360px] md:min-h-[490px]" />
+            <CallIntroduction className="min-h-[360px] md:min-h-[490px]" />
           ) : (
             <div className="relative flex min-w-0 flex-col bg-muted md:min-h-[490px]">
               <div className="flex min-h-0 flex-col md:absolute md:inset-0">
@@ -121,26 +118,9 @@ export function CallLayout({
                       </p>
                     )}
                     {callHref && (
-                      <a
-                        href={callHref}
-                        className="text-sm font-medium underline-offset-4 hover:underline"
-                        onClick={(event): void => {
-                          if (
-                            !onOpenCall ||
-                            event.button !== 0 ||
-                            event.metaKey ||
-                            event.ctrlKey ||
-                            event.shiftKey ||
-                            event.altKey
-                          ) {
-                            return;
-                          }
-                          event.preventDefault();
-                          onOpenCall(callHref);
-                        }}
-                      >
+                      <Link href={callHref} className="text-sm font-medium underline-offset-4 hover:underline">
                         View this call in dashboard →
-                      </a>
+                      </Link>
                     )}
                   </div>
                 )}

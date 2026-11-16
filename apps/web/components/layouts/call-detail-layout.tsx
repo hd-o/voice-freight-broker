@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
 import { PageHeader } from "@/components/navigation/page-header";
-import { Button } from "@/components/ui/button";
+import { Button, getButtonClasses } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadSummary, type LoadSummaryProps } from "@/components/dashboard/load-summary";
 import { AnalysisSummary, type AnalysisSummaryProps } from "@/components/dashboard/analysis-summary";
@@ -18,6 +19,7 @@ export type CallDetailLayoutProps = Omit<ApplicationLayoutProps, "activePage" | 
   loading?: boolean;
   unavailable?: boolean;
   notice?: string;
+  dashboardHref?: string;
 };
 
 export function CallDetailLayout({
@@ -25,6 +27,7 @@ export function CallDetailLayout({
   loading = false,
   unavailable = false,
   notice,
+  dashboardHref = "/dashboard",
   ...navigation
 }: CallDetailLayoutProps): React.JSX.Element {
   return (
@@ -32,9 +35,15 @@ export function CallDetailLayout({
       <div className="space-y-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <PageHeader title="Call details" subtitle="Inspect a saved conversation and its analysis" />
-          <Button variant="outline" disabled={loading} onClick={(): void => navigation.onNavigate("dashboard")}>
-            Back to dashboard
-          </Button>
+          {loading ? (
+            <Button variant="outline" disabled>
+              Back to dashboard
+            </Button>
+          ) : (
+            <Link href={dashboardHref} className={getButtonClasses({ variant: "outline" })}>
+              Back to dashboard
+            </Link>
+          )}
         </div>
         {notice && <p role="status">{notice}</p>}
         {loading ? (

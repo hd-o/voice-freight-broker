@@ -1,14 +1,15 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useAccount } from "@/lib/account";
-import { Navigation, type NavigationPage } from "@/components/navigation/navigation";
+import { useQueryParameters, createDashboardHref } from "@/lib/navigation";
+import { Navigation } from "@/components/navigation/navigation";
 import { applicationShellContext } from "./application-layout";
 
 export function SharedApplicationLayout({ children }: { children: ReactNode }): React.JSX.Element {
   const pathname = usePathname();
-  const router = useRouter();
+  const { parameters } = useQueryParameters();
   const account = useAccount();
   const activePage = pathname.startsWith("/dashboard") ? "dashboard" : "call";
 
@@ -27,7 +28,7 @@ export function SharedApplicationLayout({ children }: { children: ReactNode }): 
           accountName={account.user?.name}
           accountPending={account.pending}
           accountLoading={account.loading}
-          onNavigate={(page: NavigationPage): void => router.push(`/${page}`)}
+          dashboardHref={pathname === "/dashboard/call" ? createDashboardHref(parameters) : "/dashboard"}
           onAccountAction={account.performAccountAction}
         />
         <main

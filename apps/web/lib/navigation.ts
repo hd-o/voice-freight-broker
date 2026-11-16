@@ -32,6 +32,17 @@ export function changeQuery(parameters: URLSearchParams): void {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
+export function createDashboardHref(parameters: URLSearchParams): string {
+  const page = parameters.get("page");
+  const query = new URLSearchParams();
+
+  if (page !== null) {
+    query.set("page", page);
+  }
+
+  return `/dashboard${query.size ? `?${query}` : ""}`;
+}
+
 export function createCallHref(id: string, page = 1): string {
   const parameters = new URLSearchParams({ call: id });
 

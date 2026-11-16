@@ -1,12 +1,12 @@
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { getButtonClasses } from "@/components/ui/button";
 import { mergeClasses } from "@/lib/classes";
 
 export type CallIntroductionProps = {
-  onExploreSamples: () => void;
   className?: string;
 };
 
-export function CallIntroduction({ onExploreSamples, className }: CallIntroductionProps): React.JSX.Element {
+export function CallIntroduction({ className }: CallIntroductionProps): React.JSX.Element {
   return (
     <section
       className={mergeClasses("flex flex-col justify-center bg-muted p-6", className)}
@@ -28,14 +28,15 @@ export function CallIntroduction({ onExploreSamples, className }: CallIntroducti
         </li>
       </ol>
       <p className="mt-5 text-xs leading-4 text-muted-foreground">Your transcript is saved. Audio is not recorded.</p>
-      <Button
-        variant="outline"
-        size="small"
-        onClick={onExploreSamples}
-        className="mt-5 self-start border-0 bg-surface text-sm"
+      <Link
+        href="/dashboard"
+        className={mergeClasses(
+          getButtonClasses({ variant: "outline", size: "small" }),
+          "mt-5 self-start border-0 bg-surface text-sm",
+        )}
       >
         Explore sample calls
-      </Button>
+      </Link>
     </section>
   );
 }
