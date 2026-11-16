@@ -30,6 +30,7 @@ export default function CallPage(): React.JSX.Element {
       analysis={account.user && call.state === "ended" ? analysis.data?.analysis : undefined}
       state={call.state}
       muted={call.muted}
+      sampleAgentLevel={call.sampleAgentLevel}
       duration={`${String(Math.floor(call.elapsedSeconds / 60)).padStart(2, "0")}:${String(call.elapsedSeconds % 60).padStart(2, "0")}`}
       notification={call.notification}
       signedIn={!!account.user}

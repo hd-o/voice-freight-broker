@@ -12,6 +12,7 @@ const fragmentSource = `
     uniform vec2 uResolution;
     uniform float uTime;
     uniform float uFlow;
+    uniform float uScale;
 
     // Half-width of the cyan-to-cream blend, in orb-radius units.
     // Increase for a more diffuse cloud boundary.
@@ -76,7 +77,7 @@ const fragmentSource = `
       // Aspect-correct coordinates, centered in the canvas; y points upward.
       float size = min(uResolution.x, uResolution.y);
       vec2 p = (2.0 * gl_FragCoord.xy - uResolution) / size;
-      float radius = 0.84;
+      float radius = 0.84 * uScale;
       p /= radius;
       float r = length(p);
       float aa = 2.0 / (size * radius);
@@ -119,7 +120,10 @@ const fragmentSource = `
 
 /** Procedural cloud renderer adapted from the supplied voice-orb.html reference. */
 
-export function createOrbRenderer(canvas: HTMLCanvasElement): (() => void) | undefined {
+export function createOrbRenderer(
+  canvas: HTMLCanvasElement,
+  sampleAgentLevel?: () => number,
+): (() => void) | undefined {
   const canvasContext = canvas.getContext("webgl", {
     alpha: true,
     premultipliedAlpha: true,
@@ -196,11 +200,14 @@ export function createOrbRenderer(canvas: HTMLCanvasElement): (() => void) | und
   const resolution = context.getUniformLocation(program, "uResolution");
   const clock = context.getUniformLocation(program, "uTime");
   const flow = context.getUniformLocation(program, "uFlow");
+  const scaleUniform = context.getUniformLocation(program, "uScale");
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   let frame = 0;
   let previous = 0;
   let elapsed = 0;
+  let level = 0;
+  let currentFlow = 0;
   let loss = false;
   let disposal = false;
 
@@ -222,7 +229,8 @@ export function createOrbRenderer(canvas: HTMLCanvasElement): (() => void) | und
     context.viewport(0, 0, width, height);
     context.uniform2f(resolution, width, height);
     context.uniform1f(clock, elapsed);
-    context.uniform1f(flow, 0);
+    context.uniform1f(flow, currentFlow);
+    context.uniform1f(scaleUniform, 1 + 0.06 * level);
     context.drawArrays(context.TRIANGLES, 0, 3);
     canvas.style.opacity = "1";
   }
@@ -234,7 +242,14 @@ export function createOrbRenderer(canvas: HTMLCanvasElement): (() => void) | und
       return;
     }
 
-    elapsed += previous ? Math.min((timestamp - previous) / 1000, 0.05) * 0.18 : 0;
+    const delta = previous ? Math.min((timestamp - previous) / 1000, 0.05) : 0;
+    const sample = sampleAgentLevel?.() ?? 0;
+    const target = Number.isFinite(sample) ? Math.max(0, Math.min(1, sample)) : 0;
+    const levelTime = target > level ? 0.07 : 0.25;
+    level += (target - level) * (1 - Math.exp(-delta / levelTime));
+    const flowTime = level > currentFlow ? 0.18 : 0.85;
+    currentFlow += (level - currentFlow) * (1 - Math.exp(-delta / flowTime));
+    elapsed += delta * (0.18 + 3.5 * currentFlow);
     previous = timestamp;
     drawFrame();
     frame = requestAnimationFrame(advanceFrame);
@@ -243,6 +258,11 @@ export function createOrbRenderer(canvas: HTMLCanvasElement): (() => void) | und
   function scheduleFrame(): void {
     cancelAnimationFrame(frame);
     previous = 0;
+
+    if (motion.matches) {
+      level = 0;
+      currentFlow = 0;
+    }
 
     if (!motion.matches && !document.hidden && !loss && !disposal) {
       frame = requestAnimationFrame(advanceFrame);

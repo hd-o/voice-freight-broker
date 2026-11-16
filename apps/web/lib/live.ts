@@ -22,6 +22,7 @@ export function useLiveCall(userId?: string): {
   notification: CallNotificationKind | undefined;
   muted: boolean;
   elapsedSeconds: number;
+  sampleAgentLevel: () => number;
   start: () => Promise<void>;
   hangUp: (interrupted?: boolean) => Promise<void>;
   toggleMute: () => void;
@@ -43,6 +44,10 @@ export function useLiveCall(userId?: string): {
     peer?: RTCPeerConnection;
     stream?: MediaStream;
     audio?: HTMLAudioElement;
+    audioContext?: AudioContext;
+    analyser?: AnalyserNode;
+    audioSource?: MediaStreamAudioSourceNode;
+    audioSamples?: Float32Array<ArrayBuffer>;
     transcript?: TranscriptSession;
     generation: number;
   }>({ generation: 0 });
@@ -55,7 +60,15 @@ export function useLiveCall(userId?: string): {
 
     if (current.peer) {
       current.peer.onconnectionstatechange = null;
+      current.peer.ontrack = null;
       current.peer.close();
+    }
+
+    current.audioSource?.disconnect();
+    current.analyser?.disconnect();
+
+    if (current.audioContext && current.audioContext.state !== "closed") {
+      void current.audioContext.close().catch((): void => {});
     }
 
     if (current.audio) {
@@ -66,6 +79,27 @@ export function useLiveCall(userId?: string): {
     current.peer = undefined;
     current.stream = undefined;
     current.audio = undefined;
+    current.audioContext = undefined;
+    current.analyser = undefined;
+    current.audioSource = undefined;
+    current.audioSamples = undefined;
+  }, []);
+
+  const sampleAgentLevel = useCallback((): number => {
+    const { audio, audioContext, analyser, audioSamples } = session.current;
+
+    if (!audio || audio.paused || audioContext?.state !== "running" || !analyser || !audioSamples) {
+      return 0;
+    }
+
+    analyser.getFloatTimeDomainData(audioSamples);
+    let energy = 0;
+
+    for (const sample of audioSamples) {
+      energy += sample * sample;
+    }
+
+    return Math.min(1, Math.sqrt(energy / audioSamples.length) * 6);
   }, []);
 
   const hangUp = useCallback(
@@ -263,10 +297,29 @@ export function useLiveCall(userId?: string): {
     let microphone = false;
 
     try {
+      const audioContext = new AudioContext();
+      session.current.audioContext = audioContext;
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 1024;
+      session.current.analyser = analyser;
+      session.current.audioSamples = new Float32Array(analyser.fftSize);
+      void audioContext.resume().catch((): void => {});
+    } catch {
+      // Audio analysis is optional; playback uses its own media element.
+    }
+
+    try {
       const configuration: { provider: string } = await (await requestApi("/live/configuration")).json();
 
       if (session.current.generation !== generation) {
         return;
+      }
+
+      if (configuration.provider === "stub") {
+        void session.current.audioContext?.close().catch((): void => {});
+        session.current.audioContext = undefined;
+        session.current.analyser = undefined;
+        session.current.audioSamples = undefined;
       }
 
       let offerSdp = "stub-offer";
@@ -290,14 +343,38 @@ export function useLiveCall(userId?: string): {
         peer = new RTCPeerConnection();
         const audio = new Audio();
         audio.autoplay = true;
-        session.current = { generation, stream, peer, audio };
+        Object.assign(session.current, { stream, peer, audio });
 
         peer.ontrack = (event): void => {
-          audio.srcObject = event.streams[0];
+          if (
+            session.current.generation !== generation ||
+            session.current.peer !== peer ||
+            event.track.kind !== "audio"
+          ) {
+            return;
+          }
 
-          void audio
-            .play()
-            .catch((): void => setNotice("Audio playback was blocked. Allow sound for this site and retry the call."));
+          const remoteStream = event.streams[0] ?? new MediaStream([event.track]);
+          audio.srcObject = remoteStream;
+
+          const { audioContext, analyser } = session.current;
+
+          if (audioContext && analyser) {
+            try {
+              session.current.audioSource?.disconnect();
+              const source = audioContext.createMediaStreamSource(remoteStream);
+              source.connect(analyser);
+              session.current.audioSource = source;
+            } catch {
+              session.current.audioSource = undefined;
+            }
+          }
+
+          void audio.play().catch((): void => {
+            if (session.current.generation === generation && session.current.peer === peer) {
+              setNotice("Audio playback was blocked. Allow sound for this site and retry the call.");
+            }
+          });
         };
 
         stream.getTracks().forEach((track): RTCRtpSender => peer!.addTrack(track, stream));
@@ -430,6 +507,7 @@ export function useLiveCall(userId?: string): {
     notification,
     muted,
     elapsedSeconds,
+    sampleAgentLevel,
     start,
     hangUp,
     toggleMute,

@@ -1,6 +1,74 @@
 import { expect, test } from "./fixtures";
 import { sendTranscript, simulateVoice } from "./voice";
 
+test("the orb follows agent audio through the farewell and releases analysis on hangup", async ({
+  page,
+}): Promise<void> => {
+  const scenario = await simulateVoice(page, true, true);
+  const scale = (): Promise<number> => page.evaluate((): number => window.voiceResources.orbScale ?? 0);
+  const flow = (): Promise<number> => page.evaluate((): number => window.voiceResources.orbFlow ?? 0);
+
+  await expect.poll(scale).toBeCloseTo(1, 2);
+  await page.evaluate((): void => {
+    window.voiceResources.microphoneGain!.gain.value = 0.15;
+  });
+  await page.waitForTimeout(350);
+  expect(await scale()).toBeCloseTo(1, 2);
+  await page.evaluate((): void => {
+    window.voiceResources.remoteGain!.gain.value = 0.15;
+  });
+  await expect.poll(scale).toBeGreaterThan(1.015);
+  await expect.poll(flow).toBeGreaterThan(0.1);
+
+  await page.getByRole("button", { name: "Mute", exact: true }).click();
+  await expect.poll(scale).toBeGreaterThan(1.015);
+  scenario.state = "ending";
+  await expect(page.getByRole("button", { name: "Saving call…", exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Voice connection active" })).toBeVisible();
+  await expect.poll(scale).toBeGreaterThan(1.015);
+
+  await page.evaluate((): void => {
+    window.voiceResources.remoteGain!.gain.value = 0;
+  });
+  await expect.poll(scale).toBeLessThan(1.005);
+  await expect.poll(flow).toBeLessThan(0.05);
+
+  scenario.state = "ended";
+  await expect(page.getByRole("img", { name: "Voice connection inactive" })).toBeVisible();
+  await expect
+    .poll((): Promise<AudioContextState | undefined> =>
+      page.evaluate((): AudioContextState | undefined => window.voiceResources.analysisContext?.state),
+    )
+    .toBe("closed");
+});
+
+test("reduced motion keeps the orb still while agent audio plays", async ({ page }): Promise<void> => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await simulateVoice(page, true, true);
+  await page.evaluate((): void => {
+    window.voiceResources.remoteGain!.gain.value = 0.15;
+  });
+  await expect.poll((): Promise<number> => page.evaluate((): number => window.voiceResources.orbScale ?? 0)).toBe(1);
+  await expect.poll((): Promise<number> => page.evaluate((): number => window.voiceResources.orbFlow ?? -1)).toBe(0);
+});
+
+test("the call stays usable when audio analysis and the orb renderer are unavailable", async ({
+  page,
+}): Promise<void> => {
+  await page.addInitScript((): void => {
+    AudioContext.prototype.createAnalyser = (): AnalyserNode => {
+      throw new Error("Audio analysis unavailable");
+    };
+    WebGLRenderingContext.prototype.getProgramParameter = (): boolean => false;
+  });
+  await simulateVoice(page);
+  const orb = page.getByRole("img", { name: "Voice connection active" });
+  await expect(orb).toBeVisible();
+  await expect(orb.locator("canvas")).toHaveCSS("opacity", "0");
+  await page.getByRole("button", { name: "Hang up", exact: true }).click();
+  await expect(page.getByRole("img", { name: "Voice connection inactive" })).toBeVisible();
+});
+
 test("live transcripts follow new text only while scrolled to the bottom", async ({ page }): Promise<void> => {
   await simulateVoice(page);
   const transcript = page.getByRole("region", { name: "Transcript", exact: true });

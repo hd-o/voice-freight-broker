@@ -28,6 +28,7 @@ export type CallLayoutProps = CallControlsProps & {
   notice?: string;
   transcriptFailure?: boolean;
   onRetryTranscript?: () => void;
+  sampleAgentLevel?: () => number;
 };
 
 export function CallLayout({
@@ -51,6 +52,7 @@ export function CallLayout({
   notice,
   transcriptFailure,
   onRetryTranscript,
+  sampleAgentLevel,
   ...actions
 }: CallLayoutProps): React.JSX.Element {
   const status =
@@ -133,7 +135,7 @@ export function CallLayout({
             aria-label="Call information"
           >
             <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs leading-4">{status}</span>
-            <VoiceOrb connected={state === "connected"} />
+            <VoiceOrb connected={state === "connected" || state === "ending"} sampleAgentLevel={sampleAgentLevel} />
             <CallControls
               state={state}
               signedIn={signedIn}
