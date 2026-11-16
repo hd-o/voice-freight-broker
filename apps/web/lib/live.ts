@@ -204,10 +204,6 @@ export function useLiveCall(userId?: string): {
           void session.current.transcript?.complete();
           dispose();
           void cache.invalidateQueries({ queryKey: ["private"] });
-
-          if (!result.notice) {
-            setNotification("analysis");
-          }
         }
       } catch (error) {
         if (active) {

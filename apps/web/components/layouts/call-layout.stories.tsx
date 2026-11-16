@@ -91,7 +91,6 @@ export const Ended: Story = {
     signedIn: true,
     duration: "03:08",
     entries: transcriptEntries.slice(2),
-    notification: "analysis",
   },
 };
 

@@ -1,9 +1,8 @@
-import { AlertCircle, CircleHelp, LoaderCircle, X } from "lucide-react";
+import { AlertCircle, CircleHelp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeClasses } from "@/lib/classes";
 
 export type CallNotificationKind =
-  | "analysis"
   | "microphone"
   | "connection"
   | "interruption"
@@ -20,10 +19,6 @@ export type CallNotificationProps = {
 };
 
 const notifications: Record<CallNotificationKind, { title: string; description: string; action?: string }> = {
-  analysis: {
-    title: "Analyzing call",
-    description: "Your call is saved. Summary and sentiment analysis are pending.",
-  },
   microphone: {
     title: "Microphone access blocked",
     description: "Allow microphone access in your browser, then try again.",
@@ -76,9 +71,7 @@ export function CallNotification({
       )}
     >
       <div className="flex items-start gap-2.5">
-        {kind === "analysis" ? (
-          <LoaderCircle className="mt-0.5 size-5 shrink-0 motion-safe:animate-spin" aria-hidden />
-        ) : kind === "inactivity" ? (
+        {kind === "inactivity" ? (
           <CircleHelp className="mt-0.5 size-5 shrink-0" aria-hidden />
         ) : (
           <AlertCircle

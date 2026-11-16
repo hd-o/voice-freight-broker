@@ -5,14 +5,12 @@ import { CallNotification } from "./call-notification";
 const meta = {
   title: "Call/Call Notification",
   component: CallNotification,
-  args: { kind: "analysis", onDismiss: fn(), onAction: fn() },
+  args: { kind: "microphone", onDismiss: fn(), onAction: fn() },
 } satisfies Meta<typeof CallNotification>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
-
-export const Analyzing: Story = {};
 
 export const MicrophoneBlocked: Story = { args: { kind: "microphone" } };
 
