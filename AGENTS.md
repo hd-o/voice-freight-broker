@@ -23,16 +23,14 @@ These rules are never optional and never overridden:
 
 This TypeScript monorepo uses pnpm workspaces and Vite+
 
+- Commit messages follow Conventional Commits.
+- Run `vpr --json | jq -c` for available commands.
 - `apps/web/`: React frontend using vinext and shadcn/ui
 - `apps/api/`: Hono API worker and call Durable Object
 - `apps/tools/`: private business RPC worker
 - `packages/backend/`: domain logic, Drizzle schema, and D1 migrations
 - `packages/contracts/`: shared types and Zod contracts
 - `tests/`: Playwright browser tests; Storybook is in web
-
-Run `vpr --json | jq -c` for available commands.
-
-Commit messages follow Conventional Commits.
 
 ## Testing
 
