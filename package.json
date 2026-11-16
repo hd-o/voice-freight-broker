@@ -13,17 +13,19 @@
     "build": "vp run -r build",
     "build:storybook": "vp run @voice-freight/web#build:storybook",
     "preview": "vp run @voice-freight/web#preview",
-    "check": "vp check && vp run typecheck && markdownlint-cli2 README.md",
+    "check": "vp check && vp run typecheck && markdownlint-cli2 README.md AGENTS.md",
     "format": "vp fmt",
     "lint": "vp lint --fix",
     "typecheck": "tsc --noEmit && vp run -r typecheck",
-    "test": "vp run @voice-freight/tools#build && vp run @voice-freight/api#test",
+    "test": "vp run @voice-freight/cli#test && vp run @voice-freight/tools#build && vp run @voice-freight/api#test",
     "test:browser": "playwright test",
     "cf:types": "vp run @voice-freight/tools#cf:types && vp run @voice-freight/api#cf:types",
     "db:check": "wrangler d1 execute DB --local --config apps/api/wrangler.jsonc --persist-to .wrangler/state --command \"SELECT 1 AS ready\"",
     "db:generate": "vp run @voice-freight/backend#db:generate",
     "db:migrate": "wrangler d1 migrations apply DB --local --config apps/api/wrangler.jsonc --persist-to .wrangler/state",
-    "eval:help": "promptfoo --help"
+    "eval:help": "promptfoo --help",
+    "cli": "node packages/cli/src/index.ts",
+    "test:cli": "vp run @voice-freight/cli#test"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
