@@ -86,7 +86,11 @@ export function CallLayout({
             <CallIntroduction onExploreSamples={onExploreSamples} className="min-h-[360px] md:min-h-[490px]" />
           ) : (
             <div className="flex min-w-0 flex-col bg-muted md:h-[490px]">
-              <Transcript entries={entries} className="max-h-[490px] min-h-[360px] flex-1 rounded-none md:min-h-0" />
+              <Transcript
+                entries={entries}
+                autoScroll
+                className="max-h-[490px] min-h-[360px] flex-1 rounded-none md:min-h-0"
+              />
               {transcriptFailure && (
                 <div role="alert" className="px-6 pb-4 text-sm">
                   <p>Could not load the saved transcript.</p>

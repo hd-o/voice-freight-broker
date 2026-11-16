@@ -1,6 +1,79 @@
 import { expect, test } from "./fixtures";
 import { sendTranscript, simulateVoice } from "./voice";
 
+test("live transcripts follow new text only while scrolled to the bottom", async ({ page }): Promise<void> => {
+  await simulateVoice(page);
+  const transcript = page.getByRole("region", { name: "Transcript", exact: true });
+
+  for (let index = 0; index < 30; index++) {
+    await sendTranscript(page, `Message ${index}.\n`, `message-${index}`);
+  }
+
+  await expect
+    .poll((): Promise<number> => transcript.evaluate((element): number => element.scrollHeight - element.clientHeight))
+    .toBeGreaterThan(0);
+
+  await expect
+    .poll((): Promise<number> =>
+      transcript.evaluate((element): number => element.scrollHeight - element.clientHeight - element.scrollTop),
+    )
+    .toBeLessThanOrEqual(1);
+
+  const height = await transcript.evaluate((element): number => element.scrollHeight);
+  await sendTranscript(page, "More streaming text.\n".repeat(10), "streaming");
+
+  await expect
+    .poll((): Promise<number> => transcript.evaluate((element): number => element.scrollHeight))
+    .toBeGreaterThan(height);
+
+  await expect
+    .poll((): Promise<number> =>
+      transcript.evaluate((element): number => element.scrollHeight - element.clientHeight - element.scrollTop),
+    )
+    .toBeLessThanOrEqual(1);
+
+  await transcript.evaluate((element): void => {
+    element.scrollTop = 40;
+    element.dispatchEvent(new Event("scroll"));
+  });
+
+  await sendTranscript(page, "Text while reading earlier messages.\n".repeat(10), "reading");
+  await expect(transcript).toContainText("Text while reading earlier messages.");
+  expect(await transcript.evaluate((element): number => element.scrollTop)).toBe(40);
+
+  await transcript.evaluate((element): void => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll"));
+  });
+
+  const position = await transcript.evaluate((element): number => element.scrollTop);
+  await page.evaluate((): void => {
+    window.dispatchEvent(
+      new CustomEvent("voice-message", {
+        detail: {
+          type: "session.input_transcript.delta",
+          event_id: "resumed",
+          delta: "Following again.\n".repeat(10),
+          start_ms: 1000,
+          end_ms: 1500,
+        },
+      }),
+    );
+  });
+
+  await expect(transcript.getByRole("listitem")).toHaveCount(2);
+
+  await expect
+    .poll((): Promise<number> => transcript.evaluate((element): number => element.scrollTop))
+    .toBeGreaterThan(position);
+
+  await expect
+    .poll((): Promise<number> =>
+      transcript.evaluate((element): number => element.scrollHeight - element.clientHeight - element.scrollTop),
+    )
+    .toBeLessThanOrEqual(1);
+});
+
 test("a simulated multi-load call saves cancellation, replacement, transcript and final counts", async ({
   page,
   request,

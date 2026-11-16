@@ -1,3 +1,6 @@
+"use client";
+
+import { useLayoutEffect, useRef, type UIEvent } from "react";
 import { mergeClasses } from "@/lib/classes";
 
 export type TranscriptEntry = {
@@ -13,6 +16,7 @@ export type TranscriptProps = {
   heading?: string;
   emptyMessage?: string;
   className?: string;
+  autoScroll?: boolean;
 };
 
 export function Transcript({
@@ -20,9 +24,27 @@ export function Transcript({
   heading = "Transcript",
   emptyMessage = "Your conversation will appear here when the call starts.",
   className,
+  autoScroll = false,
 }: TranscriptProps): React.JSX.Element {
+  const viewport = useRef<HTMLElement>(null);
+  const bottom = useRef(true);
+
+  useLayoutEffect((): void => {
+    if (autoScroll && bottom.current && viewport.current) {
+      viewport.current.scrollTop = viewport.current.scrollHeight;
+    }
+  }, [autoScroll, entries]);
+
+  function trackScroll(event: UIEvent<HTMLElement>): void {
+    const viewport = event.currentTarget;
+    // scrollTop can be fractional while the height measurements are rounded.
+    bottom.current = viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 1;
+  }
+
   return (
     <section
+      ref={viewport}
+      onScroll={trackScroll}
       aria-label={heading}
       className={mergeClasses("min-w-0 overflow-y-auto rounded-lg bg-muted p-6", className)}
     >
