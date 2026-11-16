@@ -25,6 +25,8 @@ export default function DashboardPage(): React.JSX.Element {
     queryKey: ["private", account.user?.id, "dashboard"],
     enabled: !!account.user,
     retry: false,
+    refetchInterval: (query): number | false =>
+      query.state.data?.some((call): boolean => !call.endedAt || call.analysis.status === "pending") ? 2000 : false,
     queryFn: async (): Promise<ReturnType<typeof callsSchema.parse>> => {
       const data: { calls: unknown } = await (await requestApi("/dashboard")).json();
       return callsSchema.parse(data.calls);

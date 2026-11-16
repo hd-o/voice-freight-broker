@@ -1224,3 +1224,57 @@ it("sends provider closure after the goodbye window and waits for final usage be
     }
   });
 });
+
+it("recovers a reservation abandoned before Durable Object startup without charging a provider", async (): Promise<void> => {
+  const now = Date.now();
+  const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), new Date(now - 60_000).toISOString());
+  const context = { callId: id, userId: "reviewer" };
+  const stub = env.CALLS.get(env.CALLS.idFromName(id));
+  await stub.recover(context);
+  expect((await queryLiveStatus(env.DB, context)).state).toBe("ended");
+  const { state } = await readState(env.DB);
+  expect(state.reservations[0]).toMatchObject({ settled: true, chargedMicrodollars: 0 });
+  expect(state.liveSessions[0].providerAttempted).toBe(false);
+  expect(state.analysis).toHaveLength(1);
+  expect(await queryCall(env.DB, context)).toMatchObject({
+    connection: "Connection failed",
+    transcript: { complete: false },
+  });
+});
+
+it("keeps missing transcript and delegated usage unknown after reattaching an ended provider", async (): Promise<void> => {
+  const { context, stub } = await openCall();
+  await stub.end();
+  await transact(env.DB, (state): void => {
+    state.liveSessions[0].providerClosed = false;
+    state.liveSessions[0].usageConfirmed = false;
+    state.liveSessions[0].providerId = "provider-recovery";
+    state.reservations[0].settled = false;
+    state.calls[0].record.transcript.complete = false;
+  });
+
+  await runInDurableObject(stub, async (_instance, storage): Promise<void> => {
+    const pair = new WebSocketPair();
+    const provider = pair[0];
+    provider.accept();
+    const request = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 101, webSocket: pair[1] }));
+    try {
+      const coordinator = new LiveCall(storage, { ...env, VOICE_PROVIDER: "openai", OPENAI_API_KEY: "test-key" });
+      await coordinator.recover(context);
+      const seconds = (await readState(env.DB)).state.liveSessions[0].voiceSeconds;
+      provider.send(JSON.stringify({ type: "session.closed", event_id: "recovered-close", usage: { seconds } }));
+      await expect
+        .poll(async (): Promise<boolean> => (await readState(env.DB)).state.liveSessions[0].providerClosed)
+        .toBe(true);
+      const { state } = await readState(env.DB);
+      expect(state.liveSessions[0]).toMatchObject({ gap: true, accountingGap: true });
+      expect(state.calls[0].record.transcript.complete).toBe(false);
+      expect(state.reservations[0].settled).toBe(false);
+    } finally {
+      request.mockRestore();
+      provider.close();
+    }
+  });
+});

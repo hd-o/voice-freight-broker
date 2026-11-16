@@ -21,7 +21,11 @@ export function createTestBackend(voiceScenario = "workflow"): TestHarness {
         configPath: "apps/api/wrangler.jsonc",
         env: "local",
         prebuiltWorkerDir: "apps/api/dist-test",
-        vars: { VOICE_PROVIDER: "stub", VOICE_STUB_SCENARIO: voiceScenario },
+        vars: {
+          VOICE_PROVIDER: "stub",
+          VOICE_STUB_SCENARIO: voiceScenario === "analysis-failure" ? "workflow" : voiceScenario,
+          ANALYSIS_STUB_SCENARIO: voiceScenario === "analysis-failure" ? "failure" : "success",
+        },
         secrets: { OPENAI_API_KEY: "unused-stub-key" },
       },
       {

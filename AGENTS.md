@@ -23,13 +23,16 @@ These rules are never optional and never overridden:
 
 IMPORTANT: Keep this section concisely up-to-date
 
+Local voice workflows and queued post-call analysis are implemented. Hosted
+Access and release validation remain in development.
+
 ## Structure
 
 This TypeScript monorepo uses pnpm workspaces and Vite+:
 
 - `apps/web/`: React frontend using vinext and shadcn/ui
 - `apps/api/`: Hono API worker and call Durable Object
-- `apps/tools/`: private business RPC worker
+- `apps/tools/`: private business RPC worker and analysis queue consumer
 - `packages/backend/`: domain logic, Drizzle schema, and D1 migrations
 - `packages/contracts/`: shared types and Zod contracts
 - `packages/cli/`: local, read-only agent/admin CLI

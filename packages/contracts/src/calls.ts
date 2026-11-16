@@ -62,6 +62,9 @@ export const callSchema = z
       status: z.enum(["pending", "complete", "failed"]),
       sentiment: z.enum(["Positive", "Neutral", "Negative", "Unknown"]),
       summary: z.string().nullable(),
+      version: z.number().int().positive().optional(),
+      reason: z.enum(["queued", "processing", "retry", "allowance"]).optional(),
+      retryAt: z.iso.datetime().optional(),
     }),
     transcript: z.object({
       complete: z.boolean(),

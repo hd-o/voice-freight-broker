@@ -106,10 +106,30 @@ export type Analysis = {
   id: string;
   callId: string;
   version: number;
-  status: "pending";
-  publication: "pending";
+  status: "pending" | "complete" | "failed";
+  publication: "pending" | "published" | "dead-letter";
+  publishedAt?: string;
+  nextAttemptAt?: string;
+  reason?: "queued" | "processing" | "retry" | "allowance";
+  runAttempts?: number;
+  history?: AnalysisAttempt[];
+  result?: Call["analysis"];
+  error?: "provider_unavailable" | "invalid_output" | "usage_uncertain" | "retries_exhausted";
+  model?: string;
+  promptVersion?: string;
+  evidenceIds?: string[];
   attempts: number;
   createdAt: string;
+};
+
+export type AnalysisAttempt = {
+  id: string;
+  version: number;
+  startedAt: string;
+  leaseUntil: string;
+  finishedAt?: string;
+  responseId?: string;
+  usageConfirmed: boolean;
 };
 
 export type Session = { id: string; userId: string; expiresAt: string };
@@ -139,6 +159,7 @@ export type SpendingPeriod = {
 };
 
 export type Reservation = {
+  kind?: "call" | "analysis";
   id: string;
   ownerId: string;
   operationId: string;
@@ -165,6 +186,7 @@ export type ProviderUsage = {
 };
 
 export type LiveSession = {
+  accountingGap?: boolean;
   farewell?: { deadline: string; delegationId: string };
   closingAt: string | null;
   maximumCallSeconds: number;

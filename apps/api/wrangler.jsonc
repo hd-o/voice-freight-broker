@@ -15,8 +15,15 @@
     "bindings": [{ "name": "CALLS", "class_name": "LiveCall" }],
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveCall"] }],
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "persist": true, "head_sampling_rate": 1, "invocation_logs": false },
+    "traces": { "enabled": true, "persist": true, "head_sampling_rate": 1 },
+  },
+  "triggers": { "crons": ["* * * * *"] },
   "env": {
     "local": {
+      "name": "voice-freight-api",
       "vars": {
         "ENVIRONMENT": "local",
         "AUTH_MODE": "local",
@@ -42,6 +49,7 @@
       ],
     },
     "stub": {
+      "name": "voice-freight-api-stub",
       "vars": {
         "ENVIRONMENT": "local",
         "AUTH_MODE": "local",

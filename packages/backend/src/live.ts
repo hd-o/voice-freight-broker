@@ -74,7 +74,9 @@ export async function reserveLiveCall(
       "Another call is active or waiting for confirmed termination. Try again after it finishes.",
     );
 
-    const today = state.reservations.filter((entry): boolean => entry.createdAt.slice(0, 10) === now.slice(0, 10));
+    const today = state.reservations.filter(
+      (entry): boolean => entry.kind !== "analysis" && entry.createdAt.slice(0, 10) === now.slice(0, 10),
+    );
 
     requireCondition(
       today.length < limits.globalDailyCalls &&

@@ -1,3 +1,12 @@
+import {
+  processAnalysis,
+  publishAnalysis,
+  recordDeadLetter,
+  analysisJobSchema,
+  type AnalysisJob,
+} from "@voice-freight/backend/analysis";
+import { observeOperation } from "@voice-freight/backend/telemetry";
+import type { AnalysisProvider } from "../../api/src/analysis-provider";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { checkDatabase } from "@voice-freight/backend";
 import { statusSchema } from "@voice-freight/contracts";
@@ -12,9 +21,20 @@ import { executeTool, type ToolResult } from "@voice-freight/backend/business";
 import { recordEvidence } from "@voice-freight/backend/evidence";
 import { BusinessError } from "@voice-freight/backend/model";
 
+interface AnalysisBindings {
+  DB: D1Database;
+  ANALYSIS_QUEUE: Queue<AnalysisJob>;
+  ANALYSIS_DEAD_LETTER: Queue<AnalysisJob>;
+  ANALYSIS_PROVIDER: Service<AnalysisProvider>;
+}
+
 type ToolResponse = ToolResult | { error: { code: string; message: string } };
 
-export class Tools extends WorkerEntrypoint<Env> {
+export class Tools extends WorkerEntrypoint<Env & AnalysisBindings> {
+  async publishAnalysis(): Promise<void> {
+    return publishAnalysis(this.env.DB, this.env.ANALYSIS_QUEUE);
+  }
+
   async executeObserved(
     context: CallContext,
     name: ToolName,
@@ -129,7 +149,56 @@ export class Tools extends WorkerEntrypoint<Env> {
 }
 
 export default {
+  async scheduled(_controller: ScheduledController, env: Env & AnalysisBindings): Promise<void> {
+    await publishAnalysis(env.DB, env.ANALYSIS_QUEUE);
+  },
+  async queue(batch: MessageBatch<unknown>, env: Env & AnalysisBindings): Promise<void> {
+    for (const message of batch.messages) {
+      const parsed = analysisJobSchema.safeParse(message.body);
+
+      if (!parsed.success) {
+        message.ack();
+        continue;
+      }
+      const job = parsed.data;
+
+      if (batch.queue.endsWith("analysis-dead-letter")) {
+        await recordDeadLetter(env.DB, job);
+        message.ack();
+        continue;
+      }
+
+      try {
+        const disposition = await observeOperation(
+          { callId: job.callId, jobId: `${job.callId}:v${job.version}`, function: "analysis" },
+          () =>
+            processAnalysis(env.DB, job, (input, attemptId) =>
+              observeOperation(
+                {
+                  callId: job.callId,
+                  jobId: attemptId,
+                  function: "analysis",
+                  attempt: Number(attemptId.split(":a").at(-1)),
+                },
+                () => env.ANALYSIS_PROVIDER.generate(input, attemptId),
+              ),
+            ),
+        );
+
+        if (disposition === "retry") {
+          message.retry({ delaySeconds: 30 });
+        } else {
+          if (disposition === "dead-letter") {
+            await env.ANALYSIS_DEAD_LETTER.send(job);
+          }
+          message.ack();
+        }
+      } catch {
+        message.retry({ delaySeconds: 30 });
+      }
+    }
+  },
   fetch(): Response {
     return new Response("Not found", { status: 404 });
   },
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<Env & AnalysisBindings>;

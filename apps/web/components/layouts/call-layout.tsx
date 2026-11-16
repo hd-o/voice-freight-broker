@@ -1,5 +1,6 @@
 "use client";
 
+import type { Call } from "@voice-freight/contracts/calls";
 import { ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
 import { PageHeader } from "@/components/navigation/page-header";
 import { CallerBriefing, type DemoCarrier } from "@/components/call/caller-briefing";
@@ -10,6 +11,7 @@ import { Transcript, type TranscriptEntry } from "@/components/call/transcript";
 import { CallNotification, type CallNotificationKind } from "@/components/call/call-notification";
 
 export type CallLayoutProps = CallControlsProps & {
+  analysis?: Call["analysis"];
   signedIn: boolean;
   accountName?: string;
   duration?: string;
@@ -30,6 +32,7 @@ export type CallLayoutProps = CallControlsProps & {
 
 export function CallLayout({
   state,
+  analysis,
   signedIn,
   accountName,
   accountPending,
@@ -100,7 +103,18 @@ export function CallLayout({
                 </div>
               )}
               {state === "ended" && (
-                <div className="px-6 pb-6">
+                <div className="space-y-2 px-6 pb-6">
+                  {analysis && (
+                    <p role="status" className="text-sm text-muted-foreground">
+                      {analysis.status === "complete"
+                        ? "Analysis complete. View the summary and sentiment in your dashboard."
+                        : analysis.status === "failed"
+                          ? "Analysis failed. An administrator can retry from the call details."
+                          : analysis.reason === "allowance"
+                            ? "Analysis is waiting for the monthly allowance to renew."
+                            : "Analysis pending. Your summary and sentiment will appear when complete."}
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={onViewCall}

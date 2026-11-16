@@ -1,3 +1,4 @@
+import { observeOperation } from "@voice-freight/backend/telemetry";
 import { DurableObject } from "cloudflare:workers";
 import { z } from "zod";
 import { toolNameSchema, type CallContext } from "@voice-freight/contracts/business";
@@ -340,6 +341,10 @@ export class LiveCall extends DurableObject<LiveBindings> {
         const { session } = await this.readSession();
 
         if (!session.providerClosed) {
+          await this.updateSession((current): void => {
+            current.gap = true;
+            current.accountingGap = true;
+          });
           await this.end("Interrupted", "Connection interrupted. Your partial transcript is saved.");
         }
       });
@@ -347,6 +352,10 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
     socket.addEventListener("error", (): void =>
       this.enqueue(async (): Promise<void> => {
+        await this.updateSession((current): void => {
+          current.gap = true;
+          current.accountingGap = true;
+        });
         await this.end("Interrupted", "Voice connection failed. Your partial transcript is saved.");
       }),
     );
@@ -617,23 +626,31 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
       const now = new Date().toISOString();
 
-      await transact(this.env.DB, (state): void => {
-        const current = state.liveSessions.find((entry): boolean => entry.id === session.id)!;
-        current.state = "ending";
-        current.notice = notice;
-        current.closingAt = now;
-        delete current.farewell;
+      await observeOperation({ callId: session.id, function: "call", action: "ending" }, () =>
+        transact(this.env.DB, (state): void => {
+          const current = state.liveSessions.find((entry): boolean => entry.id === session.id)!;
+          current.state = "ending";
+          current.notice = notice;
+          current.closingAt = now;
+          delete current.farewell;
 
-        if (connection !== "Ended normally") {
-          current.gap = true;
-        }
+          if (connection !== "Ended normally") {
+            current.gap = true;
+          }
 
-        completeCall(state, this.context!, { connection, transcriptComplete: false }, now);
-      });
+          if (!this.isStub() && current.providerAttempted && !current.providerClosed && !this.socket) {
+            current.accountingGap = true;
+          }
+
+          completeCall(state, this.context!, { connection, transcriptComplete: false }, now);
+        }),
+      );
 
       await this.ctx.storage.setAlarm(Date.now() + 1000);
 
-      if (this.isStub()) {
+      if (!session.providerAttempted) {
+        await this.finish();
+      } else if (this.isStub()) {
         await ingestProviderEvent(this.env.DB, this.context!, {
           type: "session.closed",
           event_id: `closed-${session.id}`,
@@ -690,7 +707,8 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
       if (
         !current.providerAttempted ||
-        (current.usageConfirmed &&
+        (!current.accountingGap &&
+          current.usageConfirmed &&
           current.responseIds.every((id): boolean => current.completedResponseIds.includes(id)))
       ) {
         reservation.settled = true;
@@ -705,6 +723,44 @@ export class LiveCall extends DurableObject<LiveBindings> {
     }
 
     await this.ctx.storage.deleteAlarm();
+    this.ctx.waitUntil(this.env.TOOLS.publishAnalysis());
+  }
+
+  async recover(context: CallContext): Promise<void> {
+    this.context ??= context;
+    await this.ctx.storage.put("context", this.context);
+    const { session } = await this.readSession();
+
+    const { call } = await this.readSession();
+
+    if (
+      session.state === "connecting" &&
+      !session.providerAttempted &&
+      Date.now() - Date.parse(call.record.startedAt) >= 30_000
+    ) {
+      await this.end("Connection failed", "Call startup was abandoned before contacting the provider.");
+      return;
+    }
+
+    if (session.state === "ended" && session.providerId && !session.providerClosed && !this.isStub()) {
+      const lastRecovery = (await this.ctx.storage.get<number>("lastRecovery")) ?? 0;
+
+      if (Date.now() - lastRecovery >= 300_000) {
+        await this.ctx.storage.put("lastRecovery", Date.now());
+        await this.updateSession((current): void => {
+          current.gap = true;
+          current.accountingGap = true;
+        });
+        await this.attach(session.providerId);
+        this.haltProvider();
+        await this.ctx.storage.setAlarm(Date.now() + 10_000);
+      }
+      return;
+    }
+
+    if (session.state !== "ended") {
+      await this.ctx.storage.setAlarm(Date.now() + 1000);
+    }
   }
 
   async alarm(): Promise<void> {
@@ -717,6 +773,8 @@ export class LiveCall extends DurableObject<LiveBindings> {
       }
 
       if (session.state === "ended") {
+        this.socket?.close();
+        this.socket = null;
         return;
       }
 
@@ -763,6 +821,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
             await this.updateSession((current): void => {
               current.gap = true;
+              current.accountingGap = true;
             });
 
             await this.attach(session.providerId);

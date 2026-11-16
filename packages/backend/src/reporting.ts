@@ -8,7 +8,23 @@ import type { State, CallRecord } from "./model";
 import { collectTranscript } from "./live";
 
 function projectCall(state: State, call: CallRecord): Call {
-  const record = call.finalSnapshot ?? call.record;
+  const snapshot = call.finalSnapshot ?? call.record;
+  const analysis = state.analysis.find((entry): boolean => entry.callId === call.id);
+  const record: Call = {
+    ...snapshot,
+    analysis: analysis?.result
+      ? { ...analysis.result, version: analysis.version }
+      : analysis
+        ? {
+            version: analysis.version,
+            status: analysis.status,
+            sentiment: "Unknown",
+            summary: null,
+            reason: analysis.reason,
+            retryAt: analysis.nextAttemptAt,
+          }
+        : snapshot.analysis,
+  };
 
   if (!state.liveSessions.some((entry): boolean => entry.id === call.id)) {
     return record;

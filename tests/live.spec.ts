@@ -105,7 +105,9 @@ test("a simulated multi-load call saves cancellation, replacement, transcript an
   await expect(page.getByRole("button", { name: "View this call in dashboard →" })).toBeVisible();
   await page.getByRole("button", { name: "View this call in dashboard →" }).click();
   await expect(page.getByText("Live Call", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Call analysis" }).getByText("Pending", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Call analysis" }).getByText("Complete", { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByText("Cancelled agreement 1")).toBeVisible();
   await page.getByRole("combobox").click();
   await page.getByRole("option", { name: "NS-seed-v1-02", exact: true }).click();

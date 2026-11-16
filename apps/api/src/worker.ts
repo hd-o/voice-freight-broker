@@ -1,3 +1,5 @@
+import { observeOperation } from "@voice-freight/backend/telemetry";
+import { retryAnalysis } from "@voice-freight/backend/analysis";
 import { Hono } from "hono";
 import { checkDatabase } from "@voice-freight/backend";
 import { statusSchema } from "@voice-freight/contracts";
@@ -21,6 +23,7 @@ import { reserveLiveCall, queryLiveStatus, queryTranscript, prepareBudgetFixture
 import { readState } from "@voice-freight/backend/repository";
 import { resolveUsageLimits } from "@voice-freight/backend/spending";
 import type { LiveBindings } from "./bindings";
+export { AnalysisProvider } from "./analysis-provider";
 export { LiveCall } from "./live-call";
 
 const app = new Hono<{ Bindings: Env & LiveBindings }>();
@@ -43,6 +46,14 @@ app.use("/api/*", async (context, next): Promise<void> => {
   }
 
   await next();
+
+  if (
+    context.req.method === "GET" &&
+    context.res.status === 200 &&
+    ["/api/dashboard", "/api/calls"].includes(context.req.path)
+  ) {
+    context.executionCtx.waitUntil(context.env.TOOLS.publishAnalysis());
+  }
 });
 
 app.onError((error, context): Response => {
@@ -126,6 +137,17 @@ app.get("/api/calls/:callId", async (context): Promise<Response> =>
     }),
   ),
 );
+app.post("/api/calls/:callId/analysis/retry", async (context): Promise<Response> => {
+  const user = await resolveUser(context);
+  const input = z.strictObject({ version: z.number().int().positive() }).parse(await context.req.json());
+  const result = await retryAnalysis(
+    context.env.DB,
+    { userId: user.id, callId: context.req.param("callId") },
+    input.version,
+  );
+  context.executionCtx.waitUntil(context.env.TOOLS.publishAnalysis());
+  return context.json(result, 202);
+});
 app.post("/api/calls", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   z.strictObject({}).parse(await context.req.json());
@@ -147,9 +169,8 @@ app.post("/api/live/calls", async (context): Promise<Response> => {
     resolveUsageLimits(context.env),
   );
 
-  const result = await context.env.CALLS.get(context.env.CALLS.idFromName(id)).start(
-    { userId: user.id, callId: id },
-    input.offerSdp,
+  const result = await observeOperation({ callId: id, function: "call" }, () =>
+    context.env.CALLS.get(context.env.CALLS.idFromName(id)).start({ userId: user.id, callId: id }, input.offerSdp),
   );
 
   return context.json(result, 201);
@@ -260,4 +281,21 @@ app.get("/api/health", async (context): Promise<Response> => {
   return context.json({ ...status, tools });
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(_controller: ScheduledController, env: Env & LiveBindings): Promise<void> {
+    const { state } = await readState(env.DB);
+
+    for (const session of state.liveSessions) {
+      const reservation = state.reservations.find((entry): boolean => entry.id === session.id);
+
+      if ((session.state !== "ended" || (session.providerAttempted && !session.providerClosed)) && reservation) {
+        await observeOperation({ callId: session.id, function: "recovery" }, () =>
+          env.CALLS.get(env.CALLS.idFromName(session.id)).recover({ callId: session.id, userId: reservation.ownerId }),
+        ).catch((): void => {});
+      }
+    }
+
+    await env.TOOLS.publishAnalysis();
+  },
+} satisfies ExportedHandler<Env & LiveBindings>;

@@ -15,6 +15,10 @@ export type AnalysisSummaryProps = {
   status: keyof typeof analysisLabels;
   summary?: string;
   administrator?: boolean;
+  retrying?: boolean;
+  error?: string;
+  reason?: "queued" | "processing" | "retry" | "allowance";
+  retryAt?: string;
   onRetry?: () => void;
 };
 
@@ -24,6 +28,10 @@ export function AnalysisSummary({
   status,
   summary,
   administrator = false,
+  retrying = false,
+  error,
+  reason,
+  retryAt,
   onRetry,
 }: AnalysisSummaryProps): React.JSX.Element {
   return (
@@ -56,12 +64,21 @@ export function AnalysisSummary({
           </p>
           <p className="mt-2 text-muted-foreground">
             {status === "pending"
-              ? "Summary and sentiment analysis will appear when complete."
+              ? reason === "allowance"
+                ? `Analysis is waiting for the shared monthly allowance. It will resume ${retryAt ? `after ${new Date(retryAt).toUTCString()}` : "after renewal at 00:00 UTC on the first day"}.`
+                : reason === "retry"
+                  ? "Analysis was interrupted and will retry automatically. The saved call is preserved."
+                  : "Summary and sentiment analysis will appear when complete."
               : "The call transcript is saved. An administrator can retry the analysis."}
           </p>
+          {error && (
+            <p role="alert" className="mt-2">
+              {error}
+            </p>
+          )}
           {status === "failed" && administrator ? (
-            <Button className="mt-3" variant="outline" disabled={!onRetry} onClick={onRetry}>
-              Retry analysis
+            <Button className="mt-3" variant="outline" disabled={!onRetry || retrying} onClick={onRetry}>
+              {retrying ? "Retrying analysis…" : "Retry analysis"}
             </Button>
           ) : null}
         </div>

@@ -15,6 +15,7 @@ import { beginRenegotiation, confirmHandoff, cancelAgreement } from "./agreement
 import { transact } from "./repository";
 import { captureConfirmation } from "./confirmation";
 import { resolveTarget } from "./evidence";
+import { observeOperation, sanitizeTelemetry } from "./telemetry";
 import { createReadback } from "./readbacks";
 
 export type ToolResult =
@@ -26,6 +27,25 @@ export type ToolResult =
   | ReturnType<typeof cancelAgreement>;
 
 export async function executeTool(
+  binding: D1Database,
+  context: CallContext,
+  name: ToolName,
+  invocation: { invocationId: string; arguments: unknown },
+  now = new Date().toISOString(),
+  observed = false,
+): Promise<ToolResult> {
+  return observeOperation(
+    {
+      ...sanitizeTelemetry(invocation.arguments),
+      callId: context.callId,
+      invocationId: invocation.invocationId,
+      function: name,
+    },
+    () => applyTool(binding, context, name, invocation, now, observed),
+  );
+}
+
+async function applyTool(
   binding: D1Database,
   context: CallContext,
   name: ToolName,

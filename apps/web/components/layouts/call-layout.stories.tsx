@@ -90,6 +90,7 @@ export const Ended: Story = {
     state: "ended",
     signedIn: true,
     duration: "03:08",
+    analysis: { status: "pending", sentiment: "Unknown", summary: null },
     entries: transcriptEntries.slice(2),
   },
 };
@@ -128,4 +129,8 @@ export const LongTranscript: Story = {
       })),
     ).flat(),
   },
+};
+
+export const AnalysisComplete: Story = {
+  args: { ...Ended.args, analysis: { status: "complete", sentiment: "Neutral", summary: "Saved call." } },
 };

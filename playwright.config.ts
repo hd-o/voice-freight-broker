@@ -16,12 +16,12 @@ export default defineConfig({
   projects: [
     {
       name: "public",
-      testIgnore: ["identity.spec.ts", "isolation.spec.ts", "live.spec.ts", "budget-*.spec.ts"],
+      testIgnore: ["identity.spec.ts", "isolation.spec.ts", "live.spec.ts", "analysis.spec.ts", "budget-*.spec.ts"],
       use: { baseURL: "http://127.0.0.1:4173" },
     },
     {
       name: "integration",
-      testMatch: ["identity.spec.ts", "isolation.spec.ts", "live.spec.ts", "budget-*.spec.ts"],
+      testMatch: ["identity.spec.ts", "isolation.spec.ts", "live.spec.ts", "analysis.spec.ts", "budget-*.spec.ts"],
       use: { baseURL: "http://127.0.0.1:4173" },
     },
   ],

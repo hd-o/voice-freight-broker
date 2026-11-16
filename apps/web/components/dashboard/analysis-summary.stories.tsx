@@ -51,3 +51,13 @@ export const LongContent: Story = {
       "The carrier reviewed the Dallas to Atlanta load, discussed pickup and delivery appointments, clarified the trailer and weight requirements, and negotiated a rate. After reviewing the posted quote and counteroffer, the carrier explicitly accepted $2,450. The final agreement was recorded for this simulated handoff. No additional load was accepted.",
   },
 };
+
+export const AllowancePending: Story = {
+  args: { sentiment: "Unknown", status: "pending", reason: "allowance", retryAt: "2026-12-01T00:00:00.000Z" },
+};
+export const Retrying: Story = {
+  args: { sentiment: "Unknown", status: "failed", administrator: true, retrying: true },
+};
+export const RetryFailure: Story = {
+  args: { sentiment: "Unknown", status: "failed", administrator: true, error: "Service unavailable. Try again." },
+};

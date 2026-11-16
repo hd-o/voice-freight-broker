@@ -33,6 +33,7 @@ flowchart TD
   Call["Call Durable Object"]
   Live["GPT Live + Responses"]
   DB[("Shared local D1")]
+  Queue["Analysis queue + dead-letter queue"]
 
   Browser -->|Development| Dev
   Browser -->|Static preview| App
@@ -45,4 +46,6 @@ flowchart TD
   Call -->|Transcripts and spending| DB
   API -->|Drizzle| DB
   Tools -->|Drizzle| DB
+  Tools <-->|Analysis jobs| Queue
+  Tools -->|Private analysis provider RPC| API
 ```
