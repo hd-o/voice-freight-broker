@@ -67,7 +67,7 @@ export function Transcript({
                   entry.speaker === "carrier" ? "bg-primary text-primary-foreground" : "bg-surface text-foreground",
                 )}
               >
-                {entry.text}
+                {entry.text.trimStart()}
               </p>
             </li>
           ))}
