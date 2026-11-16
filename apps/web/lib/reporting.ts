@@ -19,14 +19,14 @@ export function formatDuration(seconds: number): string {
   return `${Math.floor(duration / 60)}m ${String(duration % 60).padStart(2, "0")}s`;
 }
 
-export function formatDate(timestamp: string): string {
+export function formatDate(timestamp: string, timeZone = "UTC"): string {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "UTC",
+    timeZone,
     timeZoneName: "short",
   }).format(new Date(timestamp));
 }
@@ -108,7 +108,7 @@ export function createLoadDetails(call: Call, load: Load): LoadDetails {
           : `${formatMoney(Math.abs(variance))} ${variance > 0 ? "above" : "below"} posted rate`,
     snapshot: [
       `${load.reference} · ${load.equipment} · ${load.miles.toLocaleString("en-US")} miles`,
-      `Pickup ${formatDate(load.pickupAt)}`,
+      load.pickupTimeZone ? `Pickup ${formatDate(load.pickupAt, load.pickupTimeZone)}` : "Pickup time zone unavailable",
       `Delivery ${formatDate(load.deliveryAt)}`,
       `${load.commodity} · ${load.weightPounds.toLocaleString("en-US")} lb`,
     ],

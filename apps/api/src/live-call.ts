@@ -1,3 +1,4 @@
+import { confirmationQuietMs } from "@voice-freight/backend/confirmation-policy";
 import { observeOperation } from "@voice-freight/backend/telemetry";
 import { DurableObject } from "cloudflare:workers";
 import { z } from "zod";
@@ -39,6 +40,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
   private queue: Promise<void> = Promise.resolve();
   private context: CallContext | null = null;
   private closing = false;
+  private invocations = new Set<string>();
 
   private haltProvider(): void {
     if (this.socket?.readyState !== WebSocket.OPEN) {
@@ -427,7 +429,11 @@ export class LiveCall extends DurableObject<LiveBindings> {
         // confirmation. No transcript event itself marks a completed caller turn.
         this.ctx.waitUntil(
           new Promise<void>((resolve): ReturnType<typeof setTimeout> => setTimeout(resolve, 1500)).then((): void => {
-            this.enqueue((): Promise<void> => this.executeFunction(invocation));
+            this.ctx.waitUntil(
+              this.executeFunction(invocation).catch(async (): Promise<void> => {
+                await this.end("Interrupted", "The call was interrupted. Your saved agreements are preserved.");
+              }),
+            );
           }),
         );
       }
@@ -480,6 +486,19 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   private async executeFunction(invocation: z.infer<typeof functionEventSchema>): Promise<void> {
+    const id = invocation.event.item.call_id;
+    if (this.invocations.has(id)) {
+      return;
+    }
+    this.invocations.add(id);
+    try {
+      await this.applyFunction(invocation);
+    } finally {
+      this.invocations.delete(id);
+    }
+  }
+
+  private async applyFunction(invocation: z.infer<typeof functionEventSchema>): Promise<void> {
     const {
       event: { item },
       delegation_id: delegationId,
@@ -978,7 +997,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
         action === "cancel" ? "cancel" : quote?.replacementId ? "replace" : "handoff",
       );
 
-      const boundary = speech.indexOf(". Please say");
+      const boundary = speech.indexOf(". Do you accept");
 
       for (const [index, delta] of [speech.slice(0, boundary + 1), speech.slice(boundary + 1)].entries()) {
         await this.observe({
@@ -995,7 +1014,18 @@ export class LiveCall extends DurableObject<LiveBindings> {
         event_id: crypto.randomUUID(),
         start_ms: startMs + 6000,
         end_ms: startMs + 6500,
-        delta: "Yes, confirmed.",
+        delta: scenario === "confirmation-change" ? "Yes, but change the rate." : "Yes, confirmed.",
+      });
+      // Exercise the same progress speech that follows acceptance in live calls.
+      await this.observe({
+        type: "session.output_transcript.delta",
+        event_id: crypto.randomUUID(),
+        start_ms: startMs + 7000,
+        end_ms: startMs + 7500,
+        delta: "One sec.",
+      });
+      await this.updateSession((session): void => {
+        session.lastInputAt = new Date(Date.now() - confirmationQuietMs - 1).toISOString();
       });
     };
 
@@ -1030,7 +1060,30 @@ export class LiveCall extends DurableObject<LiveBindings> {
       (entry): boolean => entry.callId === current.call.id && entry.status === "effective",
     );
 
+    const explainFailure = async (): Promise<void> => {
+      const current = await this.readSession();
+      const endMs = Math.max(
+        0,
+        ...current.state.transcriptFragments
+          .filter((entry): boolean => entry.callId === current.call.id)
+          .map((entry): number => entry.endMs),
+      );
+      await this.observe({
+        type: "session.output_transcript.delta",
+        event_id: crypto.randomUUID(),
+        start_ms: endMs + 1000,
+        end_ms: endMs + 2000,
+        delta:
+          scenario === "confirmation-change"
+            ? "The agreement change was not saved. Let us discuss the requested rate and get a new quote before confirmation."
+            : "The agreement change was not saved. Confirmation could not be checked. Your existing agreements are preserved. We can try again later.",
+      });
+    };
+
     if (agreements.length !== 2) {
+      if (scenario === "confirmation-change") {
+        await explainFailure();
+      }
       return;
     }
 
@@ -1040,5 +1093,8 @@ export class LiveCall extends DurableObject<LiveBindings> {
     current = await this.readSession();
     await readback(current.call.quoteId!, "handoff");
     await invoke("confirm_handoff", { quoteId: current.call.quoteId });
+    if (scenario === "confirmation-failure") {
+      await explainFailure();
+    }
   }
 }

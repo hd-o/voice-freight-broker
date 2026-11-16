@@ -23,6 +23,8 @@ export async function readState(binding: D1Database): Promise<{ version: number;
     providerUsage,
     liveSessions,
     transcriptFragments,
+    confirmationAttempts,
+    quotaResets,
   ] = await database.batch([
     database.select().from(tables.revision),
     database.select().from(tables.users),
@@ -41,11 +43,15 @@ export async function readState(binding: D1Database): Promise<{ version: number;
     database.select().from(tables.providerUsage),
     database.select().from(tables.liveSessions),
     database.select().from(tables.transcriptFragments),
+    database.select().from(tables.confirmationAttempts),
+    database.select().from(tables.quotaResets),
   ]);
 
   return {
     version: revision[0].version,
     state: {
+      quotaResets: quotaResets.map((row): State["quotaResets"][number] => row.data),
+      confirmationAttempts: confirmationAttempts.map((row): State["confirmationAttempts"][number] => row.data),
       users: users.map((row): State["users"][number] => row.data),
       sessions: sessions.map((row): State["sessions"][number] => row.data),
       calls: calls.map((row): State["calls"][number] => row.data),

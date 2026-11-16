@@ -9,6 +9,7 @@ import { authorizeCall, resolveIdentity } from "./authorization";
 import { initializeCall, completeCall } from "./calls";
 import { requireCondition } from "./model";
 import type { State } from "./model";
+import { localDailyQuotaId } from "./quotas";
 import { readState, transact } from "./repository";
 import {
   calculateAvailableMicrodollars,
@@ -24,6 +25,7 @@ export async function reserveLiveCall(
   operationId: string,
   now = new Date().toISOString(),
   limits = usageLimits,
+  environment = "hosted",
 ): Promise<{
   id: string;
 }> {
@@ -74,8 +76,16 @@ export async function reserveLiveCall(
       "Another call is active or waiting for confirmed termination. Try again after it finishes.",
     );
 
+    const quotaVersion =
+      environment === "local"
+        ? state.quotaResets.find((entry): boolean => entry.id === localDailyQuotaId)?.version
+        : undefined;
+
     const today = state.reservations.filter(
-      (entry): boolean => entry.kind !== "analysis" && entry.createdAt.slice(0, 10) === now.slice(0, 10),
+      (entry): boolean =>
+        (entry.kind ?? "call") === "call" &&
+        entry.createdAt.slice(0, 10) === now.slice(0, 10) &&
+        (environment !== "local" || entry.dailyQuotaVersion === quotaVersion),
     );
 
     requireCondition(
@@ -96,6 +106,7 @@ export async function reserveLiveCall(
     const { id } = initializeCall(state, userId, now);
 
     state.reservations.push({
+      ...(quotaVersion ? { dailyQuotaVersion: quotaVersion } : {}),
       id,
       ownerId: userId,
       operationId,

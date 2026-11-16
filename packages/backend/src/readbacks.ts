@@ -8,19 +8,22 @@ function describeRoute(load: Load): string {
 export function describeLoad(state: State, callId: string, load: Load): Load & { spokenLabel: string } {
   const call = state.calls.find((entry): boolean => entry.id === callId)!;
 
-  const date = new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(load.pickupAt));
+  const date = load.pickupTimeZone
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "long",
+        timeZone: load.pickupTimeZone,
+      }).format(new Date(load.pickupAt))
+    : "time zone unavailable";
 
   const peers = call.inventoryIds
     .map((id): (typeof state.inventory)[number] => state.inventory.find((entry): boolean => entry.id === id)!)
     .filter(
-      (entry): boolean =>
-        describeRoute(entry.load) === describeRoute(load) &&
-        entry.load.pickupAt.slice(0, 10) === load.pickupAt.slice(0, 10),
+      (entry): boolean => describeRoute(entry.load) === describeRoute(load) && entry.load.pickupAt === load.pickupAt,
     );
 
   const option = peers.length > 1 ? `, option ${peers.findIndex((entry): boolean => entry.id === load.id) + 1}` : "";
@@ -42,5 +45,5 @@ export function createReadback(
     maximumFractionDigits: 2,
   });
 
-  return `Please confirm${intent}: ${call.record.carrier!.name}, ${describeLoad(state, callId, load).spokenLabel}, at ${rate} dollars. Please say yes, confirmed.`;
+  return `Please confirm${intent}: ${call.record.carrier!.name}, ${describeLoad(state, callId, load).spokenLabel}, at ${rate} dollars. Do you accept these terms?`;
 }

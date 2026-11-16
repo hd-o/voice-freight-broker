@@ -6,6 +6,7 @@ import {
   type AnalysisJob,
 } from "@voice-freight/backend/analysis";
 import { observeOperation } from "@voice-freight/backend/telemetry";
+import type { ConfirmationProvider } from "../../api/src/confirmation-provider";
 import type { AnalysisProvider } from "../../api/src/analysis-provider";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { checkDatabase } from "@voice-freight/backend";
@@ -26,6 +27,7 @@ interface AnalysisBindings {
   ANALYSIS_QUEUE: Queue<AnalysisJob>;
   ANALYSIS_DEAD_LETTER: Queue<AnalysisJob>;
   ANALYSIS_PROVIDER: Service<AnalysisProvider>;
+  CONFIRMATION_PROVIDER: Service<ConfirmationProvider>;
 }
 
 type ToolResponse = ToolResult | { error: { code: string; message: string } };
@@ -48,6 +50,7 @@ export class Tools extends WorkerEntrypoint<Env & AnalysisBindings> {
         invocation,
         new Date().toISOString(),
         true,
+        (input, attemptId) => this.env.CONFIRMATION_PROVIDER.classify(input, attemptId),
       );
     } catch (error) {
       if (error instanceof BusinessError) {

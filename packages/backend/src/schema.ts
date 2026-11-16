@@ -150,3 +150,13 @@ export const transcriptFragments = sqliteTable("transcriptFragments", {
   id: text().primaryKey(),
   data: text({ mode: "json" }).$type<State["transcriptFragments"][number]>().notNull(),
 });
+
+export const confirmationAttempts = sqliteTable("confirmationAttempts", {
+  id: text().primaryKey(),
+  data: text({ mode: "json" }).$type<State["confirmationAttempts"][number]>().notNull(),
+});
+
+export const quotaResets = sqliteTable("quotaResets", {
+  id: text().primaryKey(),
+  data: text({ mode: "json" }).$type<State["quotaResets"][number]>().notNull(),
+});

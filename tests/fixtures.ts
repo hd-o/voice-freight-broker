@@ -24,6 +24,12 @@ export function createTestBackend(voiceScenario = "workflow"): TestHarness {
         vars: {
           VOICE_PROVIDER: "stub",
           VOICE_STUB_SCENARIO: voiceScenario === "analysis-failure" ? "workflow" : voiceScenario,
+          CONFIRMATION_STUB_SCENARIO:
+            voiceScenario === "confirmation-failure"
+              ? "recovery"
+              : voiceScenario === "confirmation-change"
+                ? "request_change"
+                : "success",
           ANALYSIS_STUB_SCENARIO: voiceScenario === "analysis-failure" ? "failure" : "success",
         },
         secrets: { OPENAI_API_KEY: "unused-stub-key" },

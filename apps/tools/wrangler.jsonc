@@ -32,6 +32,7 @@
       },
       "services": [
         { "binding": "ANALYSIS_PROVIDER", "service": "voice-freight-api", "entrypoint": "AnalysisProvider" },
+        { "binding": "CONFIRMATION_PROVIDER", "service": "voice-freight-api", "entrypoint": "ConfirmationProvider" },
       ],
       "name": "voice-freight-tools",
       "d1_databases": [
@@ -62,6 +63,11 @@
       },
       "services": [
         { "binding": "ANALYSIS_PROVIDER", "service": "voice-freight-api-stub", "entrypoint": "AnalysisProvider" },
+        {
+          "binding": "CONFIRMATION_PROVIDER",
+          "service": "voice-freight-api-stub",
+          "entrypoint": "ConfirmationProvider",
+        },
       ],
       "name": "voice-freight-tools-stub",
       "d1_databases": [
@@ -90,7 +96,10 @@
       { "queue": "voice-freight-analysis-dead-letter", "max_batch_size": 1 },
     ],
   },
-  "services": [{ "binding": "ANALYSIS_PROVIDER", "service": "voice-freight-api", "entrypoint": "AnalysisProvider" }],
+  "services": [
+    { "binding": "ANALYSIS_PROVIDER", "service": "voice-freight-api", "entrypoint": "AnalysisProvider" },
+    { "binding": "CONFIRMATION_PROVIDER", "service": "voice-freight-api", "entrypoint": "ConfirmationProvider" },
+  ],
   "d1_databases": [
     {
       "binding": "DB",

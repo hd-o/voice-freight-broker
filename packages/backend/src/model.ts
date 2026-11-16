@@ -76,6 +76,8 @@ export type Agreement = {
 };
 
 export type Evidence = EvidenceInput & {
+  transcriptIds?: string[];
+  confirmationAttemptId?: string;
   callId: string;
   contextVersion: string;
   carrierId: string;
@@ -135,6 +137,8 @@ export type AnalysisAttempt = {
 export type Session = { id: string; userId: string; expiresAt: string };
 
 export type State = {
+  quotaResets: import("./quotas").QuotaReset[];
+  confirmationAttempts: import("./confirmation-policy").ConfirmationAttempt[];
   spendingPeriods: SpendingPeriod[];
   reservations: Reservation[];
   providerUsage: ProviderUsage[];
@@ -159,7 +163,8 @@ export type SpendingPeriod = {
 };
 
 export type Reservation = {
-  kind?: "call" | "analysis";
+  dailyQuotaVersion?: string;
+  kind?: "call" | "analysis" | "confirmation";
   id: string;
   ownerId: string;
   operationId: string;

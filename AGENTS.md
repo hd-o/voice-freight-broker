@@ -23,8 +23,8 @@ These rules are never optional and never overridden:
 
 IMPORTANT: Keep this section concisely up-to-date
 
-Local voice workflows and queued post-call analysis are implemented. Hosted
-Access and release validation remain in development.
+Local voice workflows, Decisions confirmation, and queued post-call analysis
+are implemented. Hosted Access and release validation remain in development.
 
 ## Structure
 
@@ -75,6 +75,7 @@ Vite+ `vpr [command]` project commands:
 "db:generate": Generate the backend Drizzle schema migrations.
 "db:migrate": Apply local D1 migrations to the development database.
 "dev": Start the web and API development servers in parallel.
+"dev:reset:limits": Reset local daily call quotas for all users.
 "dev:stub:workers": Start the stub worker environment for local development.
 "dev:web": Start the web frontend in development mode.
 "dev:workers": Start the API worker in development mode.

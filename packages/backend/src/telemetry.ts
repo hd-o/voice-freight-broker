@@ -9,18 +9,39 @@ const numericFields = new Set([
   "usedRounds",
   "remainingRounds",
   "count",
+  "latencyMs",
+  "chargedMicrodollars",
 ]);
 const identityFields = new Set([
   "callId",
   "invocationId",
   "jobId",
+  "attemptId",
+  "providerId",
   "loadId",
   "quoteId",
   "agreementId",
   "traceId",
   "spanId",
 ]);
-const enumFields = new Set(["function", "status", "code", "decision", "action"]);
+const probabilityFields = new Set([
+  "readbackConfidence",
+  "intentConfidence",
+  "readbackProbability",
+  "intentProbability",
+]);
+const enumFields = new Set([
+  "function",
+  "status",
+  "code",
+  "decision",
+  "action",
+  "readback",
+  "intent",
+  "model",
+  "promptVersion",
+  "policyVersion",
+]);
 const values = new Set([
   "verify_carrier",
   "search_loads",
@@ -30,6 +51,25 @@ const values = new Set([
   "confirm_handoff",
   "cancel_agreement",
   "analysis",
+  "confirmation",
+  "handoff",
+  "cancel",
+  "replace",
+  "matches",
+  "mismatch",
+  "incomplete",
+  "accept",
+  "decline",
+  "request_change",
+  "unclear",
+  "gpt-6-luna",
+  "confirmation-v4",
+  "confirmation_unavailable",
+  "confirmation_pending",
+  "confirmation_declined",
+  "confirmation_change",
+  "confirmation_unclear",
+  "stale_confirmation",
   "call",
   "recovery",
   "success",
@@ -81,6 +121,14 @@ export function sanitizeTelemetry(input: unknown): Record<string, string | numbe
 
   for (const [key, value] of Object.entries(input).slice(0, 64)) {
     if (numericFields.has(key) && typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
+      result[key] = value;
+    } else if (
+      probabilityFields.has(key) &&
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= 0 &&
+      value <= 1
+    ) {
       result[key] = value;
     } else if (
       identityFields.has(key) &&

@@ -4,6 +4,12 @@ import { sendTranscript, simulateVoice } from "./voice";
 test("live transcripts follow new text only while scrolled to the bottom", async ({ page }): Promise<void> => {
   await simulateVoice(page);
   const transcript = page.getByRole("region", { name: "Transcript", exact: true });
+  const transcriptBounds = await transcript.boundingBox();
+  const informationBounds = await page.getByRole("region", { name: "Call information", exact: true }).boundingBox();
+
+  expect(transcriptBounds).not.toBeNull();
+  expect(informationBounds).not.toBeNull();
+  expect(transcriptBounds!.height).toBeCloseTo(informationBounds!.height, 0);
 
   for (let index = 0; index < 30; index++) {
     await sendTranscript(page, `Message ${index}.\n`, `message-${index}`);
@@ -19,6 +25,7 @@ test("live transcripts follow new text only while scrolled to the bottom", async
     )
     .toBeLessThanOrEqual(1);
 
+  expect((await transcript.boundingBox())!.height).toBeCloseTo(transcriptBounds!.height, 0);
   const height = await transcript.evaluate((element): number => element.scrollHeight);
   await sendTranscript(page, "More streaming text.\n".repeat(10), "streaming");
 

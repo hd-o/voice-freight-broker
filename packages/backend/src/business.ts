@@ -13,10 +13,9 @@ import { searchLoads } from "./inventory";
 import { issueQuote, evaluateOffer } from "./negotiations";
 import { beginRenegotiation, confirmHandoff, cancelAgreement } from "./agreements";
 import { transact } from "./repository";
-import { captureConfirmation } from "./confirmation";
-import { resolveTarget } from "./evidence";
+import { executeConfirmation } from "./confirmation";
+import type { ConfirmationProvider } from "./confirmation-policy";
 import { observeOperation, sanitizeTelemetry } from "./telemetry";
-import { createReadback } from "./readbacks";
 
 export type ToolResult =
   | ReturnType<typeof verifyCarrier>
@@ -33,6 +32,7 @@ export async function executeTool(
   invocation: { invocationId: string; arguments: unknown },
   now = new Date().toISOString(),
   observed = false,
+  provider?: ConfirmationProvider,
 ): Promise<ToolResult> {
   return observeOperation(
     {
@@ -41,7 +41,17 @@ export async function executeTool(
       invocationId: invocation.invocationId,
       function: name,
     },
-    () => applyTool(binding, context, name, invocation, now, observed),
+    () => {
+      if (observed && (name === "confirm_handoff" || name === "cancel_agreement")) {
+        requireCondition(
+          provider,
+          "confirmation_unavailable",
+          "The agreement change was not saved. Confirmation is unavailable.",
+        );
+        return executeConfirmation(binding, context, name, invocation, provider, now);
+      }
+      return applyTool(binding, context, name, invocation, now);
+    },
   );
 }
 
@@ -51,23 +61,12 @@ async function applyTool(
   name: ToolName,
   invocation: { invocationId: string; arguments: unknown },
   now = new Date().toISOString(),
-  observed = false,
 ): Promise<ToolResult> {
   callContextSchema.parse(context);
   toolNameSchema.parse(name);
   invocationSchema.parse(invocation);
 
-  const argumentsData = toolArguments[name].parse(
-    observed && (name === "confirm_handoff" || name === "cancel_agreement")
-      ? {
-          ...parseObservedArguments(invocation.arguments),
-          evidence: {
-            readbackId: "server-observed",
-            callerId: "server-observed",
-          },
-        }
-      : invocation.arguments,
-  );
+  const argumentsData = toolArguments[name].parse(invocation.arguments);
 
   const fingerprint = JSON.stringify({ name, arguments: argumentsData });
 
@@ -91,6 +90,12 @@ async function applyTool(
 
     try {
       authorizeCall(draft, context);
+      requireCondition(
+        !(name === "confirm_handoff" || name === "cancel_agreement") ||
+          !draft.liveSessions.some((entry): boolean => entry.id === context.callId),
+        "confirmation_required",
+        "Live agreement changes require observed confirmation.",
+      );
       let result: ToolResult;
 
       switch (name) {
@@ -126,24 +131,14 @@ async function applyTool(
         case "confirm_handoff": {
           const input = toolArguments.confirm_handoff.parse(argumentsData);
 
-          result = confirmHandoff(
-            draft,
-            context.callId,
-            input.quoteId,
-            observed ? captureConfirmation(draft, context, "handoff", input.quoteId) : input.evidence,
-          );
+          result = confirmHandoff(draft, context.callId, input.quoteId, input.evidence);
 
           break;
         }
         case "cancel_agreement": {
           const input = toolArguments.cancel_agreement.parse(argumentsData);
 
-          result = cancelAgreement(
-            draft,
-            context.callId,
-            input.agreementId,
-            observed ? captureConfirmation(draft, context, "cancel", input.agreementId) : input.evidence,
-          );
+          result = cancelAgreement(draft, context.callId, input.agreementId, input.evidence);
 
           break;
         }
@@ -156,43 +151,7 @@ async function applyTool(
         throw error;
       }
 
-      let message = error.message;
-
-      if (
-        observed &&
-        error.code === "evidence_required" &&
-        (name === "confirm_handoff" || name === "cancel_agreement")
-      ) {
-        const targetId =
-          name === "confirm_handoff"
-            ? toolArguments.confirm_handoff.parse(argumentsData).quoteId
-            : toolArguments.cancel_agreement.parse(argumentsData).agreementId;
-
-        const action = name === "cancel_agreement" ? "cancel" : "handoff";
-        const target = resolveTarget(state, context.callId, action, targetId);
-        const call = state.calls.find((entry): boolean => entry.id === context.callId)!;
-        const load = call.record.loads.find((entry): boolean => entry.id === target.loadId)!;
-        const quote = state.quotes.find((entry): boolean => entry.id === targetId);
-
-        const failures =
-          state.receipts.filter(
-            (entry): boolean =>
-              entry.callId === context.callId &&
-              entry.fingerprint === fingerprint &&
-              "error" in entry &&
-              entry.error.code === "evidence_required",
-          ).length + 1;
-
-        const readback = createReadback(
-          state,
-          call.id,
-          load,
-          target.rateCents,
-          action === "cancel" ? "cancel" : quote?.replacementId ? "replace" : "handoff",
-        );
-
-        message = `The agreement change was not saved. ${error.message} Read this back: ${readback}${failures >= 2 ? " Two confirmation attempts failed. Explain the failure and offer another load or ending the call; do not keep asking for the same confirmation." : ""}`;
-      }
+      const message = error.message;
 
       outcome = {
         error: {
@@ -218,8 +177,4 @@ async function applyTool(
   }
 
   return outcome.result;
-}
-
-function parseObservedArguments(input: unknown): object {
-  return input && typeof input === "object" && !Array.isArray(input) ? input : {};
 }

@@ -9,6 +9,7 @@ export default defineConfig({
       miniflare: {
         bindings: {
           ANALYSIS_STUB_SCENARIO: "success",
+          CONFIRMATION_STUB_SCENARIO: "success",
           VOICE_PROVIDER: "stub",
           VOICE_STUB_SCENARIO: "idle",
           TEST_MIGRATIONS: await readD1Migrations("../../packages/backend/migrations"),
@@ -21,6 +22,9 @@ export default defineConfig({
             modulesRoot: fileURLToPath(new URL("../tools/dist/", import.meta.url)),
             compatibilityDate: "2026-11-12",
             compatibilityFlags: ["nodejs_compat"],
+            serviceBindings: {
+              CONFIRMATION_PROVIDER: { name: "vitest-plugin-runner-api", entrypoint: "ConfirmationProvider" },
+            },
             queueProducers: {
               ANALYSIS_QUEUE: "voice-freight-analysis",
               ANALYSIS_DEAD_LETTER: "voice-freight-analysis-dead-letter",
@@ -31,5 +35,5 @@ export default defineConfig({
       },
     }),
   ],
-  test: { include: ["test/**/*.test.ts"], setupFiles: ["./test/setup.ts"] },
+  test: { name: "api", include: ["test/**/*.test.ts"], setupFiles: ["./test/setup.ts"] },
 });

@@ -35,7 +35,8 @@
             "kind": "Broker counter",
             "rateCents": 245000
           }
-        ]
+        ],
+        "pickupTimeZone": "America/Chicago"
       },
       {
         "id": "NS-1048",
@@ -58,7 +59,8 @@
             "kind": "Broker counter",
             "rateCents": 295000
           }
-        ]
+        ],
+        "pickupTimeZone": "America/Chicago"
       }
     ],
     "agreements": [
@@ -184,7 +186,8 @@
             "kind": "Broker counter",
             "rateCents": 295000
           }
-        ]
+        ],
+        "pickupTimeZone": "America/Chicago"
       }
     ],
     "agreements": [],
@@ -261,7 +264,8 @@
             "kind": "Carrier offer",
             "rateCents": 118000
           }
-        ]
+        ],
+        "pickupTimeZone": "America/Chicago"
       },
       {
         "id": "NS-1052",
@@ -275,7 +279,8 @@
         "commodity": "General merchandise",
         "weightPounds": 24000,
         "postedRateCents": 130000,
-        "negotiation": []
+        "negotiation": [],
+        "pickupTimeZone": "America/Detroit"
       }
     ],
     "agreements": [
@@ -432,7 +437,8 @@
         "commodity": "General merchandise",
         "weightPounds": 24000,
         "postedRateCents": 200000,
-        "negotiation": []
+        "negotiation": [],
+        "pickupTimeZone": "America/Phoenix"
       }
     ],
     "agreements": [],
@@ -492,7 +498,8 @@
         "commodity": "General merchandise",
         "weightPounds": 24000,
         "postedRateCents": 200000,
-        "negotiation": []
+        "negotiation": [],
+        "pickupTimeZone": "America/Phoenix"
       }
     ],
     "agreements": [
@@ -581,7 +588,8 @@
             "kind": "Broker counter",
             "rateCents": 295000
           }
-        ]
+        ],
+        "pickupTimeZone": "America/Chicago"
       }
     ],
     "agreements": [],

@@ -11,6 +11,17 @@ export const loadSchema = z
     equipment: z.string().min(1),
     miles: z.number().int().positive(),
     pickupAt: z.iso.datetime(),
+    pickupTimeZone: z
+      .string()
+      .refine((value): boolean => {
+        try {
+          new Intl.DateTimeFormat("en-US", { timeZone: value });
+          return true;
+        } catch {
+          return false;
+        }
+      }, "Invalid pickup time zone")
+      .optional(),
     deliveryAt: z.iso.datetime(),
     commodity: z.string().min(1),
     weightPounds: z.number().int().positive(),

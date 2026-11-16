@@ -4,11 +4,11 @@ import { describeLoad } from "./readbacks";
 import { matchLocation } from "./locations";
 
 const routes = [
-  ["Dallas, TX", "Atlanta, GA", "Dry van", 780],
-  ["Memphis, TN", "Denver, CO", "Reefer", 1090],
-  ["Chicago, IL", "Columbus, OH", "Dry van", 360],
-  ["Phoenix, AZ", "Los Angeles, CA", "Flatbed", 375],
-  ["Savannah, GA", "Charlotte, NC", "Dry van", 250],
+  ["Dallas, TX", "Atlanta, GA", "Dry van", 780, "America/Chicago"],
+  ["Memphis, TN", "Denver, CO", "Reefer", 1090, "America/Chicago"],
+  ["Chicago, IL", "Columbus, OH", "Dry van", 360, "America/Chicago"],
+  ["Phoenix, AZ", "Los Angeles, CA", "Flatbed", 375, "America/Phoenix"],
+  ["Savannah, GA", "Charlotte, NC", "Dry van", 250, "America/New_York"],
 ] as const;
 
 export function addInventory(
@@ -26,9 +26,12 @@ export function addInventory(
   }
 
   for (let index = 0; index < 20; index++) {
-    const [origin, destination, equipment, miles] = routes[index % routes.length];
+    const [origin, destination, equipment, miles, pickupTimeZone] = routes[index % routes.length];
 
-    const pickupAt = new Date(Date.parse(now) + (index + 1) * 86_400_000).toISOString();
+    const day = new Date(now);
+    const pickupAt = new Date(
+      Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate() + index + 1, 15),
+    ).toISOString();
 
     const id = `${batchId}-${String(index + 1).padStart(2, "0")}`;
 
@@ -44,6 +47,7 @@ export function addInventory(
         equipment,
         miles,
         pickupAt,
+        pickupTimeZone,
         deliveryAt: new Date(Date.parse(pickupAt) + 86_400_000).toISOString(),
         commodity: equipment === "Reefer" ? "Chilled produce" : "Palletized goods",
         weightPounds: 32_000 + index * 100,

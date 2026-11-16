@@ -82,48 +82,50 @@ export function CallLayout({
           {notice}
         </p>
       )}
-      <div className="mt-8 grid min-w-0 items-start gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
+      <div className="mt-8 grid min-w-0 gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
         <CallerBriefing carriers={carriers} className="xl:min-h-[492px]" />
         <div className="grid min-w-0 overflow-hidden rounded-[10px] border border-border bg-surface md:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">
           {state === "ready" ? (
             <CallIntroduction onExploreSamples={onExploreSamples} className="min-h-[360px] md:min-h-[490px]" />
           ) : (
-            <div className="flex min-w-0 flex-col bg-muted md:h-[490px]">
-              <Transcript
-                entries={entries}
-                autoScroll
-                className="max-h-[490px] min-h-[360px] flex-1 rounded-none md:min-h-0"
-              />
-              {transcriptFailure && (
-                <div role="alert" className="px-6 pb-4 text-sm">
-                  <p>Could not load the saved transcript.</p>
-                  <button type="button" onClick={onRetryTranscript} className="underline">
-                    Retry saved transcript
-                  </button>
-                </div>
-              )}
-              {state === "ended" && (
-                <div className="space-y-2 px-6 pb-6">
-                  {analysis && (
-                    <p role="status" className="text-sm text-muted-foreground">
-                      {analysis.status === "complete"
-                        ? "Analysis complete. View the summary and sentiment in your dashboard."
-                        : analysis.status === "failed"
-                          ? "Analysis failed. An administrator can retry from the call details."
-                          : analysis.reason === "allowance"
-                            ? "Analysis is waiting for the monthly allowance to renew."
-                            : "Analysis pending. Your summary and sentiment will appear when complete."}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onViewCall}
-                    className="text-sm font-medium underline-offset-4 hover:underline"
-                  >
-                    View this call in dashboard →
-                  </button>
-                </div>
-              )}
+            <div className="relative flex min-w-0 flex-col bg-muted md:min-h-[490px]">
+              <div className="flex min-h-0 flex-col md:absolute md:inset-0">
+                <Transcript
+                  entries={entries}
+                  autoScroll
+                  className="max-h-[490px] min-h-[360px] flex-1 rounded-none md:max-h-none md:min-h-0"
+                />
+                {transcriptFailure && (
+                  <div role="alert" className="px-6 pb-4 text-sm">
+                    <p>Could not load the saved transcript.</p>
+                    <button type="button" onClick={onRetryTranscript} className="underline">
+                      Retry saved transcript
+                    </button>
+                  </div>
+                )}
+                {state === "ended" && (
+                  <div className="space-y-2 px-6 pb-6">
+                    {analysis && (
+                      <p role="status" className="text-sm text-muted-foreground">
+                        {analysis.status === "complete"
+                          ? "Analysis complete. View the summary and sentiment in your dashboard."
+                          : analysis.status === "failed"
+                            ? "Analysis failed. An administrator can retry from the call details."
+                            : analysis.reason === "allowance"
+                              ? "Analysis is waiting for the monthly allowance to renew."
+                              : "Analysis pending. Your summary and sentiment will appear when complete."}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={onViewCall}
+                      className="text-sm font-medium underline-offset-4 hover:underline"
+                    >
+                      View this call in dashboard →
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           <section

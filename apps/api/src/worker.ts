@@ -1,4 +1,7 @@
 import { observeOperation } from "@voice-freight/backend/telemetry";
+import { evaluateConfirmation, confirmationEvaluationSchema } from "@voice-freight/backend/confirmation-evaluations";
+import { classifyConfirmation } from "@voice-freight/backend/confirmation-provider";
+import { resetDailyQuotas } from "@voice-freight/backend/quotas";
 import { retryAnalysis } from "@voice-freight/backend/analysis";
 import { Hono } from "hono";
 import { checkDatabase } from "@voice-freight/backend";
@@ -23,6 +26,7 @@ import { reserveLiveCall, queryLiveStatus, queryTranscript, prepareBudgetFixture
 import { readState } from "@voice-freight/backend/repository";
 import { resolveUsageLimits } from "@voice-freight/backend/spending";
 import type { LiveBindings } from "./bindings";
+export { ConfirmationProvider } from "./confirmation-provider";
 export { AnalysisProvider } from "./analysis-provider";
 export { LiveCall } from "./live-call";
 
@@ -167,6 +171,7 @@ app.post("/api/live/calls", async (context): Promise<Response> => {
     input.operationId,
     new Date().toISOString(),
     resolveUsageLimits(context.env),
+    context.env.ENVIRONMENT,
   );
 
   const result = await observeOperation({ callId: id, function: "call" }, () =>
@@ -268,6 +273,23 @@ app.post("/api/local/seed", async (context): Promise<Response> => {
   const user = await resolveUser(context);
   requireCondition(user.role === "administrator", "forbidden", "Administrator access required.", 403);
   return context.json(await seedDatabase(context.env.DB));
+});
+
+app.post("/api/local/limits/reset", async (context): Promise<Response> => {
+  const user = await resolveUser(context);
+  z.strictObject({}).parse(await context.req.json());
+  return context.json(await resetDailyQuotas(context.env.DB, user.id, context.env));
+});
+
+app.post("/api/local/confirmations/evaluations", async (context): Promise<Response> => {
+  requireCondition(context.env.ENVIRONMENT === "local", "forbidden", "Local evaluations only.", 403);
+  const user = await resolveUser(context);
+  const input = confirmationEvaluationSchema.parse(await context.req.json());
+  return context.json(
+    await evaluateConfirmation(context.env.DB, user.id, input, (evidence, id) =>
+      classifyConfirmation(evidence, id, context.env),
+    ),
+  );
 });
 
 app.get("/api/health", async (context): Promise<Response> => {

@@ -9,6 +9,7 @@ export interface LiveBindings extends UsageConfiguration {
   OPENAI_API_KEY?: string;
   ANALYSIS_MODEL?: string;
   ANALYSIS_STUB_SCENARIO?: string;
+  CONFIRMATION_STUB_SCENARIO?: string;
   ENVIRONMENT: string;
   AUTH_MODE: string;
   LOCAL_ALLOWED_ORIGIN?: string;
