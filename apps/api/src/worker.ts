@@ -1,3 +1,4 @@
+import { queryAccessIdentity, revokeAccessSession } from "@voice-freight/backend/access";
 import { observeOperation } from "@voice-freight/backend/telemetry";
 import { evaluateConfirmation, confirmationEvaluationSchema } from "@voice-freight/backend/confirmation-evaluations";
 import { classifyConfirmation } from "@voice-freight/backend/confirmation-provider";
@@ -35,6 +36,16 @@ const app = new Hono<{ Bindings: Env & LiveBindings }>();
 app.use("/api/*", async (context, next): Promise<void> => {
   context.header("Cache-Control", "private, no-store");
   context.header("Vary", "Cookie");
+
+  if (context.env.ENVIRONMENT !== "local") {
+    requireCondition(
+      context.env.AUTH_MODE === "access" && new URL(context.req.url).origin === context.env.PUBLIC_ORIGIN,
+      "forbidden",
+      "Use the public application origin.",
+      403,
+    );
+    await resolveUser(context);
+  }
 
   if (!["GET", "HEAD"].includes(context.req.method)) {
     const origin = context.req.header("origin");
@@ -88,13 +99,39 @@ app.onError((error, context): Response => {
 async function resolveUser(
   context: import("hono").Context<{ Bindings: Env & LiveBindings }>,
 ): Promise<NonNullable<Awaited<ReturnType<typeof queryIdentity>>>> {
+  if (context.env.ENVIRONMENT !== "local" && context.env.AUTH_MODE === "access") {
+    return queryAccessIdentity(
+      context.env.DB,
+      context.req.header("Cf-Access-Jwt-Assertion") ?? getCookie(context, "CF_Authorization"),
+      context.env,
+    );
+  }
+
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
   const user = await queryIdentity(context.env.DB, getCookie(context, "freight_session"));
   requireCondition(user, "unauthenticated", "Sign in to continue.", 401);
   return user;
 }
 
+app.get("/api/login", async (context): Promise<Response> => {
+  await resolveUser(context);
+  const destination = context.req.query("returnTo") ?? "/call";
+  const url = new URL(destination, context.req.url);
+  requireCondition(
+    url.origin === new URL(context.req.url).origin && ["/call", "/dashboard", "/dashboard/call"].includes(url.pathname),
+    "invalid_input",
+    "Invalid return location.",
+    400,
+  );
+  url.searchParams.set("account", "signed-in");
+  return context.redirect(url.pathname + url.search, 303);
+});
+
 app.get("/api/identity", async (context): Promise<Response> => {
+  if (context.env.ENVIRONMENT !== "local") {
+    return context.json({ user: await resolveUser(context), identities: [] });
+  }
+
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
 
   return context.json({
@@ -121,6 +158,15 @@ app.post("/api/session", async (context): Promise<Response> => {
 });
 
 app.delete("/api/session", async (context): Promise<Response> => {
+  if (context.env.ENVIRONMENT !== "local") {
+    await revokeAccessSession(
+      context.env.DB,
+      context.req.header("Cf-Access-Jwt-Assertion") ?? getCookie(context, "CF_Authorization"),
+      context.env,
+    );
+    return context.json({ user: null });
+  }
+
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
   await signOut(context.env.DB, getCookie(context, "freight_session"));
   deleteCookie(context, "freight_session", { path: "/api" });
@@ -270,6 +316,7 @@ app.post("/api/inventory/restock", async (context): Promise<Response> => {
   return context.json(await restockInventory(context.env.DB, user.id, input.operationId));
 });
 app.post("/api/local/seed", async (context): Promise<Response> => {
+  checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);
   const user = await resolveUser(context);
   requireCondition(user.role === "administrator", "forbidden", "Administrator access required.", 403);
   return context.json(await seedDatabase(context.env.DB));

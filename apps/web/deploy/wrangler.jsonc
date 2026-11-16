@@ -2,10 +2,16 @@
   "$schema": "../../../node_modules/wrangler/config-schema.json",
   "name": "voice-freight-app",
   "compatibility_date": "2026-11-12",
-  "workers_dev": false,
+  "workers_dev": true,
+  "main": "worker.ts",
+  "vars": { "AUTH_MODE": "access", "PUBLIC_ORIGIN": "https://voice-freight-app.hadrian-dev.workers.dev" },
+  "services": [{ "binding": "API", "service": "voice-freight-api" }],
+  "env": { "local": { "vars": { "AUTH_MODE": "local" } } },
   "preview_urls": false,
   "assets": {
     "directory": "../dist/client",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api", "/api/*", "/auth/*"],
     "not_found_handling": "404-page",
   },
 }

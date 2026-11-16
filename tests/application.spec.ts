@@ -6,7 +6,7 @@ test("sign-in failure keeps public samples available", async ({ page }): Promise
   await page.goto(`${origin}/call`);
   await page.getByRole("button", { name: "Sign in to start a call" }).click();
   const dialog = page.getByRole("alertdialog", { name: "Local sign in" });
-  await expect(dialog.getByRole("alert")).toContainText("Local API unavailable");
+  await expect(dialog.getByRole("alert")).toContainText("Service unavailable");
   await dialog.getByRole("button", { name: "Close" }).click();
   await page.getByRole("link", { name: "Explore sample calls" }).click();
   await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();

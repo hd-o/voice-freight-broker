@@ -24,8 +24,8 @@ These rules are never optional and never overridden:
 IMPORTANT: Keep this section concisely up-to-date
 
 Local voice workflows, Decisions confirmation, queued post-call analysis, and
-text evaluations are implemented. Hosted Access and release validation remain
-in development.
+text evaluations, and hosted Access are implemented. Cloudflare release
+validation is in progress.
 
 ## Structure
 
@@ -75,6 +75,7 @@ Vite+ `vpr [command]` project commands:
 "db:check": Verify the local D1 database is reachable.
 "db:generate": Generate the backend Drizzle schema migrations.
 "db:migrate": Apply local D1 migrations to the development database.
+"deploy:hosted": Validate and deploy the hosted Cloudflare demo.
 "dev": Start the web and API development servers in parallel.
 "dev:reset:limits": Reset local daily call quotas for all users.
 "dev:stub:workers": Start the stub worker environment for local development.

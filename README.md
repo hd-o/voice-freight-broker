@@ -34,11 +34,12 @@ flowchart TD
   Tools["Tools worker<br/>WorkerEntrypoint"]
   Call["Call Durable Object"]
   Live["GPT Live + Responses"]
-  DB[("Shared local D1")]
+  DB[("Shared D1 per environment")]
   Queue["Analysis queue + dead-letter queue"]
 
   Browser -->|Development| Dev
-  Browser -->|Static preview| App
+  Browser -->|Hosted HTTPS or static preview| App
+  App -->|Private API service binding| API
   Dev -->|/api proxy| API
   API -->|Health check RPC| Tools
   API -->|Call lifecycle| Call

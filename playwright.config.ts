@@ -18,6 +18,7 @@ export default defineConfig({
       name: "public",
       testIgnore: [
         "identity.spec.ts",
+        "access.spec.ts",
         "isolation.spec.ts",
         "live.spec.ts",
         "analysis.spec.ts",
@@ -31,6 +32,7 @@ export default defineConfig({
       name: "integration",
       testMatch: [
         "identity.spec.ts",
+        "access.spec.ts",
         "isolation.spec.ts",
         "live.spec.ts",
         "analysis.spec.ts",

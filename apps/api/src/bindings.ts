@@ -12,6 +12,9 @@ export interface LiveBindings extends UsageConfiguration {
   CONFIRMATION_STUB_SCENARIO?: string;
   ENVIRONMENT: string;
   AUTH_MODE: string;
+  ACCESS_ISSUER?: string;
+  ACCESS_AUDIENCE?: string;
+  PUBLIC_ORIGIN?: string;
   LOCAL_ALLOWED_ORIGIN?: string;
   VOICE_PROVIDER?: string;
   VOICE_STUB_SCENARIO?: string;

@@ -28,6 +28,16 @@ export const Dashboard: Story = {
   },
 };
 
+export const HostedAdministrator: Story = {
+  args: { signedIn: true, accountName: "admin@example.com", activePage: "dashboard" },
+};
+
+export const HostedReviewer: Story = {
+  args: { signedIn: true, accountName: "reviewer@example.com" },
+};
+
+export const AccountLoading: Story = { args: { accountLoading: true } };
+
 export const Phone: Story = {
   globals: { viewport: { value: "xs", isRotated: false } },
 };

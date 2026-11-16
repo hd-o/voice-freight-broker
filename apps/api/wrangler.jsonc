@@ -1,4 +1,20 @@
 {
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "voice-freight-hosted",
+      "database_id": "98a8ca33-3448-4adc-a641-1faf10e9590c",
+      "migrations_dir": "../../packages/backend/migrations",
+    },
+  ],
+  "vars": {
+    "ENVIRONMENT": "hosted",
+    "AUTH_MODE": "access",
+    "PUBLIC_ORIGIN": "https://voice-freight-app.hadrian-dev.workers.dev",
+    "ACCESS_ISSUER": "https://green-thunder-b30c.cloudflareaccess.com",
+    "ACCESS_AUDIENCE": "38fbda103c6435f15a6b6575db2ebb21ea8d0c492fc3c3fb7c9a64b04237e92e",
+    "VOICE_PROVIDER": "openai",
+  },
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "voice-freight-api",
   "main": "src/worker.ts",
@@ -6,21 +22,37 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
-  "vars": {
-    "ENVIRONMENT": "hosted",
-    "AUTH_MODE": "access",
-    "VOICE_PROVIDER": "openai",
-  },
   "durable_objects": {
-    "bindings": [{ "name": "CALLS", "class_name": "LiveCall" }],
+    "bindings": [
+      {
+        "name": "CALLS",
+        "class_name": "LiveCall",
+      },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveCall"] }],
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["LiveCall"],
+    },
+  ],
   "observability": {
     "enabled": true,
-    "logs": { "enabled": true, "persist": true, "head_sampling_rate": 1, "invocation_logs": false },
-    "traces": { "enabled": true, "persist": true, "head_sampling_rate": 1 },
+    "logs": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": false,
+    },
+    "traces": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 1,
+    },
   },
-  "triggers": { "crons": ["* * * * *"] },
+  "triggers": {
+    "crons": ["* * * * *"],
+  },
   "env": {
     "local": {
       "name": "voice-freight-api",
@@ -30,7 +62,12 @@
         "VOICE_PROVIDER": "openai",
       },
       "durable_objects": {
-        "bindings": [{ "name": "CALLS", "class_name": "LiveCall" }],
+        "bindings": [
+          {
+            "name": "CALLS",
+            "class_name": "LiveCall",
+          },
+        ],
       },
       "d1_databases": [
         {
@@ -57,7 +94,12 @@
         "VOICE_STUB_SCENARIO": "workflow",
       },
       "durable_objects": {
-        "bindings": [{ "name": "CALLS", "class_name": "LiveCall" }],
+        "bindings": [
+          {
+            "name": "CALLS",
+            "class_name": "LiveCall",
+          },
+        ],
       },
       "d1_databases": [
         {
@@ -76,14 +118,6 @@
       ],
     },
   },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "voice-freight-local",
-      "database_id": "00000000-0000-0000-0000-000000000001",
-      "migrations_dir": "../../packages/backend/migrations",
-    },
-  ],
   "services": [
     {
       "binding": "TOOLS",

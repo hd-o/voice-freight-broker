@@ -20,6 +20,7 @@ const accountContext = createContext<{
 });
 const accountKey = "freight-local-session";
 const sessionLock = "freight-session-mutation";
+const accountChangeKey = "freight-account-change";
 
 export async function requestApi(
   path: string,
@@ -30,27 +31,30 @@ export async function requestApi(
   const response = await fetch(`/api${path}`, {
     method,
     credentials: "same-origin",
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
   }).catch((): never => {
-    throw new Error("Local API unavailable. Start the local workers and apply migrations, then try again.");
+    throw new Error("Service unavailable. Please try again shortly.");
   });
 
-  if (!response.ok) {
-    if (response.status === 401) {
+  if (!response.ok || response.redirected || !response.headers.get("Content-Type")?.includes("application/json")) {
+    if (response.status === 401 || response.status === 403 || response.redirected) {
       window.dispatchEvent(new Event("freight-session-expired"));
     }
 
     const error = errorSchema.safeParse(await response.json().catch((): null => null));
 
     throw new Error(
-      response.status === 401
+      response.status === 401 || response.redirected
         ? "Session expired. Sign in again."
         : error.success
           ? error.data.error.message
-          : "Local API unavailable. Start the local workers and apply migrations, then try again.",
+          : "Service unavailable. Please try again shortly.",
     );
   }
 
@@ -68,12 +72,17 @@ async function fetchIdentity(): Promise<{ user: Identity | null; identities: Ide
 
 export function AccountProvider({ children }: { children: ReactNode }): ReactElement {
   const cache = useQueryClient();
+  const [mode, setMode] = useState<"local" | "access">("local");
+  const [configuration, setConfiguration] = useState(false);
   const [session, setSession] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
   const [panel, setPanel] = useState(false);
   const [operation, setOperation] = useState<"sign-in" | "sign-out" | "waiting" | null>(null);
   const [notice, setNotice] = useState<string>();
   const mutation = useRef(false);
+  const previousIdentity = useRef<string | null>(null);
+  const loginReturn = useRef(false);
+  const [signedOut, setSignedOut] = useState(false);
   const pending = operation !== null;
 
   const progress =
@@ -86,29 +95,108 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
           : undefined;
 
   const identity = useQuery({
-    queryKey: ["identity", session],
-    queryFn: fetchIdentity,
-    enabled: !!session || panel,
+    queryKey: ["identity", mode, session],
+    queryFn: async (): ReturnType<typeof fetchIdentity> => {
+      if (mode === "local") {
+        return fetchIdentity();
+      }
+
+      const response = await fetch("/auth/identity", {
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          response.status === 403
+            ? "This account has not been invited to the demo."
+            : "Account service unavailable. Try again shortly.",
+        );
+      }
+
+      const data: { user: unknown } = await response.json();
+      return { user: data.user === null ? null : identitySchema.parse(data.user), identities: [] };
+    },
+    enabled: configuration && !signedOut && (mode === "access" || !!session || panel),
     retry: false,
     staleTime: 0,
     refetchOnWindowFocus: "always",
   });
 
-  const user = session ? (identity.data?.user ?? null) : null;
+  const user = !signedOut && !identity.isError && (mode === "access" || session) ? (identity.data?.user ?? null) : null;
+
+  useEffect((): void => {
+    const id = user?.id ?? null;
+
+    if (previousIdentity.current && previousIdentity.current !== id) {
+      cache.removeQueries({ queryKey: ["private", previousIdentity.current] });
+    }
+
+    previousIdentity.current = id;
+
+    if (mode === "access" && id && loginReturn.current) {
+      loginReturn.current = false;
+      localStorage.setItem(accountChangeKey, `signed-in:${crypto.randomUUID()}`);
+    }
+  }, [user?.id, mode, cache]);
 
   useEffect((): void | (() => void) => {
     setSession(localStorage.getItem(accountKey));
+    const location = new URL(window.location.href);
+    loginReturn.current ||= location.searchParams.get("account") === "signed-in";
+
+    if (loginReturn.current) {
+      location.searchParams.delete("account");
+      window.history.replaceState(window.history.state, "", location.pathname + location.search + location.hash);
+    }
+
     setRestored(true);
+    const controller = new AbortController();
+
+    void fetch("/auth/configuration", {
+      cache: "no-store",
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
+    })
+      .then(async (response): Promise<void> => {
+        if (response.ok && response.headers.get("Content-Type")?.includes("application/json")) {
+          const data: { mode?: string } = await response.json();
+          setMode(data.mode === "access" ? "access" : "local");
+          setSignedOut(
+            data.mode === "access" &&
+              !loginReturn.current &&
+              localStorage.getItem(accountChangeKey)?.startsWith("signed-out:") === true,
+          );
+        }
+      })
+      .catch((): void => {})
+      .finally((): void => {
+        if (!controller.signal.aborted) {
+          setConfiguration(true);
+        }
+      });
 
     function expireSession(): void {
       cache.clear();
       localStorage.removeItem(accountKey);
       setSession(null);
       setNotice("Session expired. Sign in again.");
+      void cache.resetQueries({ queryKey: ["identity"] });
     }
 
-    function synchronizeAccount(): void {
+    function synchronizeAccount(event: StorageEvent): void {
+      if (event.key !== accountKey && event.key !== accountChangeKey && event.key !== null) {
+        return;
+      }
+
       cache.clear();
+
+      if (event.key === accountChangeKey) {
+        setSignedOut(event.newValue?.startsWith("signed-out:") === true);
+      } else if (event.key === accountKey && event.newValue) {
+        setSignedOut(false);
+      }
+
       setSession(localStorage.getItem(accountKey));
     }
 
@@ -118,6 +206,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
       }
 
       cache.removeQueries({ queryKey: ["private"] });
+      setSignedOut(localStorage.getItem(accountChangeKey)?.startsWith("signed-out:") === true);
       void cache.resetQueries({ queryKey: ["identity"] });
       setSession(localStorage.getItem(accountKey));
     }
@@ -127,6 +216,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     window.addEventListener("pageshow", restoreAccount);
 
     return (): void => {
+      controller.abort();
       window.removeEventListener("freight-session-expired", expireSession);
       window.removeEventListener("storage", synchronizeAccount);
       window.removeEventListener("pageshow", restoreAccount);
@@ -177,7 +267,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     } catch (error) {
       setNotice(
         action === "sign-out"
-          ? "Private data cleared. Server sign-out failed; retry when the local API is available."
+          ? "Private data cleared. Server sign-out failed; retry when the service is available."
           : error instanceof Error
             ? error.message
             : "Sign-in failed.",
@@ -192,8 +282,10 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     await mutateSession("sign-in", async (): Promise<void> => {
       cache.removeQueries({ queryKey: ["private"] });
       await requestApi("/session", "POST", { userId: id });
+      setSignedOut(false);
       const marker = crypto.randomUUID();
       localStorage.setItem(accountKey, marker);
+      localStorage.setItem(accountChangeKey, `signed-in:${crypto.randomUUID()}`);
       cache.clear();
       setSession(marker);
       setPanel(false);
@@ -202,10 +294,22 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
 
   async function signOut(): Promise<void> {
     await mutateSession("sign-out", async (): Promise<void> => {
+      setSignedOut(true);
+      localStorage.setItem(accountChangeKey, `signed-out:${crypto.randomUUID()}`);
       setSession(null);
       localStorage.removeItem(accountKey);
       cache.clear();
-      await requestApi("/session", "DELETE");
+      try {
+        await requestApi("/session", "DELETE");
+      } finally {
+        // A lost revocation response must not leave a revoked Access cookie
+        // blocking the next login. Cloudflare cleanup is required either way.
+        if (mode === "access") {
+          window.location.assign(
+            `/cdn-cgi/access/logout?returnTo=${encodeURIComponent(window.location.origin + "/call")}`,
+          );
+        }
+      }
     });
   }
 
@@ -216,7 +320,15 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
 
     if (user) {
       void signOut();
+    } else if (mode === "access") {
+      void mutateSession("sign-in", async (): Promise<void> => {
+        cache.clear();
+        window.location.assign(
+          `/api/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+        );
+      });
     } else {
+      setSignedOut(false);
       setPanel(true);
       void identity.refetch();
     }
@@ -226,9 +338,9 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     <accountContext.Provider
       value={{
         user,
-        loading: !restored || (!!session && identity.isPending),
+        loading: !restored || !configuration || (!signedOut && (mode === "access" || !!session) && identity.isPending),
         pending,
-        notice: progress ?? notice,
+        notice: progress ?? notice ?? (mode === "access" ? identity.error?.message : undefined),
         performAccountAction,
       }}
     >

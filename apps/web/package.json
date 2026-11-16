@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vp dev --host 0.0.0.0 --port 3000",
     "build": "vp build",
-    "preview": "wrangler dev --local --config deploy/wrangler.jsonc --port 4173 --inspector-port 9230",
+    "preview": "wrangler dev --local --env local --config deploy/wrangler.jsonc --port 4173 --inspector-port 9230",
     "storybook": "storybook dev --host 0.0.0.0 --port 6006 --no-open --disable-telemetry",
     "build:storybook": "storybook build --disable-telemetry",
     "typecheck": "tsc --noEmit"
