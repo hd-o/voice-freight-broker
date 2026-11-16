@@ -19,6 +19,8 @@ export type LoadSummaryProps = {
   outcome: string;
   eligibility: string;
   carrier: string;
+  source: "Sample" | "Live";
+  dateAndDuration: string;
   mcNumber: string;
   selector: LoadSelectorProps;
   load: LoadDetails | null;
@@ -28,6 +30,8 @@ export function LoadSummary({
   outcome,
   eligibility,
   carrier,
+  source,
+  dateAndDuration,
   mcNumber,
   selector,
   load,
@@ -37,6 +41,13 @@ export function LoadSummary({
       aria-label="Call and load summary"
       className="min-w-0 rounded-[10px] border border-border bg-surface p-6 [overflow-wrap:anywhere]"
     >
+      <header className="mb-6 min-w-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-2xl font-semibold">{carrier}</h2>
+          <Badge>{source} Call</Badge>
+        </div>
+        <p className="mt-2 text-muted-foreground">{dateAndDuration}</p>
+      </header>
       <div className="flex flex-wrap gap-2">
         <Badge>{outcome}</Badge>
         <Badge>{eligibility}</Badge>

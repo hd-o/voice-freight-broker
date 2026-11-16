@@ -94,7 +94,6 @@ export const LongContent: Story = {
   args: {
     record: {
       ...record,
-      carrier: "Summit Transport and Regional Distribution Partners",
       loadSummary: {
         ...record.loadSummary,
         carrier: "Summit Transport and Regional Distribution Partners",

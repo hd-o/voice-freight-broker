@@ -1,6 +1,5 @@
 import { ApplicationLayout, type ApplicationLayoutProps } from "./application-layout";
 import { PageHeader } from "@/components/navigation/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadSummary, type LoadSummaryProps } from "@/components/dashboard/load-summary";
@@ -8,9 +7,6 @@ import { AnalysisSummary, type AnalysisSummaryProps } from "@/components/dashboa
 import { Transcript, type TranscriptEntry } from "@/components/call/transcript";
 
 export type CallDetail = {
-  carrier: string;
-  source: "Sample" | "Live";
-  dateAndDuration: string;
   loadSummary: LoadSummaryProps;
   analysis: AnalysisSummaryProps;
   transcript: readonly TranscriptEntry[];
@@ -55,31 +51,22 @@ export function CallDetailLayout({
         ) : (
           <section aria-label="Call details" className="space-y-6">
             {record ? (
-              <>
-                <header className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-semibold [overflow-wrap:anywhere]">{record.carrier}</h2>
-                    <Badge>{record.source} Call</Badge>
-                  </div>
-                  <p className="mt-2 text-muted-foreground">{record.dateAndDuration}</p>
-                </header>
-                <div className="grid items-stretch gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
-                  <LoadSummary {...record.loadSummary} />
-                  <div className="flex min-w-0 flex-col gap-4 rounded-[10px] border border-border bg-surface p-6">
-                    <AnalysisSummary {...record.analysis} />
-                    {record.transcriptComplete === false && (
-                      <p className="text-sm text-muted-foreground">
-                        Partial transcript · The connection ended before the conversation was complete.
-                      </p>
-                    )}
-                    <Transcript
-                      entries={record.transcript}
-                      emptyMessage="No transcript was recorded for this call."
-                      className="min-h-[300px] flex-1"
-                    />
-                  </div>
+              <div className="grid items-stretch gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
+                <LoadSummary {...record.loadSummary} />
+                <div className="flex min-w-0 flex-col gap-4 rounded-[10px] border border-border bg-surface p-6">
+                  <AnalysisSummary {...record.analysis} />
+                  {record.transcriptComplete === false && (
+                    <p className="text-sm text-muted-foreground">
+                      Partial transcript · The connection ended before the conversation was complete.
+                    </p>
+                  )}
+                  <Transcript
+                    entries={record.transcript}
+                    emptyMessage="No transcript was recorded for this call."
+                    className="min-h-[300px] flex-1"
+                  />
                 </div>
-              </>
+              </div>
             ) : (
               <div className="rounded-[10px] border border-border bg-surface p-8 text-center">
                 <h2 className="text-xl font-semibold">{unavailable ? "Call unavailable" : "No call selected"}</h2>

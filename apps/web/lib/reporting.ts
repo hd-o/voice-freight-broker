@@ -146,10 +146,9 @@ export function createCallDetail(
       : formatDuration((Date.parse(call.endedAt) - Date.parse(call.startedAt)) / 1000);
 
   return {
-    carrier: call.carrier?.name ?? "Unknown carrier",
-    source: call.source,
-    dateAndDuration: `${formatDate(call.startedAt)} · ${duration}`,
     loadSummary: {
+      source: call.source,
+      dateAndDuration: `${formatDate(call.startedAt)} · ${duration}`,
       outcome: describeOutcome(call),
       eligibility: `Carrier ${call.eligibility.toLowerCase()}`,
       carrier: call.carrier?.name ?? "Unknown carrier",

@@ -18,6 +18,8 @@ const meta = {
     outcome: "Agreement Reached",
     eligibility: "Carrier Eligible",
     carrier: "Summit Transport",
+    source: "Live",
+    dateAndDuration: "Nov 16, 2026, 06:56 PM UTC · 2m 46s",
     mcNumber: "123456",
     selector,
     load: firstLoad,
