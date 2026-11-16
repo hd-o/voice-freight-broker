@@ -74,7 +74,7 @@ it("claims once on concurrent delivery, settles one response, and projects analy
     status: "complete",
     attempts: 1,
     model: "gpt-6-luna",
-    promptVersion: "call-analysis-v1",
+    promptVersion: "call-analysis-v4",
   });
   expect(state.reservations[0]).toMatchObject({ kind: "analysis", settled: true, chargedMicrodollars: 141 });
   expect(state.spendingPeriods[0].spentMicrodollars).toBe(141);

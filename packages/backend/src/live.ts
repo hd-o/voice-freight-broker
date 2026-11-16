@@ -14,7 +14,7 @@ import { readState, transact } from "./repository";
 import {
   calculateAvailableMicrodollars,
   calculateCallReservationMicrodollars,
-  modelPrices,
+  fastModelPrices,
   resolvePeriod,
   usageLimits,
 } from "./spending";
@@ -114,7 +114,7 @@ export async function reserveLiveCall(
       reservedMicrodollars: callReservationMicrodollars,
       chargedMicrodollars: 0,
       settled: false,
-      prices: { ...modelPrices },
+      prices: { ...fastModelPrices },
     });
 
     state.liveSessions.push({

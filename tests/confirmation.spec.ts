@@ -25,7 +25,7 @@ test("preserves saved agreements when cancellation and replacement cannot be che
     { timeout: 15000 },
   );
   await page.getByRole("button", { name: "Hang up", exact: true }).click();
-  await page.getByRole("button", { name: "View this call in dashboard →" }).click();
+  await page.getByRole("link", { name: "View this call in dashboard →" }).click();
   await expect(page.getByText("Accepted agreement 1")).toBeVisible();
   await expect(page.getByText("Cancelled agreement 1")).toHaveCount(0);
   await expect(page.getByText("Replaced agreement 1")).toHaveCount(0);

@@ -12,14 +12,22 @@ export const modelPrices: ModelPrices = {
   outputMicrodollarsPerMillionTokens: 500_000,
 };
 
+export const fastModelPrices: ModelPrices = {
+  ...modelPrices,
+  version: "openai-fast-2026-11-16",
+  inputMicrodollarsPerMillionTokens: 200_000,
+  cachedInputMicrodollarsPerMillionTokens: 20_000,
+  outputMicrodollarsPerMillionTokens: 1_000_000,
+};
+
 export const maximumCallSeconds = 600;
 export const maximumResponseCount = 32;
 export const maximumOutputTokens = 2048;
 export const maximumContinuationCount = 4;
 // Reserve for the model's entire context, even though this demo uses much less.
 export const maximumResponseMicrodollars = Math.ceil(
-  (1_050_000 * modelPrices.inputMicrodollarsPerMillionTokens +
-    maximumOutputTokens * modelPrices.outputMicrodollarsPerMillionTokens) /
+  (1_050_000 * fastModelPrices.inputMicrodollarsPerMillionTokens +
+    maximumOutputTokens * fastModelPrices.outputMicrodollarsPerMillionTokens) /
     1_000_000,
 );
 

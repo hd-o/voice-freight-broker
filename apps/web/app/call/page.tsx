@@ -50,11 +50,7 @@ export default function CallPage(): React.JSX.Element {
       onNavigate={navigatePage}
       onAccountAction={account.performAccountAction}
       onExploreSamples={exploreSamples}
-      onViewCall={(): void => {
-        if (call.status) {
-          window.location.assign(`/dashboard/call?call=${encodeURIComponent(call.status.id)}`);
-        }
-      }}
+      callHref={call.status ? `/dashboard/call?call=${encodeURIComponent(call.status.id)}` : undefined}
       onStart={(): void => {
         void call.start();
       }}

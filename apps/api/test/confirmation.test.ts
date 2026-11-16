@@ -8,6 +8,7 @@ import { readState, transact } from "@voice-freight/backend/repository";
 import { seedDatabase } from "@voice-freight/backend/seeding";
 import { classifyConfirmation } from "@voice-freight/backend/confirmation-provider";
 import { prepareConfirmation } from "@voice-freight/backend/confirmation";
+import { createConfirmationFixture } from "@voice-freight/backend/confirmation-fixtures";
 import { monthlyLimitMicrodollars } from "@voice-freight/backend/spending";
 import type { CallContext } from "@voice-freight/contracts/business";
 import type {
@@ -587,6 +588,114 @@ it("binds evaluation replay to input, labels and inference versions while preser
   );
   expect(provider).toHaveBeenCalledTimes(1);
 });
+
+it.each([
+  ["dallas-fragmented-acceptance", "success", null],
+  ["dallas-fragmented-retry", "success", null],
+  ["dallas-fragmented-wrong-rate", "mismatch", "evidence_required"],
+  ["dallas-fragmented-conditional", "request_change", "confirmation_change"],
+] as const)(
+  "preserves recorded Live speech through the Decisions adapter: %s",
+  async (fixtureId, scenario, code): Promise<void> => {
+    const { context, quoteId } = await prepareCall();
+    const counter = await executeTool(env.DB, context, "evaluate_offer", {
+      invocationId: "first-offer",
+      arguments: { quoteId, amountCents: 250000 },
+    });
+    if (!("quoteId" in counter)) {
+      throw new Error("Expected counteroffer");
+    }
+
+    const quote = await executeTool(env.DB, context, "evaluate_offer", {
+      invocationId: "second-offer",
+      arguments: { quoteId: counter.quoteId, amountCents: 220000 },
+    });
+
+    if (!("quoteId" in quote)) {
+      throw new Error("Expected quote");
+    }
+
+    const fixture = createConfirmationFixture(fixtureId);
+
+    for (const fragment of fixture.fragments) {
+      await ingestProviderEvent(
+        env.DB,
+        context,
+        {
+          type: `session.${fragment.speaker === "broker" ? "output" : "input"}_transcript.delta`,
+          event_id: fragment.id,
+          start_ms: fragment.startMs,
+          end_ms: fragment.endMs,
+          delta: fragment.text,
+        },
+        speechClock,
+      );
+    }
+
+    const input = prepareConfirmation((await readState(env.DB)).state, context, "handoff", quote.quoteId, clock);
+    const canned = await createProvider(scenario)(input, "fixture");
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        model: "gpt-6-luna",
+        answers: [canned.answers!.readback, canned.answers!.intent],
+        usage: { input_tokens: 1000, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 } },
+      }),
+    );
+
+    try {
+      const provider: ConfirmationProvider = (snapshot, id) =>
+        classifyConfirmation(snapshot, id, { OPENAI_API_KEY: "test-key" });
+
+      if (code) {
+        await expect(confirm(context, quote.quoteId, provider)).rejects.toMatchObject({ code });
+      } else {
+        const result = await confirm(context, quote.quoteId, provider);
+        expect(await confirm(context, quote.quoteId, provider)).toEqual(result);
+      }
+
+      expect(request).toHaveBeenCalledTimes(1);
+      const body = request.mock.calls[0][1]?.body;
+
+      if (typeof body !== "string") {
+        throw new Error("Expected Decisions request");
+      }
+
+      const payload = JSON.parse(body);
+      const speech = JSON.parse(payload.input);
+      const retry = fixtureId === "dallas-fragmented-retry";
+      expect(speech.dialogue).toHaveLength(retry ? 4 : 3);
+      const readback = speech.dialogue
+        .slice(0, retry ? 2 : 1)
+        .map((entry: { text: string }): string => entry.text)
+        .join("");
+
+      expect(readback).toBe(
+        fixture.fragments
+          .filter((entry): boolean => fixture.readbackIds.includes(entry.id))
+          .map((entry): string => entry.text)
+          .join(""),
+      );
+      expect(readback).toContain(
+        `at ${fixtureId === "dallas-fragmented-wrong-rate" ? "2300" : "2200"}. Do you accept these terms?`,
+      );
+      expect(speech.dialogue.at(-1).text).toBe(retry ? " Thanks. I'll confirm again." : " Great, confirming that now.");
+      expect(speech).not.toHaveProperty("fragments");
+      const { state } = await readState(env.DB);
+      expect(state.transcriptFragments).toHaveLength(fixture.fragments.length);
+      expect(state.confirmationAttempts[0].evidence).toHaveLength(fixture.fragments.length);
+      expect(state.agreements).toHaveLength(code ? 0 : 1);
+
+      if (!code) {
+        expect(state.agreements[0].rateCents).toBe(220000);
+        expect(state.evidence.find((entry): boolean => entry.speaker === "broker")?.transcriptIds).toHaveLength(
+          fixture.readbackIds.length,
+        );
+      }
+    } finally {
+      request.mockRestore();
+    }
+  },
+);
 
 it.each([
   [

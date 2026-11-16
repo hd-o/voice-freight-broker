@@ -1,5 +1,45 @@
 @import "tailwindcss";
 
+@view-transition {
+  navigation: auto;
+}
+
+#main-content {
+  view-transition-name: page-content;
+}
+
+::view-transition-group(page-content),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(page-content) {
+  animation: page-fade-out 100ms ease-out both;
+}
+
+::view-transition-new(page-content) {
+  animation: page-fade-in 100ms ease-in both;
+}
+
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+
 @theme inline {
   --breakpoint-xs: 24.375rem;
   --font-sans: "Inter Variable", Inter, system-ui, sans-serif;

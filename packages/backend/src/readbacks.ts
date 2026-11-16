@@ -38,6 +38,15 @@ export function createReadback(
   action: "handoff" | "cancel" | "replace",
 ): string {
   const call = state.calls.find((entry): boolean => entry.id === callId)!;
+  return formatReadback(call.record.carrier!.name, describeLoad(state, callId, load).spokenLabel, rateCents, action);
+}
+
+export function formatReadback(
+  carrierName: string,
+  spokenLabel: string,
+  rateCents: number,
+  action: "handoff" | "cancel" | "replace",
+): string {
   const intent = action === "cancel" ? " cancellation" : action === "replace" ? " replacement" : "";
 
   const rate = (rateCents / 100).toLocaleString("en-US", {
@@ -45,5 +54,12 @@ export function createReadback(
     maximumFractionDigits: 2,
   });
 
-  return `Please confirm${intent}: ${call.record.carrier!.name}, ${describeLoad(state, callId, load).spokenLabel}, at ${rate} dollars. Do you accept these terms?`;
+  const question =
+    action === "cancel"
+      ? "Do you confirm cancelling this agreement?"
+      : action === "replace"
+        ? "Do you confirm replacing the existing agreement with these terms?"
+        : "Do you accept these terms?";
+
+  return `Please confirm${intent}: ${carrierName}, ${spokenLabel}, at ${rate} dollars. ${question}`;
 }

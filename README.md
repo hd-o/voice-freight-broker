@@ -2,7 +2,7 @@
 
 Browser-based freight brokerage simulation with voice calls using GPT Live
 
-## Getting started
+## Development
 
 Build a devcontainer, or run the setup script:
 
@@ -19,7 +19,9 @@ vpr db:migrate
 vpr dev
 ```
 
-Open <http://localhost:3000>
+Open <http://localhost:3000>.
+
+For evaluations, see [evals/README.md](evals/README.md).
 
 ## Architecture
 

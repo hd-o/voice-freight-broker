@@ -22,7 +22,7 @@ export type CallLayoutProps = CallControlsProps & {
   onNavigate: ApplicationLayoutProps["onNavigate"];
   onAccountAction: () => void;
   onExploreSamples: () => void;
-  onViewCall: () => void;
+  callHref?: string;
   onDismissNotification: () => void;
   onNotificationAction: () => void;
   notice?: string;
@@ -46,7 +46,7 @@ export function CallLayout({
   onNavigate,
   onAccountAction,
   onExploreSamples,
-  onViewCall,
+  callHref,
   onDismissNotification,
   onNotificationAction,
   notice,
@@ -118,13 +118,11 @@ export function CallLayout({
                               : "Analysis pending. Your summary and sentiment will appear when complete."}
                       </p>
                     )}
-                    <button
-                      type="button"
-                      onClick={onViewCall}
-                      className="text-sm font-medium underline-offset-4 hover:underline"
-                    >
-                      View this call in dashboard →
-                    </button>
+                    {callHref && (
+                      <a href={callHref} className="text-sm font-medium underline-offset-4 hover:underline">
+                        View this call in dashboard →
+                      </a>
+                    )}
                   </div>
                 )}
               </div>

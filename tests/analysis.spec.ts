@@ -25,7 +25,7 @@ test("failed queued analysis stays visible and an administrator retries the same
   await page.getByRole("button", { name: "Start call", exact: true }).click();
   await expect(page.getByText("Yes, confirmed.", { exact: true })).toHaveCount(4, { timeout: 15_000 });
   await page.getByRole("button", { name: "Hang up", exact: true }).click();
-  await page.getByRole("button", { name: "View this call in dashboard →" }).click();
+  await page.getByRole("link", { name: "View this call in dashboard →" }).click();
   const url = page.url();
   const analysis = page.getByRole("region", { name: "Call analysis" });
   await expect(analysis.getByText("Pending", { exact: true })).toBeVisible();

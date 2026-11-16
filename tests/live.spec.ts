@@ -177,8 +177,17 @@ test("a simulated multi-load call saves cancellation, replacement, transcript an
   await expect(page.getByRole("button", { name: "Unmute", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Unmute", exact: true }).click();
   await page.getByRole("button", { name: "Hang up", exact: true }).click();
-  await expect(page.getByRole("button", { name: "View this call in dashboard →" })).toBeVisible();
-  await page.getByRole("button", { name: "View this call in dashboard →" }).click();
+  const dashboardLink = page.getByRole("link", { name: "View this call in dashboard →" });
+  await expect(dashboardLink).toHaveAttribute("href", /^\/dashboard\/call\?call=[0-9a-f-]+$/);
+  const destination = await dashboardLink.getAttribute("href");
+
+  if (!destination) {
+    throw new Error("Dashboard link is missing its destination");
+  }
+
+  const dashboardUrl = new URL(destination, page.url()).href;
+  await dashboardLink.click();
+  await expect(page).toHaveURL(dashboardUrl);
   await expect(page.getByText("Live Call", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Call analysis" }).getByText("Complete", { exact: true })).toBeVisible({
     timeout: 15_000,
@@ -269,7 +278,7 @@ test("data channel failure polls transcripts without ending audio or losing unsa
   await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Hang up", exact: true }).click();
   await page.clock.runFor(1100);
-  await expect(page.getByRole("button", { name: "View this call in dashboard →" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View this call in dashboard →" })).toBeVisible();
 });
 
 test("status failure preserves unsaved WebRTC text until saved-transcript retry", async ({ page }): Promise<void> => {
@@ -373,7 +382,7 @@ test("a status failure ends the call without reviving disposed audio", async ({
   await page.waitForTimeout(2200);
   await expect(page.getByRole("button", { name: "Hang up", exact: true })).toHaveCount(0);
   expect(polls).toBe(1);
-  await page.getByRole("button", { name: "View this call in dashboard →" }).click();
+  await page.getByRole("link", { name: "View this call in dashboard →" }).click();
 
   await expect(
     page.getByRole("region", { name: "Call analysis" }).getByText("Interrupted", { exact: true }),

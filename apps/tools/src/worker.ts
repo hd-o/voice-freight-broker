@@ -33,6 +33,10 @@ interface AnalysisBindings {
 type ToolResponse = ToolResult | { error: { code: string; message: string } };
 
 export class Tools extends WorkerEntrypoint<Env & AnalysisBindings> {
+  protected resolveClock(): string {
+    return new Date().toISOString();
+  }
+
   async publishAnalysis(): Promise<void> {
     return publishAnalysis(this.env.DB, this.env.ANALYSIS_QUEUE);
   }
@@ -48,7 +52,7 @@ export class Tools extends WorkerEntrypoint<Env & AnalysisBindings> {
         callContextSchema.parse(context),
         name,
         invocation,
-        new Date().toISOString(),
+        this.resolveClock(),
         true,
         (input, attemptId) => this.env.CONFIRMATION_PROVIDER.classify(input, attemptId),
       );

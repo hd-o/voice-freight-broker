@@ -97,6 +97,7 @@ it("configures native Responses delegation with the requested model and browser 
     type: "responses",
     responses: {
       model: "gpt-6-luna",
+      service_tier: "priority",
       reasoning: { effort: "low" },
       parallel_tool_calls: false,
     },
@@ -213,17 +214,17 @@ it("accounts cumulative voice, response IDs, failures, fractional rounding and m
 
   expect(state.spendingPeriods).toEqual(
     expect.arrayContaining([
-      { id: "2026-11", spentMicrodollars: 8334 + 93 },
+      { id: "2026-11", spentMicrodollars: 8334 + 185 },
       { id: "2026-12", spentMicrodollars: 4167 },
     ]),
   );
 
-  expect(state.reservations[0].chargedMicrodollars).toBe(12594);
+  expect(state.reservations[0].chargedMicrodollars).toBe(12686);
   expect(state.providerUsage).toHaveLength(3);
   expect(state.providerUsage.every((entry): boolean => Number.isSafeInteger(entry.costMicrodollars))).toBe(true);
 
   expect(calculateAvailableMicrodollars(state, "2026-12-01T00:00:05Z")).toBe(
-    monthlyLimitMicrodollars - 4167 - (callReservationMicrodollars - 12594),
+    monthlyLimitMicrodollars - 4167 - (callReservationMicrodollars - 12686),
   );
 });
 

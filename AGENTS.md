@@ -23,8 +23,9 @@ These rules are never optional and never overridden:
 
 IMPORTANT: Keep this section concisely up-to-date
 
-Local voice workflows, Decisions confirmation, and queued post-call analysis
-are implemented. Hosted Access and release validation remain in development.
+Local voice workflows, Decisions confirmation, queued post-call analysis, and
+text evaluations are implemented. Hosted Access and release validation remain
+in development.
 
 ## Structure
 
@@ -80,6 +81,9 @@ Vite+ `vpr [command]` project commands:
 "dev:web": Start the web frontend in development mode.
 "dev:workers": Start the API worker in development mode.
 "eval:help": Show help for the evaluation tooling.
+"eval": Run workflow and confirmation suites through Promptfoo.
+"eval:view": Open the local Promptfoo results viewer.
+"eval:typecheck": Type-check the evaluation provider and workers.
 "format": Format the codebase.
 "lint": Lint the codebase and fix auto-fixable issues.
 "prepare": Prepare the workspace configuration without agent setup.
@@ -88,6 +92,7 @@ Vite+ `vpr [command]` project commands:
 "test": Run the CLI, tools build, and API test suite.
 "test:browser": Run the Playwright browser test suite.
 "test:cli": Run the CLI test suite.
+"test:eval": Run free Cloudflare evaluation harness integration checks.
 "typecheck": Run repository-wide TypeScript type checks.
 "@voice-freight/api#build": Dry-run deploy the API worker.
 "@voice-freight/api#build:test": Dry-run deploy the API worker for the local environment.

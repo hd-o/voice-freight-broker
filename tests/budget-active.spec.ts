@@ -22,8 +22,8 @@ test("ends a connected call with a clear allowance message", async ({ page, requ
     page.getByText("The shared spending allowance or call work limit was reached.", { exact: false }),
   ).toBeVisible({ timeout: 10_000 });
 
-  await expect(page.getByRole("button", { name: "View this call in dashboard →" })).toBeVisible();
-  await page.getByRole("button", { name: "View this call in dashboard →" }).click();
+  await expect(page.getByRole("link", { name: "View this call in dashboard →" })).toBeVisible();
+  await page.getByRole("link", { name: "View this call in dashboard →" }).click();
   await expect(page.getByText("Live Call", { exact: true })).toBeVisible();
   await expect(page.getByText("No transcript was recorded for this call.")).toBeVisible();
 });

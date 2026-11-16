@@ -164,7 +164,7 @@ export type SpendingPeriod = {
 
 export type Reservation = {
   dailyQuotaVersion?: string;
-  kind?: "call" | "analysis" | "confirmation";
+  kind?: "call" | "analysis" | "confirmation" | "evaluation";
   id: string;
   ownerId: string;
   operationId: string;

@@ -16,7 +16,7 @@ const meta = {
     onNavigate: fn(),
     onAccountAction: fn(),
     onExploreSamples: fn(),
-    onViewCall: fn(),
+    callHref: "/dashboard/call?call=example",
     onStart: fn(),
     onSignIn: fn(),
     onMute: fn(),

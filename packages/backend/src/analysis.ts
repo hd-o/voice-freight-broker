@@ -6,6 +6,8 @@ import { requireCondition } from "./model";
 import type { Analysis, AnalysisAttempt, State } from "./model";
 import { readState, transact } from "./repository";
 import { collectTranscript } from "./live";
+import { describeOutcome } from "@voice-freight/contracts/reporting";
+import { describeLoad } from "./readbacks";
 import {
   calculateAvailableMicrodollars,
   calculateResponseCostMicrodollars,
@@ -17,13 +19,14 @@ import {
 export const analysisJobSchema = z.strictObject({ callId: z.string().uuid(), version: z.number().int().positive() });
 export type AnalysisJob = z.infer<typeof analysisJobSchema>;
 export const maximumAnalysisAttempts = 3;
-export const analysisPromptVersion = "call-analysis-v1";
+export const analysisPromptVersion = "call-analysis-v4";
 export const analysisModel = "gpt-6-luna";
 export const maximumAnalysisOutputTokens = 2048;
-// UTF-8 input is bounded below 60 KB, including prompt/schema overhead. Reserving
-// 64K input tokens covers even text with poor token compression.
+// Include the constrained evidence-ID schema as well as the transcript and
+// instructions. One UTF-8 byte per token conservatively bounds the full body.
+export const maximumAnalysisInputBytes = 100_000;
 export const analysisReservationMicrodollars = calculateResponseCostMicrodollars(
-  65_536,
+  maximumAnalysisInputBytes,
   0,
   maximumAnalysisOutputTokens,
 );
@@ -35,7 +38,10 @@ export const analysisOutputSchema = z.strictObject({
 });
 
 export type AnalysisInput = {
-  call: Pick<Call, "carrier" | "eligibility" | "connection" | "outcomeReason" | "loads" | "agreements">;
+  call: Pick<Call, "carrier" | "eligibility" | "connection" | "agreements"> & {
+    outcome: ReturnType<typeof describeOutcome>;
+    loads: (Call["loads"][number] & { spokenLabel: string })[];
+  };
   transcript: { complete: boolean; entries: Call["transcript"]["entries"] };
 };
 
@@ -101,8 +107,8 @@ function collectInput(state: State, callId: string): AnalysisInput {
       carrier: snapshot.carrier,
       eligibility: snapshot.eligibility,
       connection: snapshot.connection,
-      outcomeReason: snapshot.outcomeReason,
-      loads: snapshot.loads,
+      outcome: describeOutcome(snapshot),
+      loads: snapshot.loads.map((load): AnalysisInput["call"]["loads"][number] => describeLoad(state, callId, load)),
       agreements: snapshot.agreements,
     },
     transcript: { complete: record.record.transcript.complete, entries: [] },

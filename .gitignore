@@ -167,5 +167,6 @@ test-results/
 !.dev.vars.example
 
 .local
+evals/results/
 .vscode/*
 !.vscode/extensions.json
