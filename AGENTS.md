@@ -21,6 +21,8 @@ These rules are never optional and never overridden:
 
 ## Project
 
+Keep the following concisely up-to-date if they change.
+
 This TypeScript monorepo uses pnpm workspaces and Vite+
 
 - Commit messages follow Conventional Commits.
@@ -32,7 +34,7 @@ This TypeScript monorepo uses pnpm workspaces and Vite+
 - `packages/contracts/`: shared types and Zod contracts
 - `tests/`: Playwright browser tests; Storybook is in web
 
-## Testing
+### Testing
 
 - Use `playwright-cli` for on-demand testing and debugging
 - Use `playwright` and `vitest` for integration testing
