@@ -104,9 +104,9 @@ export function verifyCarrier(state: State, callId: string, mcNumber: string, no
     verifiedAt: now,
     reason: {
       eligible: "Active property authority, permission to operate, and no out-of-service status.",
-      ineligible: "Fixture contains an explicit disqualifying status.",
-      unavailable: "Fixture evidence is missing or contradictory.",
-      not_found: "MC number is not in the synthetic fixture set.",
+      ineligible: "Carrier records contain a disqualifying status.",
+      unavailable: "Carrier verification information is missing or contradictory.",
+      not_found: "No carrier was found for this MC number.",
     }[status],
   };
 

@@ -5,7 +5,7 @@ import { createCall, finalizeCall } from "@voice-freight/backend/calls";
 import { executeTool } from "@voice-freight/backend/business";
 import { recordEvidence } from "@voice-freight/backend/evidence";
 import { queryDashboard, queryCall } from "@voice-freight/backend/reporting";
-import { readState } from "@voice-freight/backend/repository";
+import { readState, transact } from "@voice-freight/backend/repository";
 import { checkLocalAuthentication } from "@voice-freight/backend/identity";
 import type { CallContext, ToolName } from "@voice-freight/contracts/business";
 
@@ -638,4 +638,81 @@ it("uses equivalent REST and private RPC rules, validates arguments, origin, ses
   expect(JSON.stringify(await dashboard.json())).not.toMatch(/maximumCents|prices|fingerprint|readbackId/);
   expect((await request("/api/session", "DELETE", undefined, cookie)).status).toBe(200);
   expect((await request("/api/dashboard", "GET", undefined, cookie)).status).toBe(401);
+});
+
+it("matches city, state and combined locations consistently without selecting a load", async (): Promise<void> => {
+  const context = await openCall();
+  const memphis = await invoke(context, "search_loads", { origin: "Memphis" });
+  expect(memphis).toMatchObject({
+    loads: expect.arrayContaining([expect.objectContaining({ origin: "Memphis, TN" })]),
+  });
+
+  for (const origin of ["Tennessee", "TN", "  tEnNeSsEe  ", "Memphis Tennessee", "Memphis, TN", "MEMPHIS, T.N."]) {
+    expect(await invoke(context, "search_loads", { origin })).toEqual(memphis);
+  }
+
+  expect(await invoke(context, "search_loads", { destination: "Colorado" })).toEqual(memphis);
+  expect(await invoke(context, "search_loads", { destination: "Denver, CO" })).toEqual(memphis);
+
+  expect(
+    await invoke(context, "search_loads", {
+      origin: "Tennessee",
+      destination: "Colorado",
+      equipment: "reefer",
+      reference: "NS-seed-v1-07",
+    }),
+  ).toMatchObject({ loads: [expect.objectContaining({ id: "seed-v1-07" })] });
+
+  for (const query of [
+    { origin: "CA" },
+    { origin: "LA" },
+    { origin: "Tennessee", destination: "Texas" },
+    { origin: "Memphis, TX" },
+  ]) {
+    expect(await invoke(context, "search_loads", query)).toEqual({ loads: [] });
+  }
+
+  const before = (await readState(env.DB)).state;
+  expect(before.quotes).toHaveLength(0);
+  expect(before.negotiations).toHaveLength(0);
+  expect(before.calls.find((call): boolean => call.id === context.callId)?.selectedLoadId).toBeNull();
+
+  const quote = await select(context, "seed-v1-07");
+  await confirm(context, quote);
+  const remaining = await invoke(context, "search_loads", { origin: "TN" });
+  expect(remaining).toMatchObject({
+    loads: expect.not.arrayContaining([expect.objectContaining({ id: "seed-v1-07" })]),
+  });
+  expect(await invoke(context, "search_loads", { origin: "Tennessee" })).toEqual(remaining);
+});
+
+it("matches multiword states and DC without confusing city substrings or another state's suffix", async (): Promise<void> => {
+  await transact(env.DB, (state): void => {
+    const original = state.inventory[0];
+
+    for (const [index, origin] of ["Charleston, WV", "Richmond, VA", "Clinton, IA", "Washington, DC"].entries()) {
+      const id = `regional-${index}`;
+      state.inventory.push({
+        ...structuredClone(original),
+        id,
+        load: { ...structuredClone(original.load), id, reference: id, origin },
+      });
+    }
+  });
+
+  const context = await openCall();
+
+  for (const origin of ["West Virginia", "Charleston, West Virginia", "Charleston WV"]) {
+    expect(await invoke(context, "search_loads", { origin })).toMatchObject({
+      loads: [expect.objectContaining({ id: "regional-0" })],
+    });
+  }
+
+  expect(await invoke(context, "search_loads", { origin: "Virginia" })).toMatchObject({
+    loads: [expect.objectContaining({ id: "regional-1" })],
+  });
+  expect(await invoke(context, "search_loads", { origin: "IN" })).toEqual({ loads: [] });
+  expect(await invoke(context, "search_loads", { origin: "District of Columbia" })).toEqual(
+    await invoke(context, "search_loads", { origin: "D.C." }),
+  );
 });

@@ -102,7 +102,14 @@ it("configures native Responses delegation with the requested model and browser 
     },
   });
 
-  expect(session.delegation.responses.tools).toHaveLength(7);
+  expect(session.delegation.responses.tools).toHaveLength(8);
+  expect(session.delegation.responses.tools).toContainEqual(
+    expect.objectContaining({
+      name: "end_call",
+      parameters: expect.objectContaining({ properties: {}, additionalProperties: false }),
+    }),
+  );
+  expect(JSON.stringify(session)).not.toMatch(/synthetic|simulated|\bdemo\b/i);
   expect(session.client.data_channel.allowed_client_events).not.toContain("response.create");
   expect(JSON.stringify(session.delegation.responses.tools)).not.toContain("readbackId");
 });
@@ -967,4 +974,253 @@ it("uses fresh action-specific descriptions for replacement and cancellation", a
     "superseded",
     "cancelled",
   ]);
+});
+
+it("ends before verification after a bounded goodbye and ignores duplicate or late work", async (): Promise<void> => {
+  const { id, context, stub } = await openCall();
+  vi.useFakeTimers({ toFake: ["Date"] });
+
+  try {
+    const start = Date.now();
+    const ending = createFunctionEvent("end_call", {}, "goodbye", "farewell");
+    await stub.observeFixture(ending);
+    expect(await queryLiveStatus(env.DB, context)).toMatchObject({ state: "ending", endedAt: null });
+    const farewell = (await readState(env.DB)).state.liveSessions[0].farewell;
+    expect(farewell).toEqual({ deadline: new Date(start + 4000).toISOString(), delegationId: "farewell" });
+    const output = await stub.getFixtureOutput();
+    expect(output.filter((event): boolean => event.type === "response.item.create")).toHaveLength(1);
+    expect(output.filter((event): boolean => event.type === "response.create")).toHaveLength(1);
+    expect(output.some((event): boolean => event.type === "session.input_audio.mute")).toBe(true);
+
+    await stub.observeFixture({ ...ending, event_id: "replayed-ending" });
+    await stub.observeFixture(createFunctionEvent("end_call", {}, "another-goodbye", "another-delegation"));
+    await stub.observeFixture(createFunctionEvent("verify_carrier", { mcNumber: "123456" }));
+    expect(await stub.getFixtureOutput()).toEqual(output);
+    expect((await readState(env.DB)).state.liveSessions[0].farewell).toEqual(farewell);
+    await expect(
+      executeTool(env.DB, context, "verify_carrier", { invocationId: "late-rest", arguments: { mcNumber: "123456" } }),
+    ).rejects.toMatchObject({ code: "call_ended" });
+    expect((await readState(env.DB)).state.calls[0].verification).toBeNull();
+
+    await stub.observeFixture(createTranscriptEvent("output", "Thank you for calling. Goodbye.", 1000));
+    vi.setSystemTime(start + 3999);
+    await runDurableObjectAlarm(stub);
+    expect((await queryLiveStatus(env.DB, context)).state).toBe("ending");
+    vi.setSystemTime(start + 4000);
+    await runDurableObjectAlarm(stub);
+    expect((await queryLiveStatus(env.DB, context)).state).toBe("ended");
+    expect(await queryCall(env.DB, context)).toMatchObject({
+      connection: "Ended normally",
+      transcript: { complete: true, entries: [expect.objectContaining({ text: "Thank you for calling. Goodbye." })] },
+    });
+    expect((await readState(env.DB)).state.reservations.find((entry): boolean => entry.id === id)?.settled).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("rejects invalid end-call arguments without disconnecting", async (): Promise<void> => {
+  const { context, stub } = await openCall();
+  await stub.observeFixture(createFunctionEvent("end_call", { reason: "invented" }));
+  expect((await queryLiveStatus(env.DB, context)).state).toBe("connected");
+  expect(
+    (await stub.getFixtureOutput()).find((event): boolean => event.type === "response.item.create")?.json,
+  ).toContain("invalid_input");
+  await stub.observeFixture(createFunctionEvent("verify_carrier", { mcNumber: "123456" }));
+  expect((await readState(env.DB)).state.calls[0].verification?.status).toBe("eligible");
+});
+
+it("preserves the farewell deadline and saved agreements across a coordinator restart", async (): Promise<void> => {
+  const { context, stub } = await openCall();
+  await stub.runFixture("workflow");
+  const agreements = (await queryCall(env.DB, context)).agreements;
+  await stub.observeFixture(createFunctionEvent("end_call", {}));
+  const farewell = (await readState(env.DB)).state.liveSessions[0].farewell!;
+  vi.useFakeTimers({ toFake: ["Date"] });
+
+  try {
+    vi.setSystemTime(Date.parse(farewell.deadline) - 1000);
+    await runInDurableObject(stub, async (_instance, storage): Promise<void> => {
+      const restarted = new LiveCall(storage, env);
+      await restarted.alarm();
+      expect((await readState(env.DB)).state.liveSessions[0].farewell).toEqual(farewell);
+      vi.setSystemTime(Date.parse(farewell.deadline));
+      await restarted.alarm();
+    });
+
+    expect(await queryCall(env.DB, context)).toMatchObject({
+      connection: "Ended normally",
+      agreements,
+      transcript: { complete: true },
+    });
+    expect((await queryLiveStatus(env.DB, context)).state).toBe("ended");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("bypasses the goodbye window for manual hang-up and spending limits", async (): Promise<void> => {
+  const first = await openCall();
+  await first.stub.observeFixture(createFunctionEvent("end_call", {}));
+  await first.stub.end();
+  expect((await queryLiveStatus(env.DB, first.context)).state).toBe("ended");
+  expect((await readState(env.DB)).state.liveSessions[0].farewell).toBeUndefined();
+
+  const second = await openCall();
+  await second.stub.observeFixture(createFunctionEvent("end_call", {}));
+  await transact(env.DB, (state): void => {
+    state.reservations.find((entry): boolean => entry.id === second.id)!.reservedMicrodollars =
+      shutdownHeadroomMicrodollars;
+  });
+
+  await runDurableObjectAlarm(second.stub);
+  expect(await queryLiveStatus(env.DB, second.context)).toMatchObject({
+    state: "ended",
+    notice: expect.stringContaining("spending allowance"),
+  });
+});
+
+it("keeps usage and concurrency unconfirmed when farewell closure is not acknowledged", async (): Promise<void> => {
+  const { id, context, stub } = await openCall();
+  await stub.observeFixture(createFunctionEvent("end_call", {}));
+  const farewell = (await readState(env.DB)).state.liveSessions[0].farewell!;
+  vi.useFakeTimers({ toFake: ["Date"] });
+
+  try {
+    vi.setSystemTime(Date.parse(farewell.deadline));
+    await runInDurableObject(stub, async (_instance, storage): Promise<void> => {
+      const restarted = new LiveCall(storage, { ...env, VOICE_PROVIDER: "openai", OPENAI_API_KEY: undefined });
+      await storage.storage.put("recoveryAttempts", 2);
+      await restarted.alarm();
+      expect((await queryLiveStatus(env.DB, context)).state).toBe("ending");
+      vi.setSystemTime(Date.now() + 11_000);
+      await restarted.alarm();
+    });
+
+    expect((await queryLiveStatus(env.DB, context)).state).toBe("ended");
+    expect(await queryCall(env.DB, context)).toMatchObject({
+      connection: "Ended normally",
+      transcript: { complete: false },
+    });
+    const { state } = await readState(env.DB);
+    expect(state.reservations.find((entry): boolean => entry.id === id)?.settled).toBe(false);
+    expect(state.liveSessions[0].providerClosed).toBe(false);
+    await expect(reserveLiveCall(env.DB, "reviewer", crypto.randomUUID())).rejects.toMatchObject({
+      code: "concurrent_limit",
+    });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("projects fresh and legacy business results for voice without changing saved provenance or notes", async (): Promise<void> => {
+  const { context, stub } = await openCall();
+  const verification = createFunctionEvent("verify_carrier", { mcNumber: "123456" });
+  await stub.observeFixture(verification);
+  await transact(env.DB, (state): void => {
+    state.inventory[0].load.commodity = "Palletized demo goods";
+    state.inventory[0].load.notes = "Synthetic inventory. Simulated handoff only.";
+    state.inventory[5].load.notes = "Call the receiver before arrival.";
+  });
+
+  await stub.observeFixture(createFunctionEvent("search_loads", { origin: "Texas" }));
+  const output = (await stub.getFixtureOutput()).filter((event): boolean => event.type === "response.item.create");
+  expect(output.map((event): string => event.json).join(" ")).not.toMatch(/synthetic|simulated|\bdemo\b|fixture/i);
+  expect(output[1].json).toContain("Call the receiver before arrival.");
+  expect(output[1].json).toContain("Palletized goods");
+  const before = (await readState(env.DB)).state;
+  expect(before.inventory[0].load.notes).toBe("Synthetic inventory. Simulated handoff only.");
+  expect(before.calls[0].verification?.source).toBe("fixture");
+
+  await stub.runFixture("workflow");
+  const receipt = (await readState(env.DB)).state.receipts.find(
+    (entry): boolean => "result" in entry && "agreementId" in entry.result && "cancellationReadback" in entry.result,
+  )!;
+
+  await transact(env.DB, (state): void => {
+    const saved = state.receipts.find((entry): boolean => entry.id === receipt.id)!;
+
+    if (!("result" in saved)) {
+      throw new Error("Expected a successful saved agreement");
+    }
+
+    Object.assign(saved.result, { handoff: "simulated" });
+  });
+
+  const fingerprint: { name: string; arguments: unknown } = JSON.parse(receipt.fingerprint);
+  const invocationId = receipt.id.slice(context.callId.length + 1);
+
+  await transact(env.DB, (state): void => {
+    const session = state.liveSessions[0];
+    session.submittedCallIds = session.submittedCallIds.filter((entry): boolean => entry !== invocationId);
+  });
+
+  await stub.observeFixture(createFunctionEvent(fingerprint.name, fingerprint.arguments, invocationId));
+  expect((await stub.getFixtureOutput()).at(-2)?.json).not.toContain("simulated");
+  expect((await readState(env.DB)).state.receipts.find((entry): boolean => entry.id === receipt.id)).toMatchObject({
+    result: { handoff: "simulated" },
+  });
+});
+
+it("sends provider closure after the goodbye window and waits for final usage before releasing the socket", async (): Promise<void> => {
+  const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID());
+  const context = { userId: "reviewer", callId: id };
+  const stub = env.CALLS.get(env.CALLS.idFromName(id));
+
+  await runInDurableObject(stub, async (_instance, storage): Promise<void> => {
+    const pair = new WebSocketPair();
+    const provider = pair[0];
+    provider.accept();
+    const messages: { type: string }[] = [];
+    provider.addEventListener("message", (event): void => {
+      messages.push(JSON.parse(String(event.data)));
+    });
+
+    const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input.toString();
+
+      if (url.endsWith("/attach")) {
+        return new Response(null, { status: 101, webSocket: pair[1] });
+      }
+
+      return Response.json({ session: { id: "provider-farewell" }, transport: { sdp: "provider-answer" } });
+    });
+
+    vi.useFakeTimers({ toFake: ["Date"] });
+
+    try {
+      const coordinator = new LiveCall(storage, { ...env, VOICE_PROVIDER: "openai", OPENAI_API_KEY: "test-key" });
+      await coordinator.start(context, "offer");
+      provider.send(JSON.stringify(createFunctionEvent("end_call", {}, "provider-end", "provider-delegation")));
+      await expect.poll(async (): Promise<string> => (await queryLiveStatus(env.DB, context)).state).toBe("ending");
+      await expect
+        .poll((): number => messages.filter((event): boolean => event.type === "response.create").length)
+        .toBe(1);
+      expect(messages.some((event): boolean => event.type === "session.close")).toBe(false);
+      const farewell = (await readState(env.DB)).state.liveSessions[0].farewell!;
+      vi.setSystemTime(Date.parse(farewell.deadline));
+      await coordinator.alarm();
+      await expect.poll((): boolean => messages.some((event): boolean => event.type === "session.close")).toBe(true);
+      expect(provider.readyState).toBe(WebSocket.OPEN);
+      expect((await queryLiveStatus(env.DB, context)).state).toBe("ending");
+      expect((await readState(env.DB)).state.reservations[0].settled).toBe(false);
+      provider.send(
+        JSON.stringify({
+          type: "session.closed",
+          event_id: "provider-closed",
+          reason: "close_requested",
+          usage: { seconds: 4 },
+        }),
+      );
+      await expect.poll(async (): Promise<string> => (await queryLiveStatus(env.DB, context)).state).toBe("ended");
+      const { state } = await readState(env.DB);
+      expect(state.liveSessions[0]).toMatchObject({ providerClosed: true, usageConfirmed: true, voiceSeconds: 4 });
+      expect(state.reservations[0].settled).toBe(true);
+      expect((await queryCall(env.DB, context)).connection).toBe("Ended normally");
+    } finally {
+      request.mockRestore();
+      vi.useRealTimers();
+      provider.close();
+    }
+  });
 });

@@ -12,7 +12,8 @@ import {
   maximumResponseCount,
   shutdownHeadroomMicrodollars,
 } from "@voice-freight/backend/spending";
-import { createSessionConfiguration, greeting } from "./live-configuration";
+import { createSessionConfiguration, greeting, voiceToolArguments, voiceToolNameSchema } from "./live-configuration";
+import { projectVoiceResult } from "./voice-results";
 import type { LiveBindings } from "./bindings";
 
 const sessionResponseSchema = z.object({
@@ -26,7 +27,7 @@ const functionEventSchema = z.object({
     item: z.object({
       type: z.literal("function_call"),
       call_id: z.string(),
-      name: toolNameSchema,
+      name: voiceToolNameSchema,
       arguments: z.string(),
     }),
   }),
@@ -401,14 +402,16 @@ export class LiveCall extends DurableObject<LiveBindings> {
       const invocation = functionEvent.data;
       const pendingId = `pending:${invocation.event.item.call_id}`;
 
-      if ((await this.readSession()).session.submittedCallIds.includes(invocation.event.item.call_id)) {
+      const { session } = await this.readSession();
+
+      if (session.state !== "connected" || session.submittedCallIds.includes(invocation.event.item.call_id)) {
         await this.ctx.storage.delete(pendingId);
         return;
       }
 
       await this.ctx.storage.put(pendingId, invocation);
 
-      if (this.isStub()) {
+      if (this.isStub() || invocation.event.item.name === "end_call") {
         await this.executeFunction(invocation);
       } else {
         // Let transcript fragments following the tool event arrive before checking
@@ -430,6 +433,41 @@ export class LiveCall extends DurableObject<LiveBindings> {
         await this.continueResponse(z.string().parse(event.delegation_id));
       }
     }
+  }
+
+  private async beginFarewell(
+    delegationId: string,
+    input: unknown,
+  ): Promise<{ status: "ending"; message: string } | { error: { code: string; message: string } }> {
+    if (!voiceToolArguments.end_call.safeParse(input).success) {
+      return { error: { code: "invalid_input", message: "end_call takes no arguments." } };
+    }
+
+    const { call, session } = await this.readSession();
+
+    const deadline = new Date(
+      Math.min(
+        Date.now() + 4000,
+        Date.parse(call.record.startedAt) + session.maximumCallSeconds * 1000,
+        Date.parse(session.lastInputAt) + session.inactivitySeconds * 1000,
+      ),
+    ).toISOString();
+
+    await this.updateSession((current): void => {
+      requireCondition(!this.closing && current.state === "connected", "call_ended", "This call is no longer active.");
+
+      current.state = "ending";
+      current.farewell = { deadline, delegationId };
+    });
+
+    await this.ctx.storage.setAlarm(Math.min(Date.parse(deadline), Date.now() + 1000));
+
+    await this.send({ type: "session.input_audio.mute", event_id: crypto.randomUUID() });
+
+    return {
+      status: "ending",
+      message: "Say only: Thank you for calling. Goodbye.",
+    };
   }
 
   private async executeFunction(invocation: z.infer<typeof functionEventSchema>): Promise<void> {
@@ -456,14 +494,20 @@ export class LiveCall extends DurableObject<LiveBindings> {
       argumentsData = null;
     }
 
-    const result = await this.env.TOOLS.executeObserved(this.context!, item.name, {
-      invocationId: item.call_id,
-      arguments: argumentsData,
-    });
+    const result =
+      item.name === "end_call"
+        ? await this.beginFarewell(delegationId, argumentsData)
+        : await this.env.TOOLS.executeObserved(this.context!, item.name, {
+            invocationId: item.call_id,
+            arguments: argumentsData,
+          });
 
     const current = await this.readSession();
 
-    if (current.session.state !== "connected") {
+    if (
+      current.session.state !== "connected" &&
+      !(item.name === "end_call" && current.session.farewell?.delegationId === delegationId)
+    ) {
       return;
     }
 
@@ -473,7 +517,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
       item: {
         type: "function_call_output",
         call_id: item.call_id,
-        output: JSON.stringify(result),
+        output: JSON.stringify(projectVoiceResult(result)),
       },
     });
 
@@ -487,6 +531,12 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   private async continueResponse(delegationId: string): Promise<void> {
+    const { session } = await this.readSession();
+
+    if (this.closing || (session.state !== "connected" && session.farewell?.delegationId !== delegationId)) {
+      return;
+    }
+
     const pending = await this.ctx.storage.list({ prefix: "pending:" });
 
     if (
@@ -495,7 +545,6 @@ export class LiveCall extends DurableObject<LiveBindings> {
       return;
     }
 
-    const { session } = await this.readSession();
     const count = session.continuations[delegationId] ?? 0;
     // A continuation belongs to the batch of newly submitted results, not every
     // repeated response.completed event. Persist that batch before sending.
@@ -530,7 +579,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
   private async checkAllowance(): Promise<boolean> {
     const { state, session } = await this.readSession();
 
-    if (this.closing || session.state !== "connected") {
+    if (this.closing || (session.state !== "connected" && !session.farewell)) {
       return false;
     }
 
@@ -562,7 +611,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
     try {
       const { session } = await this.readSession();
 
-      if (session.state === "ended" || session.state === "ending") {
+      if (session.state === "ended" || (session.state === "ending" && !session.farewell)) {
         return;
       }
 
@@ -573,6 +622,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
         current.state = "ending";
         current.notice = notice;
         current.closingAt = now;
+        delete current.farewell;
 
         if (connection !== "Ended normally") {
           current.gap = true;
@@ -623,15 +673,18 @@ export class LiveCall extends DurableObject<LiveBindings> {
         completeCall(
           state,
           this.context!,
-          { connection: "Interrupted", transcriptComplete: false },
+          { connection: current.farewell ? "Ended normally" : "Interrupted", transcriptComplete: false },
           new Date().toISOString(),
         );
 
-        current.gap = true;
-        current.notice ??= "The voice session closed unexpectedly. Your partial call is saved.";
+        if (!current.farewell) {
+          current.gap = true;
+          current.notice ??= "The voice session closed unexpectedly. Your partial call is saved.";
+        }
       }
 
       current.state = "ended";
+      delete current.farewell;
       const complete = current.providerClosed && !current.gap;
       call.record.transcript.complete = complete;
 
@@ -664,6 +717,22 @@ export class LiveCall extends DurableObject<LiveBindings> {
       }
 
       if (session.state === "ended") {
+        return;
+      }
+
+      if (session.state === "ending" && session.farewell) {
+        if (!(await this.checkAllowance())) {
+          return;
+        }
+
+        const deadline = Date.parse(session.farewell.deadline);
+
+        if (Date.now() >= deadline) {
+          await this.end();
+        } else {
+          await this.ctx.storage.setAlarm(Math.min(deadline, Date.now() + 1000));
+        }
+
         return;
       }
 

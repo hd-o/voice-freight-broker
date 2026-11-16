@@ -21,7 +21,13 @@ export function authorizeCall(state: State, context: CallContext, active = true)
   );
 
   if (active) {
-    requireCondition(call.record.endedAt === null, "call_ended", "This call has ended.");
+    const session = state.liveSessions.find((entry): boolean => entry.id === call.id);
+
+    requireCondition(
+      call.record.endedAt === null && session?.state !== "ending" && session?.state !== "ended",
+      "call_ended",
+      "This call has ended.",
+    );
   }
 
   return call;

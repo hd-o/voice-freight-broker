@@ -1,6 +1,7 @@
 import type { State } from "./model";
 import { requireCondition } from "./model";
 import { describeLoad } from "./readbacks";
+import { matchLocation } from "./locations";
 
 const routes = [
   ["Dallas, TX", "Atlanta, GA", "Dry van", 780],
@@ -44,11 +45,10 @@ export function addInventory(
         miles,
         pickupAt,
         deliveryAt: new Date(Date.parse(pickupAt) + 86_400_000).toISOString(),
-        commodity: equipment === "Reefer" ? "Chilled produce" : "Palletized demo goods",
+        commodity: equipment === "Reefer" ? "Chilled produce" : "Palletized goods",
         weightPounds: 32_000 + index * 100,
         postedRateCents: 200_000 + index * 5000,
         negotiation: [],
-        notes: "Synthetic inventory. Simulated handoff only.",
         pieces: 20,
         dimensions: "48 × 40 × 48 in per pallet",
       },
@@ -91,8 +91,8 @@ export function searchLoads(
     .filter(
       (load): boolean =>
         (!query.reference || normalize(load.reference) === normalize(query.reference)) &&
-        (!query.origin || normalize(load.origin).includes(normalize(query.origin))) &&
-        (!query.destination || normalize(load.destination).includes(normalize(query.destination))) &&
+        (!query.origin || matchLocation(load.origin, query.origin)) &&
+        (!query.destination || matchLocation(load.destination, query.destination)) &&
         (!query.equipment || normalize(load.equipment) === normalize(query.equipment)),
     )
     .slice(0, 5);

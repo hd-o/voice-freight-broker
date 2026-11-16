@@ -28,7 +28,6 @@ export function confirmHandoff(
   rateCents: number;
   version: number;
   status: string;
-  handoff: string;
 } {
   const { call, quote } = requireQuote(state, callId, quoteId);
   requireEvidence(state, callId, "handoff", quoteId, evidence);
@@ -89,7 +88,6 @@ export function confirmHandoff(
     rateCents: agreement.rateCents,
     version: agreement.version,
     status: "effective",
-    handoff: "simulated",
   };
 }
 

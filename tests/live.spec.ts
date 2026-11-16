@@ -302,3 +302,58 @@ test("a status failure ends the call without reviving disposed audio", async ({
     page.getByRole("region", { name: "Call analysis" }).getByText("Interrupted", { exact: true }),
   ).toBeVisible();
 });
+
+test("a broker-ended call preserves farewell playback, stops the microphone, and retrieves the saved transcript", async ({
+  page,
+}): Promise<void> => {
+  const hangups: string[] = [];
+  page.on("request", (request): void => {
+    if (request.url().endsWith("/hangup")) {
+      hangups.push(request.url());
+    }
+  });
+
+  const scenario = await simulateVoice(page);
+  const transcript = page.getByRole("region", { name: "Transcript", exact: true });
+  await sendTranscript(page, "Live greeting.");
+  scenario.state = "ending";
+  await expect(page.getByRole("button", { name: "Saving call…", exact: true })).toBeVisible();
+
+  expect(
+    await page.evaluate(
+      (): { enabled: boolean; state: MediaStreamTrackState; peerClosed: boolean; audioPaused: boolean } => {
+        const resources = window.voiceResources;
+        const microphone = resources.microphone.getAudioTracks()[0];
+        return {
+          enabled: microphone.enabled,
+          state: microphone.readyState,
+          peerClosed: resources.peerClosed,
+          audioPaused: resources.audioPaused,
+        };
+      },
+    ),
+  ).toEqual({ enabled: false, state: "live", peerClosed: false, audioPaused: false });
+
+  await sendTranscript(page, "Thank you for calling. Goodbye.", "farewell");
+  await expect(transcript).toContainText("Thank you for calling. Goodbye.");
+  scenario.fragments = [
+    { id: "voice-test:farewell", speaker: "broker", text: "Saved farewell. Goodbye.", startMs: 1000, endMs: 1500 },
+  ];
+  scenario.state = "ended";
+  await page.evaluate((): void => {
+    window.dispatchEvent(new Event("voice-close"));
+  });
+  await expect(page.getByRole("button", { name: "Clear and Start New Call", exact: true })).toBeVisible();
+  await expect(transcript).toContainText("Saved farewell. Goodbye.");
+  await expect(transcript).not.toContainText("Live greeting.");
+  expect(scenario.requests).toBeGreaterThan(0);
+  expect(hangups).toEqual([]);
+
+  expect(
+    await page.evaluate((): { state: MediaStreamTrackState; peerClosed: boolean; audioPaused: boolean } => ({
+      state: window.voiceResources.microphone.getAudioTracks()[0].readyState,
+      peerClosed: window.voiceResources.peerClosed,
+      audioPaused: window.voiceResources.audioPaused,
+    })),
+  ).toEqual({ state: "ended", peerClosed: true, audioPaused: true });
+});

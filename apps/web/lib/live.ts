@@ -193,6 +193,12 @@ export function useLiveCall(userId?: string): {
           ),
         );
 
+        if (result.state === "ending") {
+          session.current.stream?.getAudioTracks().forEach((track): void => {
+            track.enabled = false;
+          });
+        }
+
         if (result.state === "ended") {
           window.clearInterval(timer);
           void session.current.transcript?.complete();

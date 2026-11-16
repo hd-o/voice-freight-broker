@@ -165,6 +165,7 @@ export type ProviderUsage = {
 };
 
 export type LiveSession = {
+  farewell?: { deadline: string; delegationId: string };
   closingAt: string | null;
   maximumCallSeconds: number;
   inactivitySeconds: number;
