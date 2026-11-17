@@ -85,38 +85,6 @@
         },
       ],
     },
-    "stub": {
-      "name": "voice-freight-api-stub",
-      "vars": {
-        "ENVIRONMENT": "local",
-        "AUTH_MODE": "local",
-        "VOICE_PROVIDER": "stub",
-        "VOICE_STUB_SCENARIO": "workflow",
-      },
-      "durable_objects": {
-        "bindings": [
-          {
-            "name": "CALLS",
-            "class_name": "LiveCall",
-          },
-        ],
-      },
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "voice-freight-stub",
-          "database_id": "00000000-0000-0000-0000-000000000002",
-          "migrations_dir": "../../packages/backend/migrations",
-        },
-      ],
-      "services": [
-        {
-          "binding": "TOOLS",
-          "service": "voice-freight-tools-stub",
-          "entrypoint": "Tools",
-        },
-      ],
-    },
   },
   "services": [
     {

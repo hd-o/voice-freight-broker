@@ -16,7 +16,6 @@
     "deploy:roles": "vpr deploy:hosted --roles",
     "deploy": "vpr cf:types && vpr deploy:hosted",
     "dev:reset:limits": "pnpm --silent cli dev limits reset",
-    "dev:stub:workers": "bash scripts/start-stub.sh",
     "dev:web": "vpr @voice-freight/web#dev",
     "dev:workers": "vpr @voice-freight/api#dev",
     "dev": "vpr --parallel --filter @voice-freight/web --filter @voice-freight/api dev",

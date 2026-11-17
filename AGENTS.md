@@ -121,7 +121,6 @@ Vite+ `vpr [command]` project commands:
 "deploy:prepare": Generate hosted Wrangler configuration from Terraform.
 "deploy:roles": Synchronize hosted application roles.
 "dev:reset:limits": Reset local daily call quotas for all users.
-"dev:stub:workers": Start the stub worker environment for local development.
 "dev:web": Start the web frontend in development mode.
 "dev:workers": Start the API worker in development mode.
 "dev": Start the web and API development servers in parallel.

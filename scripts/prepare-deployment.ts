@@ -135,7 +135,7 @@ const hosting = z
 const { accountId, origin, administrators, reviewers } = hosting;
 const databaseId = hosting.databaseId;
 
-// Set only top-level hosted bindings; local and stub environments retain theirs.
+// Set only top-level hosted bindings; the local environment retains its own.
 const workerConfigurationSchema = z
   .object({
     d1_databases: z.array(

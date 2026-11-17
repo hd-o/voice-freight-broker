@@ -46,7 +46,7 @@ Examples:
   pnpm --silent cli calls transcript <call-id> --json
   pnpm --silent cli db schema calls
   pnpm --silent cli db query 'SELECT id FROM calls ORDER BY id' --json
-  pnpm --silent cli db schema --persist-to .wrangler/stub-workflow
+  pnpm --silent cli db schema --persist-to .wrangler/state
   pnpm --silent cli db schema --database /absolute/path/database.sqlite --json
   pnpm --silent cli dev limits reset --json
   pnpm --silent cli eval --suite confirmations dallas-fragmented --json

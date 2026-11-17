@@ -80,54 +80,6 @@
         },
       ],
     },
-    "stub": {
-      "queues": {
-        "producers": [
-          {
-            "binding": "ANALYSIS_QUEUE",
-            "queue": "voice-freight-stub-analysis",
-          },
-          {
-            "binding": "ANALYSIS_DEAD_LETTER",
-            "queue": "voice-freight-stub-analysis-dead-letter",
-          },
-        ],
-        "consumers": [
-          {
-            "queue": "voice-freight-stub-analysis",
-            "max_batch_size": 1,
-            "max_retries": 5,
-            "retry_delay": 30,
-            "dead_letter_queue": "voice-freight-stub-analysis-dead-letter",
-          },
-          {
-            "queue": "voice-freight-stub-analysis-dead-letter",
-            "max_batch_size": 1,
-          },
-        ],
-      },
-      "services": [
-        {
-          "binding": "ANALYSIS_PROVIDER",
-          "service": "voice-freight-api-stub",
-          "entrypoint": "AnalysisProvider",
-        },
-        {
-          "binding": "CONFIRMATION_PROVIDER",
-          "service": "voice-freight-api-stub",
-          "entrypoint": "ConfirmationProvider",
-        },
-      ],
-      "name": "voice-freight-tools-stub",
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "voice-freight-stub",
-          "database_id": "00000000-0000-0000-0000-000000000002",
-          "migrations_dir": "../../packages/backend/migrations",
-        },
-      ],
-    },
   },
   "queues": {
     "producers": [
