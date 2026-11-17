@@ -25,7 +25,7 @@ function invokeCli(parameters: string[]): { status: number | null; stdout: strin
 }
 
 function invokeDatabase(parameters: string[]): ReturnType<typeof invokeCli> {
-  return invokeCli(["--database", databasePath, ...parameters, "--json"]);
+  return invokeCli([...parameters, "--database", databasePath, "--json"]);
 }
 
 beforeEach((): void => {
@@ -87,6 +87,8 @@ it("discovers commands and examples without accessing a database", (): void => {
     ["calls", "transcript", "--help"],
     ["db", "schema", "--help"],
     ["db", "query", "--help"],
+    ["dev", "limits", "reset", "--help"],
+    ["eval", "--help"],
   ]) {
     const result = invokeCli(parameters);
     expect(result.status).toBe(0);
@@ -239,15 +241,15 @@ it("discovers selected storage, ignores metadata, and refuses ambiguous or absen
 
   const second = new DatabaseSync(join(directory, "v3/d1/miniflare-D1DatabaseObject/second.sqlite"));
   second.close();
-  const ambiguous = invokeCli(["--json", "--persist-to", directory, "db", "schema"]);
+  const ambiguous = invokeCli(["--json", "db", "--persist-to", directory, "schema"]);
   expect(ambiguous.status).toBe(2);
   expect(JSON.parse(ambiguous.stderr).error).toMatchObject({
     code: "database_ambiguous",
     hint: expect.stringContaining("fixture.sqlite"),
   });
   expect(invokeDatabase(["db", "schema"]).status).toBe(0);
-  expect(invokeCli(["--database", join(directory, "missing.sqlite"), "db", "schema", "--json"]).status).toBe(3);
-  expect(invokeCli(["--persist-to", join(directory, "absent"), "db", "schema", "--json"]).status).toBe(3);
+  expect(invokeCli(["db", "schema", "--database", join(directory, "missing.sqlite"), "--json"]).status).toBe(3);
+  expect(invokeCli(["db", "schema", "--persist-to", join(directory, "absent"), "--json"]).status).toBe(3);
 });
 
 it("preserves JSON streams and exit codes through the documented package command", (): void => {
@@ -258,7 +260,8 @@ it("preserves JSON streams and exit codes through the documented package command
     [["unknown"], 2],
     [["calls", "transcript", "missing"], 3],
   ] as const) {
-    const result = spawnSync("pnpm", ["--silent", "cli", "--database", databasePath, ...parameters, "--json"], {
+    const databaseOptions = parameters[0] === "unknown" ? [] : ["--database", databasePath];
+    const result = spawnSync("pnpm", ["--silent", "cli", ...parameters, ...databaseOptions, "--json"], {
       encoding: "utf8",
       cwd: root,
       timeout: 10000,

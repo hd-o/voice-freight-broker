@@ -1,47 +1,56 @@
-// Run both evaluation suites through one Promptfoo provider and report.
-import { evaluate } from "promptfoo";
+import { evaluate, type TestCase } from "promptfoo";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { parseArgs } from "node:util";
-import FreightProvider from "../evals/provider.ts";
-import { suiteVersion } from "../evals/cases.ts";
-import { bundleWorkers, EvaluationRuntime, readCredential, repositoryPath } from "../evals/runtime.ts";
-import { createEvaluationTests, scoreEvaluation, type EvaluationSuite } from "../evals/suites.ts";
+import FreightProvider from "./provider.ts";
+import { suiteVersion } from "./cases.ts";
+import { type EvaluationRuntime, repositoryPath } from "./runtime.ts";
+import { scoreEvaluation, type EvaluationScore, type EvaluationSuite } from "./suites.ts";
 
-const { values, positionals } = parseArgs({
-  options: { suite: { type: "string", default: "all" }, help: { type: "boolean", short: "h" } },
-  allowPositionals: true,
-});
+type EvaluationSuiteReport = {
+  cases: number;
+  completed: number;
+  passed: number;
+  metrics: Record<string, { passes: number; total: number }>;
+  falseApprovals?: number;
+  conservativeRejections?: number;
+};
 
-if (values.help) {
-  console.log(
-    "Usage: pnpm run eval [--suite all|workflows|confirmations] [case-prefix]\nDefault: both suites. Paid usage shares the application's allowance.\nResults: Promptfoo viewer and evals/results/<run-id>/results.json",
-  );
-  process.exit(0);
-}
+export type EvaluationReport = {
+  runId: string;
+  evaluationId: string;
+  suiteVersion: string;
+  createdAt: string;
+  cases: number;
+  completed: number;
+  passed: number;
+  errors: number;
+  suites: Record<string, EvaluationSuiteReport>;
+  costMicrodollars: number;
+  unresolvedRequests: number;
+  requests: number;
+  results: EvaluationScore[];
+};
 
-if (!["all", "workflows", "confirmations"].includes(values.suite) || positionals.length > 1) {
-  throw new Error("Use --suite all|workflows|confirmations and at most one case prefix.");
-}
+export async function runEvaluation(
+  runtime: EvaluationRuntime,
+  options: {
+    suite: EvaluationSuite;
+    tests: TestCase[];
+    directory?: string;
+    writeLatestResults?: boolean;
+    progress?: (completed: number, total: number) => void;
+  },
+): Promise<{ report: EvaluationReport; path: string }> {
+  const { suite, tests } = options;
+  const provider = new FreightProvider(runtime);
 
-const suite = values.suite as EvaluationSuite;
-const tests = createEvaluationTests(suite, positionals[0]);
-
-if (!tests.length) {
-  throw new Error("No evaluation case matches the supplied suite and prefix.");
-}
-
-const runtime = new EvaluationRuntime(await bundleWorkers(), await readCredential());
-const provider = new FreightProvider(runtime);
-
-try {
   await runtime.verifyLedger();
   const evaluation = await evaluate(
     {
       description: `${suiteVersion} — ${suite} suites`,
       prompts: ["{{suite}}: {{caseId}}"],
       providers: [provider],
-      writeLatestResults: true,
+      writeLatestResults: options.writeLatestResults ?? true,
       tests,
     },
     {
@@ -50,7 +59,8 @@ try {
       repeat: 1,
       timeoutMs: 310000,
       maxEvalTimeMs: 3000000,
-      progressCallback: (completed, total): void => console.log(`Evaluations: ${completed}/${total}`),
+      showProgressBar: false,
+      progressCallback: options.progress,
     },
   );
   const results = provider.results.map(scoreEvaluation);
@@ -95,7 +105,7 @@ try {
       ];
     }),
   );
-  const report = {
+  const report: EvaluationReport = {
     runId: runtime.runId,
     evaluationId: evaluation.id,
     suiteVersion,
@@ -120,21 +130,13 @@ try {
     requests: runtime.usage.length,
     results,
   };
-  const directory = resolve(repositoryPath, "evals/results", runtime.runId);
-  await mkdir(directory, { recursive: true });
-  await writeFile(resolve(directory, "results.json"), JSON.stringify(report, null, 2) + "\n");
-  console.log(
-    JSON.stringify(
-      { ...report, results: results.map(({ suite, id, assertions }) => ({ suite, id, assertions })) },
-      null,
-      2,
-    ),
-  );
-  console.log(`Full results: ${directory}/results.json`);
+  const directory = options.directory ?? resolve(repositoryPath, "evals/results", runtime.runId);
 
-  if (report.errors || report.passed !== report.cases || report.unresolvedRequests) {
-    process.exitCode = 1;
-  }
-} finally {
-  await runtime.dispose();
+  await mkdir(directory, { recursive: true });
+
+  const path = resolve(directory, "results.json");
+
+  await writeFile(path, JSON.stringify(report, null, 2) + "\n");
+
+  return { report, path };
 }

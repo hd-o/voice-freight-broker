@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "vite.config.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "vite.config.ts", "../../apps/api/worker-configuration.d.ts"]
 }

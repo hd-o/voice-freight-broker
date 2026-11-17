@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -8,8 +8,7 @@ import { bundleWorkers, EvaluationRuntime, migrateDatabase, runScenario, request
 import { scenarios } from "./cases.ts";
 import { scoreWorkflow, scoreSentiment } from "./scoring.ts";
 import type { AnalysisInput } from "../packages/backend/src/analysis";
-import { evaluate } from "promptfoo";
-import FreightProvider from "./provider.ts";
+import { runEvaluation } from "./evaluation.ts";
 import { createEvaluationTests, scoreEvaluation } from "./suites.ts";
 
 let runtime: EvaluationRuntime;
@@ -245,24 +244,30 @@ void test("runs both suites in Promptfoo and exposes false approvals and provide
   const tests = createEvaluationTests("all");
   assert.equal(tests.filter((entry): boolean => entry.vars?.suite === "workflows").length, scenarios.length);
   assert.equal(createEvaluationTests("confirmations", "dallas-fragmented").length, 4);
-  const provider = new FreightProvider(runtime);
-  const evaluation = await evaluate(
-    {
-      prompts: ["{{suite}}: {{caseId}}"],
-      providers: [provider],
-      writeLatestResults: false,
-      tests: [
-        ...createEvaluationTests("workflows", "01"),
-        ...createEvaluationTests("confirmations", "dallas-fragmented-acceptance"),
-        ...createEvaluationTests("confirmations", "dallas-fragmented-wrong-rate"),
-      ],
+  const progress: number[] = [];
+  const { report, path } = await runEvaluation(runtime, {
+    suite: "all",
+    directory: join(directory, "results"),
+    writeLatestResults: false,
+    tests: [
+      ...createEvaluationTests("workflows", "01"),
+      ...createEvaluationTests("confirmations", "dallas-fragmented-acceptance"),
+      ...createEvaluationTests("confirmations", "dallas-fragmented-wrong-rate"),
+    ],
+    progress: (completed): void => {
+      progress.push(completed);
     },
-    { maxConcurrency: 1, cache: false },
-  );
-  const summary = await evaluation.toEvaluateSummary();
-  assert.equal(summary.stats.successes, 2);
-  assert.equal(summary.stats.failures, 1);
-  const results = provider.results.map(scoreEvaluation);
+  });
+
+  assert.equal(report.cases, 3);
+  assert.equal(report.completed, 3);
+  assert.equal(report.passed, 2);
+  assert.equal(report.errors, 0);
+  assert.equal(report.suites.confirmations.falseApprovals, 1);
+  assert.ok(progress.includes(3));
+  assert.equal(await readFile(path, "utf8"), `${JSON.stringify(report, null, 2)}\n`);
+
+  const results = report.results;
   assert.equal(results.length, 3);
   assert.equal(results[0].assertions.Workflow.pass, true);
   assert.equal(results[1].assertions.Approval.pass, true);
@@ -270,7 +275,7 @@ void test("runs both suites in Promptfoo and exposes false approvals and provide
   assert.equal(results[2].assertions.Approval.pass, false);
   assert.equal(results[2].assertions.Readback.pass, false);
   assert.equal(results[2].assertions.Intent.pass, true);
-  const confirmation = provider.results[1];
+  const confirmation = results[1].result;
   assert.ok("fixtureId" in confirmation);
   assert.equal(confirmation.usage.length, 1);
   assert.ok(confirmation.usage.every((entry): boolean => !entry.unresolved));

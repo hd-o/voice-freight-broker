@@ -5,7 +5,7 @@ import { openDatabase, queryDatabase, querySchema, repositoryPath } from "./data
 import { CommandError, serializeJson } from "./errors.ts";
 import { formatTranscript, queryTranscript } from "./transcript.ts";
 
-const optionsSchema = z.object({
+const inspectionOptionsSchema = z.object({
   database: z.string().trim().min(1).optional(),
   persistTo: z.string().trim().min(1),
   json: z.boolean().default(false),
@@ -14,10 +14,8 @@ const optionsSchema = z.object({
 export async function runCli(arguments_: string[]): Promise<void> {
   const program = new Command()
     .name("cli")
-    .description("Read-only shortcuts for local freight development and debugging.")
+    .description("Local freight development, inspection, and evaluation commands.")
     .option("--json", "emit compact JSON; errors are JSON on stderr")
-    .option("--database <file>", "use an existing SQLite file instead of storage discovery")
-    .option("--persist-to <directory>", "Wrangler storage directory", resolve(repositoryPath, ".wrangler/state"))
     .showSuggestionAfterError(false)
     .exitOverride()
     .configureOutput({ writeErr: (): void => {} })
@@ -27,10 +25,12 @@ export async function runCli(arguments_: string[]): Promise<void> {
       `
 Usage notes:
   Run from the repository root with the project's Node 26 runtime.
-  Commands are local and read-only; no running Workers or credentials needed.
-  Help never opens a database. Use existing migration commands for changes.
+  calls/db inspect local storage read-only, without running Workers or credentials.
+  dev limits reset changes daily quotas through running local Workers.
+  eval makes paid provider requests using the shared application allowance.
+  Help never opens storage, contacts Workers, or loads evaluation dependencies.
 
-Database selection:
+Database selection (calls/db only):
   Default storage is the repository's .wrangler/state, regardless of working directory.
   Explicit relative paths resolve from the current working directory.
   --database overrides --persist-to. Discovery excludes Wrangler metadata and
@@ -46,16 +46,25 @@ Examples:
   pnpm --silent cli calls transcript <call-id> --json
   pnpm --silent cli db schema calls
   pnpm --silent cli db query 'SELECT id FROM calls ORDER BY id' --json
-  pnpm --silent cli --persist-to .wrangler/stub-workflow db schema
-  pnpm --silent cli --database /absolute/path/database.sqlite db schema --json
+  pnpm --silent cli db schema --persist-to .wrangler/stub-workflow
+  pnpm --silent cli db schema --database /absolute/path/database.sqlite --json
+  pnpm --silent cli dev limits reset --json
+  pnpm --silent cli eval --suite confirmations dallas-fragmented --json
 
 Exit codes:
-  0 success/help; 1 operational failure or invalid stored transcript;
+  0 success/help; 1 operational failure, failed evaluation, or invalid stored transcript;
   2 invalid usage, prohibited SQL, or ambiguous database;
   3 missing database, call, table, or view.`,
     );
 
   const calls = program.command("calls").description("Inspect locally stored calls.");
+  const db = program.command("db").description("Inspect a local D1 database without changing it.");
+
+  for (const command of [calls, db]) {
+    command
+      .option("--database <file>", "use an existing SQLite file instead of storage discovery")
+      .option("--persist-to <directory>", "Wrangler storage directory", resolve(repositoryPath, ".wrangler/state"));
+  }
 
   calls
     .command("transcript <call-id>")
@@ -75,7 +84,7 @@ Example:
     )
     .action((callId: string, _options: unknown, command: Command): void => {
       const id = z.string().trim().min(1).parse(callId);
-      const options = optionsSchema.parse(command.optsWithGlobals());
+      const options = inspectionOptionsSchema.parse(command.optsWithGlobals());
       const database = openDatabase(options);
 
       try {
@@ -85,8 +94,6 @@ Example:
         database.close();
       }
     });
-
-  const db = program.command("db").description("Inspect a local D1 database without changing it.");
 
   db.command("schema [table]")
     .description("List actual table, index, view, and trigger definitions.")
@@ -105,7 +112,7 @@ Examples:
     )
     .action((table: string | undefined, _options: unknown, command: Command): void => {
       const name = z.string().trim().min(1).optional().parse(table);
-      const options = optionsSchema.parse(command.optsWithGlobals());
+      const options = inspectionOptionsSchema.parse(command.optsWithGlobals());
       const database = openDatabase(options);
 
       try {
@@ -142,7 +149,7 @@ Examples:
     )
     .action((sql: string, _options: unknown, command: Command): void => {
       const query = z.string().trim().min(1).parse(sql);
-      const options = optionsSchema.parse(command.optsWithGlobals());
+      const options = inspectionOptionsSchema.parse(command.optsWithGlobals());
       const limit = z.coerce.number().int().min(1).max(1000).parse(command.opts().limit);
       const database = openDatabase(options);
 
@@ -152,6 +159,63 @@ Examples:
       } finally {
         database.close();
       }
+    });
+
+  const dev = program.command("dev").description("Manage the local development environment.");
+  const limits = dev.command("limits").description("Manage local daily call quotas.");
+
+  limits
+    .command("reset")
+    .description("Reset daily call quotas for all local users through running Workers.")
+    .option("--origin <url>", "loopback API origin", "http://localhost:8787")
+    .addHelpText(
+      "after",
+      `
+Requires local Workers and a seeded development database. Signs in as the local
+administrator and removes the command's session afterward. Call history,
+spending, and active-call checks are preserved. Hosted environments reject resets.
+
+Example:
+  pnpm --silent cli dev limits reset --origin http://localhost:8787 --json`,
+    )
+    .action(async (_options: unknown, command: Command): Promise<void> => {
+      const options = z
+        .object({ origin: z.string(), json: z.boolean().default(false) })
+        .parse(command.optsWithGlobals());
+      const { resetDailyQuotas } = await import("./quotas.ts");
+      const receipt = await resetDailyQuotas(options.origin);
+
+      process.stdout.write(
+        options.json
+          ? `${serializeJson(receipt)}\n`
+          : "Local daily call quotas reset. Call history, spending and active-call checks are preserved.\n",
+      );
+    });
+
+  program
+    .command("eval [case-prefix]")
+    .description("Run workflow and confirmation evaluations through Promptfoo (paid requests).")
+    .option("--suite <suite>", "all, workflows, or confirmations", "all")
+    .addHelpText(
+      "after",
+      `
+Uses OPENAI_API_KEY or the existing key in apps/api/.dev.vars.local.
+Run migrations first. Paid usage shares the application's allowance.
+Results stay in the Promptfoo viewer and evals/results/<run-id>/results.json.
+Progress and library logs go to stderr; --json emits one compact result on stdout.
+Failed assertions, provider errors, or unresolved usage exit with code 1.
+
+Examples:
+  pnpm --silent cli eval --suite workflows 03
+  pnpm --silent cli eval --suite confirmations dallas-fragmented --json`,
+    )
+    .action(async (prefix: string | undefined, _options: unknown, command: Command): Promise<void> => {
+      const options = z
+        .object({ suite: z.enum(["all", "workflows", "confirmations"]), json: z.boolean().default(false) })
+        .parse(command.optsWithGlobals());
+      const { runEvaluations } = await import("./evaluation.ts");
+
+      await runEvaluations({ ...options, prefix });
     });
 
   try {
@@ -183,7 +247,7 @@ Examples:
             : new CommandError(
                 "command_failed",
                 error instanceof Error ? error.message : "Command failed.",
-                "Check the database path, run db schema, and verify local migrations.",
+                "Run <command> --help and check the command's local prerequisites.",
               );
 
     const result = { error: { code: failure.code, message: failure.message, hint: failure.hint } };

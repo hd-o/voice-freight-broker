@@ -25,8 +25,15 @@ Select a suite or case prefix:
 vpr eval --suite workflows
 vpr eval --suite confirmations
 vpr eval 03
-vpr eval --suite confirmations dallas-fragmented
+vpr eval --suite confirmations dallas-fragmented --json
 ```
+
+`vpr eval` delegates to the CLI. You can also use `pnpm --silent cli eval` with the same arguments. Use `vpr eval:help`
+for command help.
+
+With `--json`, stdout contains one compact summary, including the full report path; progress and library logs go to
+stderr. Failed assertions, provider errors, and unresolved usage exit with code 1. Invalid arguments or a prefix without
+matching cases exit with code 2 before starting Workers or reading credentials.
 
 ## Cases and scoring
 

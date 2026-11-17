@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { Miniflare, convertV4MiniflareOptions, Response as RuntimeResponse } from "miniflare";
+import { Log, Miniflare, convertV4MiniflareOptions, Response as RuntimeResponse } from "miniflare";
 import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
@@ -10,6 +10,21 @@ import type { ConfirmationInput, ConfirmationOutcome } from "../packages/backend
 
 export const repositoryPath = fileURLToPath(new URL("../", import.meta.url).href);
 export const limits = { requests: 40, turns: 20, continuations: 4, outputTokens: 2048, scenarioMs: 300000 };
+
+// Keep both Miniflare diagnostics and application console output away from
+// stdout, which the development CLI reserves for machine-readable results.
+class EvaluationLog extends Log {
+  protected log(message: string): void {
+    process.stderr.write(`${message}\n`);
+  }
+}
+
+const logging = {
+  log: new EvaluationLog(),
+  handleStructuredLogs(entry: { message: string }): void {
+    process.stderr.write(`${entry.message}\n`);
+  },
+};
 
 type Delegation = {
   model: string;
@@ -149,6 +164,7 @@ export class EvaluationRuntime {
     this.transport = options.transport ?? fetch;
     this.ledger = new Miniflare(
       convertV4MiniflareOptions({
+        ...logging,
         modules: true,
         script: bundles.ledger,
         compatibilityDate: "2026-11-12",
@@ -260,6 +276,7 @@ export class EvaluationRuntime {
 
     return new Miniflare(
       convertV4MiniflareOptions({
+        ...logging,
         workers: [
           {
             ...workerConfiguration,
