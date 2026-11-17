@@ -75,39 +75,8 @@ cli eval [case-prefix]           Run workflow and confirmation evaluations.
 Vite+ `vpr [command]` project commands:
 
 ```yaml
-"build": Build the project.
-"build:storybook": Build the web app's Storybook bundle.
-"cf:types": Generate Cloudflare type definitions for the tools and API workers.
-"check": Run workspace checks, type checks, and markdown linting.
-"cli": Launch the local CLI entrypoint.
-"db:check": Verify the local D1 database is reachable.
-"db:generate": Generate the backend Drizzle schema migrations.
-"db:migrate": Apply local D1 migrations to the development database.
-"deploy:hosted": Validate and deploy Workers using Terraform outputs.
-"deploy:prepare": Generate hosted Wrangler configuration from Terraform.
-"deploy:roles": Synchronize hosted application roles.
-"dev": Start the web and API development servers in parallel.
-"dev:reset:limits": Reset local daily call quotas for all users.
-"dev:stub:workers": Start the stub worker environment for local development.
-"dev:web": Start the web frontend in development mode.
-"dev:workers": Start the API worker in development mode.
-"eval:help": Show help for the evaluation tooling.
-"eval": Run workflow and confirmation suites through Promptfoo.
-"eval:view": Open the local Promptfoo results viewer.
-"eval:typecheck": Type-check the evaluation provider and workers.
-"format": Format the codebase.
-"lint": Lint the codebase and fix auto-fixable issues.
-"prepare": Prepare the workspace configuration without agent setup.
-"preview": Preview the web app locally.
-"storybook": Start the Storybook development server.
-"test": Run deployment, CLI, tools build, and API tests.
-"test:browser": Run the Playwright browser test suite.
-"test:cli": Run the CLI test suite.
-"test:deploy": Test local deployment configuration without Cloudflare access.
-"test:eval": Run free Cloudflare evaluation harness integration checks.
-"typecheck": Run repository-wide TypeScript type checks.
-"@voice-freight/api#build": Dry-run deploy the API worker.
 "@voice-freight/api#build:test": Dry-run deploy the API worker for the local environment.
+"@voice-freight/api#build": Dry-run deploy the API worker.
 "@voice-freight/api#cf:types": Generate Cloudflare types for the API worker configuration.
 "@voice-freight/api#dev": Start the API worker locally with local configuration.
 "@voice-freight/api#test": Run the API package tests.
@@ -117,14 +86,43 @@ Vite+ `vpr [command]` project commands:
 "@voice-freight/cli#test": Run the CLI package tests.
 "@voice-freight/cli#typecheck": Type-check the CLI package.
 "@voice-freight/contracts#typecheck": Type-check the shared contracts package.
-"@voice-freight/tools#build": Dry-run deploy the tools worker.
 "@voice-freight/tools#build:test": Dry-run deploy the tools worker for the local environment.
+"@voice-freight/tools#build": Dry-run deploy the tools worker.
 "@voice-freight/tools#cf:types": Generate Cloudflare types for the tools worker.
 "@voice-freight/tools#typecheck": Type-check the tools package.
-"@voice-freight/web#build": Build the web app.
 "@voice-freight/web#build:storybook": Build the web app's Storybook static site.
+"@voice-freight/web#build": Build the web app.
 "@voice-freight/web#dev": Start the web app in development mode.
 "@voice-freight/web#preview": Preview the web app with the deploy worker config.
 "@voice-freight/web#storybook": Start the web app's Storybook server.
 "@voice-freight/web#typecheck": Type-check the web app.
+"build:storybook": Build the web app's Storybook bundle.
+"build": Build the project.
+"cf:types": Generate Cloudflare type definitions for the tools and API workers.
+"check": Run workspace checks, type checks, and markdown linting.
+"cli": Launch the local CLI entrypoint.
+"db:generate": Generate the backend Drizzle schema migrations.
+"db:migrate": Apply local D1 migrations to the development database.
+"deploy:hosted": Validate and deploy Workers using Terraform outputs.
+"deploy:prepare": Generate hosted Wrangler configuration from Terraform.
+"deploy:roles": Synchronize hosted application roles.
+"dev:reset:limits": Reset local daily call quotas for all users.
+"dev:stub:workers": Start the stub worker environment for local development.
+"dev:web": Start the web frontend in development mode.
+"dev:workers": Start the API worker in development mode.
+"dev": Start the web and API development servers in parallel.
+"eval:help": Show help for the evaluation tooling.
+"eval:typecheck": Type-check the evaluation provider and workers.
+"eval:view": Open the local Promptfoo results viewer.
+"eval": Run workflow and confirmation suites through Promptfoo.
+"format": Format the codebase.
+"lint": Lint the codebase and fix auto-fixable issues.
+"prepare": Prepare the workspace configuration without agent setup.
+"preview": Preview the web app locally.
+"storybook": Start the Storybook development server.
+"test:browser": Run the Playwright browser test suite.
+"test:cli": Run the CLI test suite.
+"test:eval": Run free Cloudflare evaluation harness integration checks.
+"test": Run deployment, CLI, tools build, and API tests.
+"typecheck": Run repository-wide TypeScript type checks.
 ```
