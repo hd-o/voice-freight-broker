@@ -1,8 +1,6 @@
 {
   "$schema": "../../../node_modules/wrangler/config-schema.json",
-  // First installation only: never deploy this over the running Tools Worker.
   "name": "voice-freight-tools",
-  "account_id": "00000000000000000000000000000000",
   "main": "worker.ts",
   "compatibility_date": "2026-11-12",
   "workers_dev": false,

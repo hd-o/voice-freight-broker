@@ -32,7 +32,8 @@
     "test:cli": "vpr @voice-freight/cli#test",
     "test:eval": "PROMPTFOO_DISABLE_TELEMETRY=1 node --test evals/runtime.test.ts",
     "test": "vpr test:cli && vpr test:api",
-    "typecheck": "tsc --noEmit && vpr eval:typecheck && vpr -r typecheck"
+    "typecheck": "tsc --noEmit && vpr eval:typecheck && vpr -r typecheck",
+    "deploy:bootstrap": "bash scripts/deploy.sh --bootstrap"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

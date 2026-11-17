@@ -39,7 +39,8 @@ IMPORTANT: Keep this section concisely up-to-date
 
 Local voice workflows, Decisions confirmation, queued post-call analysis, and
 text evaluations, and Access for the deployed app are implemented. Terraform
-manages deployed resources; committed Wrangler configurations drive local releases.
+manages deployed resources and releases; Wrangler supports local development
+and packaging.
 Deployed account settings still require initial configuration.
 The CLI supports local inspection, quota resets, evaluations, and deployed role
 synchronization.
@@ -120,7 +121,8 @@ Vite+ `vpr [command]` project commands:
 "cli": Launch the local CLI entrypoint.
 "db:generate": Generate the backend Drizzle schema migrations.
 "db:migrate": Apply local D1 migrations to the development database.
-"deploy": Validate and deploy Workers using committed Wrangler configuration.
+"deploy": Validate, build, and deploy the application using Terraform.
+"deploy:bootstrap": Bootstrap the private Workers for a fresh installation.
 "deploy:prod": Run the same local release workflow as deploy.
 "deploy:roles": Synchronize deployed application roles.
 "dev:reset:limits": Reset local daily call quotas for all users.

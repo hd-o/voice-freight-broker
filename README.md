@@ -42,9 +42,9 @@ and shared allowance. With `--json`, results go to stdout and errors or progress
 
 ## Production deployment
 
-Use Terraform for infrastructure and committed Wrangler configuration for local releases. The `deployed roles sync` CLI
-command synchronizes application roles from applied Terraform state. See
-[production deployment](infrastructure/README.md) for setup, credentials, deployment, and recovery.
+Use Terraform for production infrastructure and releases. The `deployed roles sync` CLI command synchronizes application
+roles from applied Terraform state. See [production deployment](infrastructure/README.md) for setup, credentials,
+deployment, and recovery.
 
 ## Architecture
 

@@ -198,33 +198,65 @@ Example:
 
   roles
     .command("sync")
-    .description("Synchronize deployed administrator and reviewer roles from applied Terraform state.")
-    .addHelpText(
-      "after",
-      `
-Requires Terraform, Wrangler authentication, and an initialized deployed database.
-Reads terraform output -json hosting and checks the account and database against
-the committed API configuration before modifying D1. Adds or updates configured
-Access users, removes omitted Access users, and preserves local identities and
-business data. Run after initial migrations and changes to Terraform user lists.
-
-Output:
-  --json returns {databaseId, administrators, reviewers}; counts describe the
-  configured users. Help does not invoke Terraform or Wrangler.
-
-Example:
-  pnpm --silent cli deployed roles sync --json`,
-    )
+    .description("Synchronize deployed application roles.")
+    .addHelpText("after", "\nExample:\n  pnpm --silent cli deployed roles sync --json")
+    .option("--configuration-env <name>", "environment variable containing resolved configuration")
     .action(async (_options: unknown, command: Command): Promise<void> => {
-      const options = z.object({ json: z.boolean().default(false) }).parse(command.optsWithGlobals());
+      const options = z
+        .object({ json: z.boolean().default(false), configurationEnv: z.string().optional() })
+        .parse(command.optsWithGlobals());
       const { synchronizeRoles } = await import("./hosting.ts");
-      const receipt = await synchronizeRoles();
+      const receipt = await synchronizeRoles(options.configurationEnv);
+      process.stdout.write(`${serializeJson(receipt, options.json ? undefined : 2)}\n`);
+    });
 
+  const schedules = deployed.command("schedules").description("Manage deployed Worker schedules.");
+  schedules
+    .command("reconcile")
+    .description("Reconcile a Terraform-managed Worker schedule.")
+    .action(async (): Promise<void> => {
+      const { reconcileSchedules } = await import("./schedules.ts");
+      await reconcileSchedules();
+    });
+
+  const database = deployed.command("database").description("Manage deployed database migrations.");
+  database
+    .command("migrate")
+    .description("Apply pending migrations to the deployed database.")
+    .option("--configuration-env <name>", "environment variable containing resolved configuration")
+    .action(async (_options: unknown, command: Command): Promise<void> => {
+      const options = z
+        .object({ json: z.boolean().default(false), configurationEnv: z.string().optional() })
+        .parse(command.optsWithGlobals());
+      const { migrateDatabase } = await import("./hosting.ts");
       process.stdout.write(
-        options.json
-          ? `${serializeJson(receipt)}\n`
-          : `Deployed roles synchronized: ${receipt.administrators} administrators, ${receipt.reviewers} reviewers.\n`,
+        `${serializeJson(await migrateDatabase(options.configurationEnv), options.json ? undefined : 2)}\n`,
       );
+    });
+
+  const secrets = deployed.command("secrets").description("Manage deployed Worker secrets.");
+  secrets
+    .command("sync")
+    .description("Provision the production provider key from the environment.")
+    .option("--configuration-env <name>", "environment variable containing resolved configuration")
+    .action(async (_options: unknown, command: Command): Promise<void> => {
+      const options = z
+        .object({ json: z.boolean().default(false), configurationEnv: z.string().optional() })
+        .parse(command.optsWithGlobals());
+      const { synchronizeSecret } = await import("./hosting.ts");
+      process.stdout.write(
+        `${serializeJson(await synchronizeSecret(options.configurationEnv), options.json ? undefined : 2)}\n`,
+      );
+    });
+
+  deployed
+    .command("terraform")
+    .description("Run Terraform with deployed account and R2 credentials.")
+    .allowUnknownOption()
+    .argument("[arguments...]", "Terraform arguments")
+    .action(async (arguments_: string[]): Promise<void> => {
+      const { runTerraform } = await import("./terraform.ts");
+      await runTerraform(arguments_);
     });
 
   program

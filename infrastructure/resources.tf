@@ -4,14 +4,15 @@ locals {
 }
 
 resource "cloudflare_d1_database" "hosting" {
-  account_id = var.account_id
-  name       = "voice-freight-prod"
+  account_id       = var.account_id
+  name             = "voice-freight-prod"
+  read_replication = { mode = "disabled" }
   lifecycle {
     prevent_destroy = true
   }
 }
 
-# Consumers and bindings belong to Wrangler; Terraform owns queue existence.
+# Queue consumers and Worker bindings are managed separately below.
 resource "cloudflare_queue" "analysis" {
   for_each   = toset(["analysis", "analysis-dead-letter"])
   account_id = var.account_id

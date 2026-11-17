@@ -7,9 +7,9 @@
     "./worker": "./src/worker.ts"
   },
   "scripts": {
-    "build": "wrangler deploy --dry-run --env= --outdir dist",
+    "build": "wrangler deploy --dry-run --env local --outdir dist",
     "build:test": "wrangler deploy --dry-run --env local --outdir dist-test",
-    "cf:types": "wrangler types",
+    "cf:types": "wrangler types --env local",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

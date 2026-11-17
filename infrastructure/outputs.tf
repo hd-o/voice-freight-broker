@@ -1,8 +1,10 @@
-# Copy Worker settings into Wrangler once; role synchronization reads this output.
+# Role synchronization reads this output from the applied application state.
 output "hosting" {
   value = {
     accountId      = var.account_id
     origin         = var.origin
+    apiWorkerName  = local.api_name
+    bootstrap      = var.bootstrap
     databaseId     = cloudflare_d1_database.hosting.id
     databaseName   = cloudflare_d1_database.hosting.name
     issuer         = "https://${var.access_team_domain}"

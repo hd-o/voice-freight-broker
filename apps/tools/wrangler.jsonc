@@ -1,14 +1,4 @@
 {
-  // Match API's deployed account and D1 database; local bindings stay below.
-  "account_id": "00000000000000000000000000000000",
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "voice-freight-prod",
-      "database_id": "00000000-0000-0000-0000-000000000003",
-      "migrations_dir": "../../packages/backend/migrations",
-    },
-  ],
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "voice-freight-tools",
   "main": "src/worker.ts",
@@ -16,23 +6,6 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
-  "observability": {
-    "enabled": true,
-    "logs": {
-      "enabled": true,
-      "persist": true,
-      "head_sampling_rate": 1,
-      "invocation_logs": false,
-    },
-    "traces": {
-      "enabled": true,
-      "persist": true,
-      "head_sampling_rate": 1,
-    },
-  },
-  "triggers": {
-    "crons": ["* * * * *"],
-  },
   "env": {
     "local": {
       "queues": {
@@ -83,41 +56,4 @@
       ],
     },
   },
-  "queues": {
-    "producers": [
-      {
-        "binding": "ANALYSIS_QUEUE",
-        "queue": "voice-freight-analysis",
-      },
-      {
-        "binding": "ANALYSIS_DEAD_LETTER",
-        "queue": "voice-freight-analysis-dead-letter",
-      },
-    ],
-    "consumers": [
-      {
-        "queue": "voice-freight-analysis",
-        "max_batch_size": 1,
-        "max_retries": 5,
-        "retry_delay": 30,
-        "dead_letter_queue": "voice-freight-analysis-dead-letter",
-      },
-      {
-        "queue": "voice-freight-analysis-dead-letter",
-        "max_batch_size": 1,
-      },
-    ],
-  },
-  "services": [
-    {
-      "binding": "ANALYSIS_PROVIDER",
-      "service": "voice-freight-api",
-      "entrypoint": "AnalysisProvider",
-    },
-    {
-      "binding": "CONFIRMATION_PROVIDER",
-      "service": "voice-freight-api",
-      "entrypoint": "ConfirmationProvider",
-    },
-  ],
 }

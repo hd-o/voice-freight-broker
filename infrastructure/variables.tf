@@ -50,3 +50,22 @@ variable "reviewers" {
     error_message = "Provide valid reviewer emails."
   }
 }
+
+variable "bootstrap" {
+  type        = bool
+  default     = false
+  description = "First installation only: publish the Tools placeholder and initialize API."
+}
+
+variable "secret_revision" {
+  type        = string
+  default     = "1"
+  description = "Change to upload a new production provider secret."
+}
+
+variable "zone_id" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Cloudflare zone ID when the origin uses a custom domain."
+}

@@ -1,4 +1,3 @@
-account_id         = "00000000000000000000000000000000"
 origin             = "https://app.CLIENT.workers.dev"
 access_team_domain = "client.cloudflareaccess.com"
 administrators     = ["admin@example.com"]

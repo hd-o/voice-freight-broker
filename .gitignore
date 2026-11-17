@@ -82,6 +82,8 @@ out
 .nuxt
 dist
 dist-test/
+dist-bootstrap/
+dist-gateway/
 .output
 
 # Gatsby files
@@ -178,4 +180,6 @@ evals/results/
 *.tfvars
 *.tfvars.json
 *.tfplan
+*.tfbackend
+infrastructure/bootstrap/backend_override.tf
 crash.log

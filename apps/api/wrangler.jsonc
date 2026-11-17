@@ -1,23 +1,4 @@
 {
-  // Prod is the default environment. Copy real values from Terraform's hosting
-  // output once, then maintain this file as the Worker configuration source.
-  "account_id": "00000000000000000000000000000000",
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "voice-freight-prod",
-      "database_id": "00000000-0000-0000-0000-000000000003",
-      "migrations_dir": "../../packages/backend/migrations",
-    },
-  ],
-  "vars": {
-    "ENVIRONMENT": "prod",
-    "AUTH_MODE": "access",
-    "PUBLIC_ORIGIN": "https://deployment.invalid",
-    "ACCESS_ISSUER": "https://TEAM.cloudflareaccess.com",
-    "ACCESS_AUDIENCE": "REPLACE_WITH_ACCESS_AUDIENCE",
-    "VOICE_PROVIDER": "openai",
-  },
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "voice-freight-api",
   "main": "src/worker.ts",
@@ -39,23 +20,6 @@
       "new_sqlite_classes": ["LiveCall"],
     },
   ],
-  "observability": {
-    "enabled": true,
-    "logs": {
-      "enabled": true,
-      "persist": true,
-      "head_sampling_rate": 1,
-      "invocation_logs": false,
-    },
-    "traces": {
-      "enabled": true,
-      "persist": true,
-      "head_sampling_rate": 1,
-    },
-  },
-  "triggers": {
-    "crons": ["* * * * *"],
-  },
   "env": {
     "local": {
       "name": "voice-freight-api",
@@ -89,11 +53,4 @@
       ],
     },
   },
-  "services": [
-    {
-      "binding": "TOOLS",
-      "service": "voice-freight-tools",
-      "entrypoint": "Tools",
-    },
-  ],
 }

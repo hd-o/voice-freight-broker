@@ -1,167 +1,172 @@
-import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { promisify } from "node:util";
-import { parse, type ParseError } from "jsonc-parser";
 import { z } from "zod";
 import type { Identity } from "@voice-freight/contracts/business";
+import { loadEnvironment, requestCloudflare } from "./cloudflare.ts";
 import { repositoryPath } from "./database.ts";
 import { CommandError } from "./errors.ts";
+import { runTerraform } from "./terraform.ts";
 
-const execution = promisify(execFile);
-
-const emailSchema = z
+const email = z
   .string()
   .trim()
   .email()
-  .transform((email): string => email.toLowerCase());
-
-const hostingSchema = z.object({
+  .transform((value): string => value.toLowerCase());
+const configurationSchema = z.object({
   accountId: z.string().regex(/^[a-f0-9]{32}$/),
   databaseId: z.string().uuid(),
   databaseName: z.string().min(1),
-  administrators: z.array(emailSchema).min(1),
-  reviewers: z.array(emailSchema),
+  administrators: z.array(email).min(1),
+  reviewers: z.array(email),
+  apiWorkerName: z.string().default("voice-freight-api"),
 });
-
-const configurationSchema = z.object({
-  account_id: z.string(),
-  d1_databases: z.array(z.object({ binding: z.string(), database_id: z.string(), database_name: z.string() })),
-});
-
-type RoleReceipt = {
-  databaseId: string;
-  administrators: number;
-  reviewers: number;
-};
+type Configuration = z.infer<typeof configurationSchema>;
 
 function quoteSql(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-export async function synchronizeRoles(directory = repositoryPath): Promise<RoleReceipt> {
-  const hint = "Apply Terraform, verify its hosting output against apps/api/wrangler.jsonc, and apply D1 migrations.";
-  let hosting: z.infer<typeof hostingSchema>;
+export async function readConfiguration(variable?: string): Promise<Configuration> {
+  const content = variable
+    ? process.env[variable]
+    : await runTerraform(["-chdir=infrastructure", "output", "-json", "hosting"], true);
 
-  try {
-    const { stdout } = await execution("terraform", ["-chdir=infrastructure", "output", "-json", "hosting"], {
-      cwd: directory,
-      timeout: 30_000,
-    });
-
-    hosting = hostingSchema.parse(JSON.parse(stdout));
-
-    const administrators = new Set(hosting.administrators);
-    const reviewers = new Set(hosting.reviewers);
-
-    if (
-      administrators.size !== hosting.administrators.length ||
-      reviewers.size !== hosting.reviewers.length ||
-      hosting.reviewers.some((email): boolean => administrators.has(email))
-    ) {
-      throw new Error("Each email must have exactly one configured role.");
-    }
-  } catch (error) {
+  if (!content) {
     throw new CommandError(
       "roles_configuration_invalid",
-      error instanceof Error ? error.message : "Cannot read deployed role configuration.",
-      hint,
+      "Deployed configuration is missing.",
+      "Apply Terraform or provide the requested configuration environment variable.",
+    );
+  }
+  const configuration = configurationSchema.parse(JSON.parse(content));
+  const account = loadEnvironment().CLOUDFLARE_ACCOUNT_ID;
+
+  if (account && account !== configuration.accountId) {
+    throw new CommandError(
+      "account_mismatch",
+      "The configured account does not match the selected Cloudflare account.",
+      "Check the applied Terraform account before updating production.",
     );
   }
 
-  const configurationPath = join(directory, "apps/api/wrangler.jsonc");
+  const administrators = new Set(configuration.administrators);
+  const reviewers = new Set(configuration.reviewers);
 
-  try {
-    const errors: ParseError[] = [];
-    const document: unknown = parse(await readFile(configurationPath, "utf8"), errors, { allowTrailingComma: true });
-
-    if (errors.length) {
-      throw new Error("Cannot parse apps/api/wrangler.jsonc.");
-    }
-
-    const configuration = configurationSchema.parse(document);
-    const database = configuration.d1_databases.find((binding): boolean => binding.binding === "DB");
-
-    // Role removal is destructive: stale Terraform state must never authorize
-    // users against a different account or database selected by Wrangler.
-    if (
-      configuration.account_id !== hosting.accountId ||
-      database?.database_id !== hosting.databaseId ||
-      database.database_name !== hosting.databaseName
-    ) {
-      throw new Error("Terraform's deployed account or database does not match apps/api/wrangler.jsonc.");
-    }
-  } catch (error) {
+  if (
+    administrators.size !== configuration.administrators.length ||
+    reviewers.size !== configuration.reviewers.length ||
+    configuration.reviewers.some((value): boolean => administrators.has(value))
+  ) {
     throw new CommandError(
       "roles_configuration_invalid",
-      error instanceof Error ? error.message : "Cannot read deployed Worker configuration.",
-      hint,
+      "Each email must have exactly one configured role.",
+      "Correct the administrator and reviewer lists.",
     );
   }
 
+  return configuration;
+}
+
+async function validateDatabase(configuration: Configuration): Promise<void> {
+  const details = z
+    .object({ name: z.string() })
+    .parse(await requestCloudflare(`/accounts/${configuration.accountId}/d1/database/${configuration.databaseId}`));
+
+  if (details.name !== configuration.databaseName) {
+    throw new CommandError(
+      "database_mismatch",
+      "The deployed database name does not match its configuration.",
+      "Check the applied Terraform database identity.",
+    );
+  }
+}
+
+async function query(configuration: Configuration, sql: string): Promise<unknown> {
+  return await requestCloudflare(`/accounts/${configuration.accountId}/d1/database/${configuration.databaseId}/query`, {
+    method: "POST",
+    body: { sql },
+  });
+}
+
+export async function migrateDatabase(variable?: string): Promise<{ applied: string[] }> {
+  const configuration = await readConfiguration(variable);
+  await validateDatabase(configuration);
+  await query(
+    configuration,
+    "CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL);",
+  );
+  const response = z
+    .array(z.object({ results: z.array(z.object({ name: z.string() })) }))
+    .parse(await query(configuration, "SELECT name FROM d1_migrations ORDER BY id;"));
+  const applied = new Set(response.flatMap((result): string[] => result.results.map((row): string => row.name)));
+  const directory = join(repositoryPath, "packages/backend/migrations");
+  const files = (await readdir(directory)).filter((name): boolean => /^\d+.*\.sql$/.test(name)).sort();
+  const completed: string[] = [];
+
+  for (const file of files) {
+    if (applied.has(file)) {
+      continue;
+    }
+    const sql = await readFile(join(directory, file), "utf8");
+
+    // Wrangler stores each complete migration and its journal entry together;
+    // preserving the full file also preserves trigger bodies.
+    await query(configuration, `${sql}\nINSERT INTO d1_migrations (name) VALUES (${quoteSql(file)});`);
+    completed.push(file);
+  }
+
+  return { applied: completed };
+}
+
+export async function synchronizeRoles(
+  variable?: string,
+): Promise<{ databaseId: string; administrators: number; reviewers: number }> {
+  const configuration = await readConfiguration(variable);
+  await validateDatabase(configuration);
   const identities = [
-    ...hosting.administrators.map((email): Identity => ({ id: `access:${email}`, name: email, role: "administrator" })),
-    ...hosting.reviewers.map((email): Identity => ({ id: `access:${email}`, name: email, role: "reviewer" })),
+    ...configuration.administrators.map((value): Identity => ({
+      id: `access:${value}`,
+      name: value,
+      role: "administrator",
+    })),
+    ...configuration.reviewers.map((value): Identity => ({ id: `access:${value}`, name: value, role: "reviewer" })),
   ];
-
   const identifiers = identities.map((identity): string => quoteSql(identity.id)).join(",");
-
   const statements = identities.map(
     (identity): string =>
       `INSERT INTO users (id, data) VALUES (${quoteSql(identity.id)}, ${quoteSql(JSON.stringify(identity))}) ON CONFLICT(id) DO UPDATE SET data=excluded.data;`,
   );
 
-  const temporaryDirectory = await mkdtemp(join(tmpdir(), "freight-roles-"));
+  await query(
+    configuration,
+    [
+      `DELETE FROM users WHERE id LIKE 'access:%' AND id NOT IN (${identifiers});`,
+      ...statements,
+      "UPDATE revision SET version=version+1 WHERE id=1;",
+    ].join("\n"),
+  );
 
-  try {
-    const path = join(temporaryDirectory, "roles.sql");
+  return {
+    databaseId: configuration.databaseId,
+    administrators: configuration.administrators.length,
+    reviewers: configuration.reviewers.length,
+  };
+}
 
-    // Access user lists are operational data. Keep them out of shared schema
-    // migrations, and invalidate concurrent domain snapshots after the change.
-    await writeFile(
-      path,
-      [
-        `DELETE FROM users WHERE id LIKE 'access:%' AND id NOT IN (${identifiers});`,
-        ...statements,
-        "UPDATE revision SET version=version+1 WHERE id=1;",
-        "",
-      ].join("\n"),
-      { mode: 0o600 },
-    );
+export async function synchronizeSecret(variable?: string): Promise<{ configured: boolean }> {
+  const configuration = await readConfiguration(variable);
+  const key = loadEnvironment().OPENAI_API_KEY;
 
-    await execution(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "d1",
-        "execute",
-        "DB",
-        "--remote",
-        "--env",
-        "",
-        "--config",
-        configurationPath,
-        "--file",
-        path,
-        "--json",
-      ],
-      { cwd: directory, timeout: 90_000 },
-    );
-
-    return {
-      databaseId: hosting.databaseId,
-      administrators: hosting.administrators.length,
-      reviewers: hosting.reviewers.length,
-    };
-  } catch (error) {
+  if (!key) {
     throw new CommandError(
-      "roles_sync_failed",
-      error instanceof Error ? error.message : "Deployed role synchronization failed.",
-      hint,
+      "secret_missing",
+      "The deployed OpenAI key is missing.",
+      "Provide OPENAI_API_KEY in the environment for initial provisioning or rotation.",
     );
-  } finally {
-    await rm(temporaryDirectory, { recursive: true, force: true });
   }
+  await requestCloudflare(
+    `/accounts/${configuration.accountId}/workers/scripts/${encodeURIComponent(configuration.apiWorkerName)}/secrets`,
+    { method: "PUT", body: { name: "OPENAI_API_KEY", text: key, type: "secret_text" } },
+  );
+  return { configured: true };
 }
