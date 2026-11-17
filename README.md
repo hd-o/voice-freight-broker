@@ -1,4 +1,4 @@
-# Voice Freight Broker
+# Voice Freight Broker Agent
 
 Browser-based freight brokerage simulation with voice calls using GPT Live
 
