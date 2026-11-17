@@ -1,6 +1,4 @@
-origin             = "https://app.CLIENT.workers.dev"
-access_team_domain = "client.cloudflareaccess.com"
-administrators     = ["admin@example.com"]
-reviewers          = []
-# Set this to reuse an existing organization identity provider.
-# identity_provider_id = "existing-provider-uuid"
+origin             = "https://app.voice-freight.workers.dev"
+access_team_domain = "voice-freight.cloudflareaccess.com"
+administrators     = ["admin-email"]
+reviewers          = ["reviewer-email"]
