@@ -1,5 +1,7 @@
 # Voice Freight Broker Agent
 
+Live Demo: https://app.voice-freight.workers.dev
+
 Browser-based freight brokerage simulation with voice calls using GPT Live
 
 > 🔊 Unmute video for voice
