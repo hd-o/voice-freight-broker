@@ -31,7 +31,9 @@ export { ConfirmationProvider } from "./confirmation-provider";
 export { AnalysisProvider } from "./analysis-provider";
 export { LiveCall } from "./live-call";
 
-const app = new Hono<{ Bindings: Env & LiveBindings }>();
+// Runtime bindings also cover the supported local provider modes; generated
+// configuration literals describe only the values in the selected environment.
+const app = new Hono<{ Bindings: LiveBindings }>();
 
 app.use("/api/*", async (context, next): Promise<void> => {
   context.header("Cache-Control", "private, no-store");
@@ -97,7 +99,7 @@ app.onError((error, context): Response => {
 });
 
 async function resolveUser(
-  context: import("hono").Context<{ Bindings: Env & LiveBindings }>,
+  context: import("hono").Context<{ Bindings: LiveBindings }>,
 ): Promise<NonNullable<Awaited<ReturnType<typeof queryIdentity>>>> {
   if (context.env.ENVIRONMENT !== "local" && context.env.AUTH_MODE === "access") {
     return queryAccessIdentity(
@@ -352,7 +354,7 @@ app.get("/api/health", async (context): Promise<Response> => {
 
 export default {
   fetch: app.fetch,
-  async scheduled(_controller: ScheduledController, env: Env & LiveBindings): Promise<void> {
+  async scheduled(_controller: ScheduledController, env: LiveBindings): Promise<void> {
     const { state } = await readState(env.DB);
 
     for (const session of state.liveSessions) {
@@ -367,4 +369,4 @@ export default {
 
     await env.TOOLS.publishAnalysis();
   },
-} satisfies ExportedHandler<Env & LiveBindings>;
+} satisfies ExportedHandler<LiveBindings>;

@@ -1,4 +1,7 @@
 {
+  // Hosted is the default environment. Copy real values from Terraform's hosting
+  // output once, then maintain this file as the Worker configuration source.
+  "account_id": "00000000000000000000000000000000",
   "d1_databases": [
     {
       "binding": "DB",
@@ -11,8 +14,8 @@
     "ENVIRONMENT": "hosted",
     "AUTH_MODE": "access",
     "PUBLIC_ORIGIN": "https://deployment.invalid",
-    "ACCESS_ISSUER": "https://deployment.invalid",
-    "ACCESS_AUDIENCE": "configured-from-terraform",
+    "ACCESS_ISSUER": "https://TEAM.cloudflareaccess.com",
+    "ACCESS_AUDIENCE": "REPLACE_WITH_ACCESS_AUDIENCE",
     "VOICE_PROVIDER": "openai",
   },
   "$schema": "../../node_modules/wrangler/config-schema.json",

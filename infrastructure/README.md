@@ -1,33 +1,27 @@
 # Hosted deployment
 
-Terraform owns D1, queues, and Cloudflare Access. Wrangler owns the three Workers, their bindings, schedules, and
-application bundles. Releases run from your machine; no GitHub deployment workflow is required.
+Terraform owns D1, queues, and Cloudflare Access. The committed Wrangler configurations own the three Workers, their
+bindings, schedules, and application bundles. Releases run locally with Wrangler.
 
 ## Prerequisites
 
-Install Bash, curl, Terraform 1.12 or newer, and the repository's Node and pnpm versions. Install dependencies with
-`pnpm install --frozen-lockfile`. Complete Cloudflare Zero Trust onboarding in the client account. Obtain the team's
-`cloudflareaccess.com` hostname from that account.
+Install Bash, Terraform 1.12 or newer, and the repository's Node and pnpm versions. Run
+`pnpm install --frozen-lockfile`. Complete Cloudflare Zero Trust onboarding and obtain the team's `cloudflareaccess.com`
+hostname.
 
-Export `CLOUDFLARE_API_TOKEN` in your shell. Terraform reads it directly; Wrangler uses the same exported environment.
-Use a token scoped to the client account with D1, Queues, Workers Scripts, and Access Applications/Policies/Identity
-Providers edit permissions. Custom domains also require permission to configure Worker routes in the relevant zone. Keep
-tokens out of Terraform variables, plans, and committed files.
+Terraform reads `CLOUDFLARE_API_TOKEN` from the shell. Wrangler can use the same token or an operator's `wrangler login`
+session. Scope the Terraform token to this account with D1, Queues, and Access Applications/Policies/Identity Providers
+edit permissions. Wrangler needs Workers deployment permissions, D1 permissions for migrations and role updates, and
+Worker route permissions for custom domains. Keep credentials outside committed files and Terraform inputs.
 
 ## Infrastructure setup
 
-```sh
-cp infrastructure/terraform.tfvars.example infrastructure/terraform.tfvars
-```
+Copy `infrastructure/terraform.tfvars.example` to `infrastructure/terraform.tfvars`. Set the account, public origin,
+Access team domain, and administrator/reviewer emails.
 
-Edit the copied file with your account, actual public origin, team domain, and administrator/reviewer emails. For a
-`workers.dev` origin, the hostname must match `<prefix>-app.<your-workers-subdomain>.workers.dev`. For a custom origin,
-use a domain in the client Cloudflare account; Wrangler configures it as the App Worker's custom domain. Public samples
-remain accessible; Access protects `/api`, and the API verifies Access JWTs and D1 roles.
-
-The default prefix preserves the original hosted resource names. A distinct prefix creates a separate installation,
-including Workers and queues. The database name is `<prefix>-hosted`. For separate environments, use separate Terraform
-state and variable files; prepare and deploy from the state selected for that environment, one operation at a time.
+The resource names are fixed: `voice-freight-hosted`, `voice-freight-analysis`, and
+`voice-freight-analysis-dead-letter`. Workers are named `voice-freight-api`, `voice-freight-tools`, and
+`voice-freight-app`. A separate installation requires updating the committed names and settings.
 
 ```sh
 terraform -chdir=infrastructure init
@@ -36,85 +30,142 @@ terraform -chdir=infrastructure validate
 terraform -chdir=infrastructure test
 terraform -chdir=infrastructure plan -out=hosting.tfplan
 terraform -chdir=infrastructure apply hosting.tfplan
-pnpm deploy:prepare
+terraform -chdir=infrastructure output -json hosting
 ```
 
-The provider version and dependency lockfile are committed. Local state, variable files, plans, and generated Wrangler
-configs are ignored. Back up state securely. Before sharing operations across engineers, configure a client-owned remote
-backend with locking and migrate state using `terraform init -migrate-state`. Never create a second state for the same
-resources. Protect state access: it includes user emails and resource IDs.
+Keep the provider lockfile committed. Local state, variable files, and plans are ignored. Back up state securely: it
+includes user emails and resource IDs. Before sharing infrastructure operations, configure a remote backend with locking
+and migrate state using `terraform init -migrate-state`. Use one state for these resources.
 
-D1 and queues have destruction protection. Renaming them requires an explicit data migration and a reviewed
-infrastructure change.
+D1 and queues retain destruction protection. Review every plan; changing names must not replace existing resources
+without a deliberate migration.
 
-## Adopt the existing demo
+## Configure Wrangler once
 
-Import resources before the first apply; do not recreate the database. Use the existing account, origin, and default
-prefix. Find the database and queue IDs in Cloudflare, and the Access application ID in the dashboard or old
-`.local/hosting.json`. Set `identity_provider_id` to the existing email-code provider ID so Terraform reuses it without
-taking ownership of an organization-wide provider.
+Hosted is the default top-level environment. The `local` environment retains its development settings and tests supply
+their own stub providers. The checkout contains placeholders because no hosted account is configured.
 
-```sh
-terraform -chdir=infrastructure init
-terraform -chdir=infrastructure import cloudflare_d1_database.hosting ACCOUNT_ID/DATABASE_ID
-terraform -chdir=infrastructure import 'cloudflare_queue.analysis["analysis"]' ACCOUNT_ID/QUEUE_ID
-terraform -chdir=infrastructure import 'cloudflare_queue.analysis["analysis-dead-letter"]' ACCOUNT_ID/DEAD_LETTER_QUEUE_ID
-terraform -chdir=infrastructure import cloudflare_zero_trust_access_application.api accounts/ACCOUNT_ID/APP_ID
-terraform -chdir=infrastructure plan -out=hosting.tfplan
+Copy these values from Terraform's `hosting` output:
+
+- Set `account_id` in `apps/api/wrangler.jsonc`, `apps/tools/wrangler.jsonc`, `apps/web/deploy/wrangler.jsonc`, and
+  `apps/tools/bootstrap/wrangler.jsonc` to `accountId`.
+- Set the top-level D1 `database_id` and `database_name` in API and Tools to `databaseId` and `databaseName`. Leave
+  local database IDs alone.
+- Set API and App `PUBLIC_ORIGIN` to `origin`. Set API `ACCESS_ISSUER` to `issuer` and `ACCESS_AUDIENCE` to `audience`.
+
+For `workers.dev`, use `https://voice-freight-app.YOUR-SUBDOMAIN.workers.dev` as the origin. Keep the App's
+`workers_dev: true`. For a custom domain in this Cloudflare account, set `workers_dev: false` and add an App route:
+
+```jsonc
+"routes": [{ "pattern": "freight.example.com", "custom_domain": true }]
 ```
 
-Review the imported Access policy carefully. Terraform owns the application's complete policy list; the plan must retain
-the intended invited-user policy and must not replace D1 or queues. Apply only after reviewing the plan. Existing
-Workers and their secrets stay under Wrangler ownership.
+Commit these non-secret settings. Future deployments read these files directly and do not invoke Terraform or generate
+configuration. If a resource is replaced or its domain changes, update the affected settings manually. Keep API and
+Tools private with `workers_dev: false` and `preview_urls: false`.
 
-## Secrets and first release
+## First release
 
-`pnpm deploy:prepare` reads `terraform output -json hosting` and generates `.local/wrangler/{api,tools,app}.json`. It
-does not apply infrastructure, change checked-in configuration, or read your local development API key.
-
-Provision the hosted OpenAI key separately through Wrangler's hidden prompt:
+API and Tools call named entrypoints on each other. For a fresh installation only, deploy the private Tools placeholder
+so API's binding can resolve:
 
 ```sh
-pnpm exec wrangler secret put OPENAI_API_KEY --config .local/wrangler/api.json
+pnpm exec wrangler deploy --env="" \
+  --config apps/tools/bootstrap/wrangler.jsonc
 ```
 
-On a fresh account, allow Wrangler to create the API Worker when prompted. The secret belongs to this environment; use
-the same command to rotate it. Do not copy a developer credential into a client deployment automatically.
+Never run that command over an established Tools Worker: it replaces its code with an unavailable placeholder. Existing
+installations skip this step. Routine releases never deploy the placeholder.
+
+Provision the hosted provider key separately through Wrangler's hidden prompt:
 
 ```sh
-pnpm run deploy
+pnpm exec wrangler secret put OPENAI_API_KEY --env="" \
+  --config apps/api/wrangler.jsonc
+```
+
+On a fresh account, allow Wrangler to create the API Worker if prompted. Use the same command to rotate the key.
+Deployment does not copy local development credentials.
+
+```sh
+pnpm deploy
 pnpm deploy:roles
 ```
 
-`scripts/deploy.sh` orchestrates the release; `prepare-deployment.ts` prepares structured configuration and role SQL.
-The release validates types and code, runs API, CLI and local browser tests, and builds the app and Storybook. It checks
-source digests, freezes bundles and migrations in `.local/releases`, applies remote migrations, then publishes API,
-tools, and app with Wrangler. The first release creates a private Tools stub only if that Worker does not exist,
-resolving the initial circular service-binding dependency.
+The release applies pending D1 migrations before publishing API, Tools, and App. Synchronizing roles afterward enables
+invited users to use the app.
 
-`deploy:roles` is a separate administration operation after migrations. It upserts configured Access users and roles and
-removes Access users absent from the Terraform output. It preserves local identities and call data. After changing
-invite lists, apply Terraform and run `pnpm deploy:roles`. Routine code releases do not change roles or rotate runtime
-secrets.
+## Routine releases and roles
+
+`pnpm deploy` and `pnpm deploy:hosted` run the same release workflow in `scripts/deploy.sh`. It generates local
+Cloudflare types, validates types and code, runs integration tests, builds Workers, App, and Storybook, and runs browser
+tests. Only after these succeed does it apply remote D1 migrations and deploy API, Tools, then App with the committed
+configurations.
+
+Wrangler bundles the current source during deployment. Keep the checkout stable while releasing; this workflow does not
+freeze local release copies. Terraform, role synchronization, and secret rotation are separate operations.
+
+After changing administrator/reviewer lists, review and apply Terraform, then synchronize D1 explicitly:
+
+```sh
+pnpm deploy:roles
+# Equivalent command with structured output:
+pnpm --silent cli hosted roles sync --json
+```
+
+Synchronization reads applied Terraform state and checks its account, database ID, and database name against the
+committed API configuration. It upserts configured Access users and roles, removes Access users no longer listed,
+preserves local identities and business data, and increments the database revision. Temporary role SQL is removed after
+execution.
+
+User lists stay outside shared schema migrations. Access controls who can reach `/api`; API verifies Access JWTs and the
+application roles in D1. Public sample pages remain accessible.
+
+## Adopt an existing installation
+
+Import existing resources before applying Terraform. Do not recreate the database or queues. Reuse the existing account,
+origin, resource names, and Access application. If names differ from this checkout, update Terraform and Wrangler
+consistently before planning.
+
+```sh
+terraform -chdir=infrastructure init
+terraform -chdir=infrastructure import \
+  cloudflare_d1_database.hosting ACCOUNT_ID/DATABASE_ID
+terraform -chdir=infrastructure import \
+  'cloudflare_queue.analysis["analysis"]' ACCOUNT_ID/QUEUE_ID
+terraform -chdir=infrastructure import \
+  'cloudflare_queue.analysis["analysis-dead-letter"]' ACCOUNT_ID/DEAD_LETTER_ID
+terraform -chdir=infrastructure import \
+  cloudflare_zero_trust_access_application.api accounts/ACCOUNT_ID/APP_ID
+terraform -chdir=infrastructure plan -out=hosting.tfplan
+```
+
+Set `identity_provider_id` to reuse an existing organization identity provider. Review the complete Access policy list
+before applying. Existing Workers and secrets remain under Wrangler ownership.
+
+When migrating from generated configuration, copy existing hosted values into the committed Wrangler files first.
+Preserve Worker names, Durable Object migration tags, and the D1 migration history. Skip the Tools placeholder for
+existing installations. Old `.local/wrangler`, `.local/releases`, and `.local/deployment.json` files are no longer used;
+archive any release records you still need.
 
 ## Verification and recovery
 
-After releasing, check public pages, Access login, the authenticated `/api/health` endpoint (API, tools, and database),
-and a short call through saved transcript and completed analysis. Local browser tests do not replace this hosted check.
-Confirm rejected users cannot reach the protected API. Monitor Worker errors, queue backlog/dead letters, and provider
-spending.
+After releasing, verify public pages, Access login and rejected users, authenticated `/api/health`, and a short call
+through saved transcript and completed analysis. Local browser tests do not replace this hosted check. Monitor Worker
+errors, queue backlog/dead letters, and provider spending.
 
-Save `.local/deployment.json` and its release directory (including the `deployed-at` timestamp) with your release
-records. Deployments are sequential, not atomic: a failure may leave newer migrations or some newer Workers. Inspect
-Wrangler output before retrying. Keep schema, RPC, queue payload, and Durable Object state changes compatible with the
-previous release.
+Cloudflare records Worker versions and deployments. Inspect them and roll back each affected Worker using its committed
+configuration:
 
-Use `wrangler rollback VERSION_ID --config .local/wrangler/NAME.json` for each affected Worker with a compatible
-previous version. Worker rollback does not restore D1 data. Record a D1 Time Travel bookmark before a schema change and
-rehearse restoration in staging. Durable Object lifecycle migrations need a dedicated recovery plan; they can restrict
-rollback.
+```sh
+pnpm exec wrangler versions list --env="" --config apps/api/wrangler.jsonc
+pnpm exec wrangler deployments list --env="" --config apps/api/wrangler.jsonc
+pnpm exec wrangler rollback VERSION_ID --env="" --config apps/api/wrangler.jsonc
+```
 
-See [Worker rollback][rollback] and [D1 recovery][recovery].
+Use the corresponding Tools or App configuration for those Workers. Deployments are sequential: failures can leave newer
+migrations or a subset of newer Workers. Keep schema, RPC, queue payload, and Durable Object state changes compatible
+with the preceding release. Inspect the failed step before retrying.
 
-[rollback]: https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/
-[recovery]: https://developers.cloudflare.com/d1/reference/time-travel/
+Worker rollback does not restore D1 data. Record a D1 Time Travel bookmark before schema changes and rehearse
+restoration. Durable Object lifecycle migrations require their own recovery plan.

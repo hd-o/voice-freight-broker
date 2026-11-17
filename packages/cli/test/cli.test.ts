@@ -89,6 +89,7 @@ it("discovers commands and examples without accessing a database", (): void => {
     ["db", "query", "--help"],
     ["dev", "limits", "reset", "--help"],
     ["eval", "--help"],
+    ["hosted", "roles", "sync", "--help"],
   ]) {
     const result = invokeCli(parameters);
     expect(result.status).toBe(0);

@@ -1,9 +1,8 @@
-# The deployment script consumes this public configuration contract.
+# Copy Worker settings into Wrangler once; role synchronization reads this output.
 output "hosting" {
   value = {
     accountId      = var.account_id
     origin         = var.origin
-    prefix         = var.prefix
     databaseId     = cloudflare_d1_database.hosting.id
     databaseName   = cloudflare_d1_database.hosting.name
     issuer         = "https://${var.access_team_domain}"

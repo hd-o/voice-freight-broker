@@ -1,8 +1,12 @@
 {
   "$schema": "../../../node_modules/wrangler/config-schema.json",
   "name": "voice-freight-app",
+  // Set the hosted account and PUBLIC_ORIGIN once during infrastructure setup.
+  "account_id": "00000000000000000000000000000000",
   "compatibility_date": "2026-11-12",
   "workers_dev": true,
+  // For a custom domain, set workers_dev to false and configure:
+  // "routes": [{ "pattern": "freight.example.com", "custom_domain": true }],
   "main": "worker.ts",
   "vars": { "AUTH_MODE": "access", "PUBLIC_ORIGIN": "https://deployment.invalid" },
   "services": [{ "binding": "API", "service": "voice-freight-api" }],

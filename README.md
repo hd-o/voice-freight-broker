@@ -24,7 +24,7 @@ Open the web app at <http://localhost:3000>.
 
 For evaluations, see [evals/README.md](evals/README.md).
 
-Use the local development CLI for inspection and administrative commands:
+Use the CLI for local development and hosted administration commands:
 
 ```sh
 pnpm --silent cli --help
@@ -32,6 +32,7 @@ pnpm --silent cli calls transcript <call-id> --json
 pnpm --silent cli db schema --json
 pnpm --silent cli dev limits reset --json
 pnpm --silent cli eval --suite confirmations dallas-fragmented --json
+pnpm --silent cli hosted roles sync --json
 ```
 
 `calls` and `db` inspect local storage read-only without running Workers or credentials. Their `--database` and
@@ -41,8 +42,9 @@ and shared allowance. With `--json`, results go to stdout and errors or progress
 
 ## Hosted deployment
 
-Use Terraform for infrastructure and Wrangler for local releases. See [hosted deployment](infrastructure/README.md) for
-setup, importing existing resources, credentials, deployment, and recovery.
+Use Terraform for infrastructure and committed Wrangler configuration for local releases. The `hosted roles sync` CLI
+command synchronizes application roles from applied Terraform state. See [hosted deployment](infrastructure/README.md)
+for setup, credentials, deployment, and recovery.
 
 ## Architecture
 

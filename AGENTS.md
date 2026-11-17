@@ -39,9 +39,10 @@ IMPORTANT: Keep this section concisely up-to-date
 
 Local voice workflows, Decisions confirmation, queued post-call analysis, and
 text evaluations, and hosted Access are implemented. Terraform manages hosted
-resources; Wrangler releases run locally. Cloudflare
-release validation is in progress.
-The local development CLI supports inspection, quota resets, and evaluations.
+resources; committed Wrangler configurations drive local releases.
+Hosted account settings still require initial configuration.
+The CLI supports local inspection, quota resets, evaluations, and hosted role
+synchronization.
 
 ## Structure
 
@@ -52,7 +53,7 @@ This TypeScript monorepo uses pnpm workspaces and Vite+:
 - `apps/tools/`: private business RPC worker and analysis queue consumer
 - `packages/backend/`: domain logic, Drizzle schema, and D1 migrations
 - `packages/contracts/`: shared types and Zod contracts
-- `packages/cli/`: local development CLI; storage inspection stays read-only
+- `packages/cli/`: development and hosted administration CLI; inspection stays read-only
 - `tests/`: Playwright browser tests; Storybook is in web
 
 ### Testing
@@ -74,6 +75,7 @@ Commander.js `pnpm --silent cli [command]` commands:
 - `calls` and `db` inspect storage read-only without Workers or credentials
 - `dev limits reset` requires local Workers and changes daily call quotas
 - `eval` makes paid requests using the existing provider key and shared allowance
+- `hosted roles sync` changes hosted roles using applied Terraform state
 - `--database` and `--persist-to` belong to the `calls` and `db` command groups
 
 ```txt
@@ -84,6 +86,7 @@ cli db schema [table]           List table, index, view, and trigger definitions
 cli db query [options] <sql>     Execute one read-only SELECT or CTE.
 cli dev limits reset            Reset daily call quotas through local Workers.
 cli eval [case-prefix]           Run workflow and confirmation evaluations.
+cli hosted roles sync           Synchronize hosted roles from Terraform state.
 ```
 
 Vite+ `vpr [command]` project commands:
@@ -117,8 +120,8 @@ Vite+ `vpr [command]` project commands:
 "cli": Launch the local CLI entrypoint.
 "db:generate": Generate the backend Drizzle schema migrations.
 "db:migrate": Apply local D1 migrations to the development database.
-"deploy:hosted": Validate and deploy Workers using Terraform outputs.
-"deploy:prepare": Generate hosted Wrangler configuration from Terraform.
+"deploy": Validate and deploy Workers using committed Wrangler configuration.
+"deploy:hosted": Run the same local release workflow as deploy.
 "deploy:roles": Synchronize hosted application roles.
 "dev:reset:limits": Reset local daily call quotas for all users.
 "dev:web": Start the web frontend in development mode.
@@ -136,6 +139,6 @@ Vite+ `vpr [command]` project commands:
 "test:browser": Run the Playwright browser test suite.
 "test:cli": Run the CLI test suite.
 "test:eval": Run free Cloudflare evaluation harness integration checks.
-"test": Run deployment, CLI, tools build, and API tests.
+"test": Run CLI, tools build, and API tests.
 "typecheck": Run repository-wide TypeScript type checks.
 ```

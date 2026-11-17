@@ -188,9 +188,6 @@ importers:
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
-      jsonc-parser:
-        specifier: 3.3.1
-        version: 3.3.1
       markdownlint-cli2:
         specifier: 0.24.1
         version: 0.24.1(supports-color@10.2.2)
@@ -350,6 +347,9 @@ importers:
       commander:
         specifier: 15.1.0
         version: 15.1.0
+      jsonc-parser:
+        specifier: 3.3.1
+        version: 3.3.1
       zod:
         specifier: 4.6.7
         version: 4.6.7

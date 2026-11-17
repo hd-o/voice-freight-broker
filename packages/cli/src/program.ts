@@ -14,7 +14,7 @@ const inspectionOptionsSchema = z.object({
 export async function runCli(arguments_: string[]): Promise<void> {
   const program = new Command()
     .name("cli")
-    .description("Local freight development, inspection, and evaluation commands.")
+    .description("Freight development, inspection, evaluation, and hosted administration commands.")
     .option("--json", "emit compact JSON; errors are JSON on stderr")
     .showSuggestionAfterError(false)
     .exitOverride()
@@ -28,7 +28,8 @@ Usage notes:
   calls/db inspect local storage read-only, without running Workers or credentials.
   dev limits reset changes daily quotas through running local Workers.
   eval makes paid provider requests using the shared application allowance.
-  Help never opens storage, contacts Workers, or loads evaluation dependencies.
+  hosted roles sync changes hosted Access users using applied Terraform state.
+  Help never opens storage, contacts Workers, or invokes Terraform or Wrangler.
 
 Database selection (calls/db only):
   Default storage is the repository's .wrangler/state, regardless of working directory.
@@ -189,6 +190,40 @@ Example:
         options.json
           ? `${serializeJson(receipt)}\n`
           : "Local daily call quotas reset. Call history, spending and active-call checks are preserved.\n",
+      );
+    });
+
+  const hosted = program.command("hosted").description("Administer the hosted installation.");
+  const roles = hosted.command("roles").description("Manage hosted application roles.");
+
+  roles
+    .command("sync")
+    .description("Synchronize hosted administrator and reviewer roles from applied Terraform state.")
+    .addHelpText(
+      "after",
+      `
+Requires Terraform, Wrangler authentication, and an initialized hosted database.
+Reads terraform output -json hosting and checks the account and database against
+the committed API configuration before modifying D1. Adds or updates configured
+Access users, removes omitted Access users, and preserves local identities and
+business data. Run after initial migrations and changes to Terraform user lists.
+
+Output:
+  --json returns {databaseId, administrators, reviewers}; counts describe the
+  configured users. Help does not invoke Terraform or Wrangler.
+
+Example:
+  pnpm --silent cli hosted roles sync --json`,
+    )
+    .action(async (_options: unknown, command: Command): Promise<void> => {
+      const options = z.object({ json: z.boolean().default(false) }).parse(command.optsWithGlobals());
+      const { synchronizeRoles } = await import("./hosting.ts");
+      const receipt = await synchronizeRoles();
+
+      process.stdout.write(
+        options.json
+          ? `${serializeJson(receipt)}\n`
+          : `Hosted roles synchronized: ${receipt.administrators} administrators, ${receipt.reviewers} reviewers.\n`,
       );
     });
 

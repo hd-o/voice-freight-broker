@@ -1,19 +1,9 @@
 variable "account_id" {
   type        = string
-  description = "Client Cloudflare account ID."
+  description = "Hosted Cloudflare account ID."
   validation {
     condition     = can(regex("^[a-f0-9]{32}$", var.account_id))
     error_message = "Use the 32-character Cloudflare account ID."
-  }
-}
-
-variable "prefix" {
-  type        = string
-  default     = "voice-freight"
-  description = "Unique Worker and queue prefix for this environment."
-  validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{0,40}$", var.prefix))
-    error_message = "Use lowercase letters, digits, and hyphens (41 characters maximum)."
   }
 }
 

@@ -2,7 +2,6 @@ mock_provider "cloudflare" {}
 
 variables {
   account_id         = "0123456789abcdef0123456789abcdef"
-  prefix             = "client-staging"
   origin             = "https://freight.example.com"
   access_team_domain = "client.cloudflareaccess.com"
   administrators     = ["Admin@example.com"]
@@ -13,12 +12,12 @@ run "hosting" {
   command = plan
 
   assert {
-    condition     = cloudflare_d1_database.hosting.name == "client-staging-hosted"
-    error_message = "The environment must have its own database name."
+    condition     = cloudflare_d1_database.hosting.name == "voice-freight-hosted"
+    error_message = "The database name must match the committed Wrangler bindings."
   }
   assert {
-    condition     = cloudflare_queue.analysis["analysis-dead-letter"].queue_name == "client-staging-analysis-dead-letter"
-    error_message = "The dead-letter queue must belong to this environment."
+    condition     = cloudflare_queue.analysis["analysis-dead-letter"].queue_name == "voice-freight-analysis-dead-letter"
+    error_message = "The dead-letter queue name must match the committed Wrangler bindings."
   }
   assert {
     condition     = cloudflare_zero_trust_access_application.api.domain == "freight.example.com/api" && length(cloudflare_zero_trust_access_application.api.policies[0].include) == 2

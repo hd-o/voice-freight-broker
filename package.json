@@ -12,9 +12,8 @@
     "db:generate": "vpr @voice-freight/backend#db:generate",
     "db:migrate": "wrangler d1 migrations apply DB --local --env local --config apps/api/wrangler.jsonc --persist-to .wrangler/state",
     "deploy:hosted": "bash scripts/deploy.sh",
-    "deploy:prepare": "vpr deploy:hosted --prepare",
-    "deploy:roles": "vpr deploy:hosted --roles",
-    "deploy": "vpr cf:types && vpr deploy:hosted",
+    "deploy:roles": "pnpm --silent cli hosted roles sync",
+    "deploy": "vpr deploy:hosted",
     "dev:reset:limits": "pnpm --silent cli dev limits reset",
     "dev:web": "vpr @voice-freight/web#dev",
     "dev:workers": "vpr @voice-freight/api#dev",
@@ -32,7 +31,7 @@
     "test:browser": "playwright test",
     "test:cli": "vpr @voice-freight/cli#test",
     "test:eval": "PROMPTFOO_DISABLE_TELEMETRY=1 node --test evals/runtime.test.ts",
-    "test": "vpr test:deploy && vpr test:cli && vpr test:api",
+    "test": "vpr test:cli && vpr test:api",
     "typecheck": "tsc --noEmit && vpr eval:typecheck && vpr -r typecheck"
   },
   "devDependencies": {
@@ -41,7 +40,6 @@
     "@playwright/test": "1.65.0",
     "@types/node": "24.19.2",
     "esbuild": "0.28.2",
-    "jsonc-parser": "3.3.1",
     "markdownlint-cli2": "0.24.1",
     "miniflare": "5.20261110.2-beta",
     "playwright-core": "1.65.0",

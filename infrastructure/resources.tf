@@ -5,7 +5,7 @@ locals {
 
 resource "cloudflare_d1_database" "hosting" {
   account_id = var.account_id
-  name       = "${var.prefix}-hosted"
+  name       = "voice-freight-hosted"
   lifecycle {
     prevent_destroy = true
   }
@@ -15,7 +15,7 @@ resource "cloudflare_d1_database" "hosting" {
 resource "cloudflare_queue" "analysis" {
   for_each   = toset(["analysis", "analysis-dead-letter"])
   account_id = var.account_id
-  queue_name = "${var.prefix}-${each.key}"
+  queue_name = "voice-freight-${each.key}"
   lifecycle {
     prevent_destroy = true
   }
@@ -31,7 +31,7 @@ resource "cloudflare_zero_trust_access_identity_provider" "email" {
 
 resource "cloudflare_zero_trust_access_application" "api" {
   account_id                 = var.account_id
-  name                       = "${var.prefix} API"
+  name                       = "voice-freight API"
   type                       = "self_hosted"
   domain                     = "${trimprefix(var.origin, "https://")}/api"
   session_duration           = "8h"

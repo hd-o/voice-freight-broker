@@ -1,4 +1,6 @@
 {
+  // Match API's hosted account and D1 database; local bindings stay below.
+  "account_id": "00000000000000000000000000000000",
   "d1_databases": [
     {
       "binding": "DB",
