@@ -20,8 +20,8 @@ Copy `infrastructure/terraform.tfvars.example` to `infrastructure/terraform.tfva
 Access team domain, and administrator/reviewer emails.
 
 The resource names are fixed: `voice-freight-prod`, `voice-freight-analysis`, and `voice-freight-analysis-dead-letter`.
-Workers are named `voice-freight-api`, `voice-freight-tools`, and `voice-freight-app`. A separate installation requires
-updating the committed names and settings.
+Workers are named `voice-freight-api`, `voice-freight-tools`, and `app`. A separate installation requires updating the
+committed names and settings.
 
 ```sh
 terraform -chdir=infrastructure init
@@ -54,8 +54,8 @@ Copy these values from Terraform's `hosting` output:
   local database IDs alone.
 - Set API and App `PUBLIC_ORIGIN` to `origin`. Set API `ACCESS_ISSUER` to `issuer` and `ACCESS_AUDIENCE` to `audience`.
 
-For `workers.dev`, use `https://voice-freight-app.YOUR-SUBDOMAIN.workers.dev` as the origin. Keep the App's
-`workers_dev: true`. For a custom domain in this Cloudflare account, set `workers_dev: false` and add an App route:
+For `workers.dev`, use `https://app.YOUR-SUBDOMAIN.workers.dev` as the origin. Keep the App's `workers_dev: true`. For a
+custom domain in this Cloudflare account, set `workers_dev: false` and add an App route:
 
 ```jsonc
 "routes": [{ "pattern": "freight.example.com", "custom_domain": true }]
