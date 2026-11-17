@@ -2,6 +2,10 @@
 
 Browser-based freight brokerage simulation with voice calls using GPT Live
 
+> 🔊 Unmute video for voice
+
+https://github.com/user-attachments/assets/b26da6e1-3399-4449-b9df-2c2da077cac4
+
 ## Development
 
 Start a [devcontainer](https://containers.dev/supporting), or a
