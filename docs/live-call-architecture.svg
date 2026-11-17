@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img"
+  aria-labelledby="title description">
+  <title id="title">Live call coordination and application data</title>
+  <desc id="description">The API Worker coordinates LiveCall and calls the Tools
+    Worker. All three read and write the application database. LiveCall connects
+    directly to OpenAI GPT Live for session setup and sideband events.</desc>
+  <style>
+    .boundary { fill: none; stroke: #ccc; }
+    .node { fill: #f8f8f8; stroke: #226c8e; }
+    .external { fill: #f8f8f8; stroke: #226c8e; }
+    .line { fill: none; stroke: #226c8e; stroke-width: 1.25; }
+    .arrow { fill: #226c8e; }
+    .text { fill: #3b3b3b; font-family: system-ui, sans-serif; }
+    .heading { font-size: 16px; }
+    .name { font-size: 16px; }
+    .detail { font-size: 16px; }
+    .label { font-size: 16px; }
+    @media (prefers-color-scheme: dark) {
+      .boundary { stroke: #343434; }
+      .node, .external { fill: #202020; }
+      .text { fill: #ccc; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path class="arrow" d="M 0 0 L 10 5 L 0 10 Z" />
+    </marker>
+  </defs>
+
+  <rect class="boundary" x="20" y="20" width="760" height="660" />
+  <text class="text heading" x="400" y="53" text-anchor="middle">
+    Voice Freight Broker
+  </text>
+
+  <g class="line" marker-end="url(#arrow)">
+    <path d="M 422 190 V 240" />
+    <path d="M 300 155 H 223 Q 215 155 215 163 V 400" />
+    <path d="M 345 345 V 366 Q 345 374 337 374 H 273 Q 265 374 265 382 V 400" />
+    <path d="M 300 110 H 58 Q 50 110 50 118 V 602 Q 50 610 58 610 H 410" />
+    <path d="M 470 345 V 545" />
+    <path d="M 345 465 H 372 Q 380 465 380 473 V 582 Q 380 590 388 590 H 410" />
+  </g>
+  <path class="line" d="M 545 292 H 955" marker-start="url(#arrow)"
+    marker-end="url(#arrow)" />
+
+  <g class="text label">
+    <text x="435" y="220">Call lifecycle</text>
+    <text x="71" y="239">Health and</text>
+    <text x="71" y="258">analysis / RPC</text>
+    <text x="300" y="390">Business actions / RPC</text>
+    <text x="61" y="555">Read and write</text>
+    <text x="481" y="444">Read and write</text>
+    <text x="255" y="540">Read and write</text>
+    <text x="650" y="264" text-anchor="middle">Session setup / HTTPS</text>
+    <text x="650" y="283" text-anchor="middle">and sideband</text>
+  </g>
+
+  <g class="text" text-anchor="middle">
+    <rect class="node" x="300" y="85" width="245" height="105" />
+    <text class="name" x="422.5" y="115">API Worker</text>
+    <text class="detail" x="422.5" y="140">[Hono / Cloudflare Worker]</text>
+    <text class="detail" x="422.5" y="164">Calls, identity and reports</text>
+
+    <rect class="node" x="300" y="240" width="245" height="105" />
+    <text class="name" x="422.5" y="270">LiveCall</text>
+    <text class="detail" x="422.5" y="295">[Durable Object]</text>
+    <text class="detail" x="422.5" y="319">Call coordination</text>
+
+    <rect class="node" x="100" y="400" width="245" height="105" />
+    <text class="name" x="222.5" y="430">Tools Worker</text>
+    <text class="detail" x="222.5" y="455">[Cloudflare Worker]</text>
+    <text class="detail" x="222.5" y="479">Business actions and analysis</text>
+
+    <path class="node" d="M 410 557 V 625 C 410 643 600 643 600 625 V 557 Z" />
+    <ellipse class="node" cx="505" cy="557" rx="95" ry="15" />
+    <text class="name" x="505" y="590">Application data</text>
+    <text class="detail" x="505" y="614">[Cloudflare D1]</text>
+
+    <rect class="external" x="955" y="240" width="220" height="105" />
+    <text class="name" x="1065" y="299">OpenAI GPT Live</text>
+  </g>
+</svg>

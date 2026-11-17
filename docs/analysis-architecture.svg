@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="730" viewBox="0 0 900 730" role="img"
+  aria-labelledby="title description">
+  <title id="title">Analysis and confirmation</title>
+  <desc id="description">The Tools Worker reads and writes application data, publishes and consumes analysis and dead-letter queue messages, and calls the API Worker for analysis and confirmation. The analysis queue sends failed jobs to the dead-letter queue. The API Worker calls the OpenAI Responses and Decisions APIs.</desc>
+  <style>
+    .boundary { fill: none; stroke: #ccc; }
+    .node { fill: #f8f8f8; stroke: #226c8e; }
+    .external { fill: #f8f8f8; stroke: #226c8e; }
+    .line { fill: none; stroke: #226c8e; stroke-width: 1.25; }
+    .arrow { fill: #226c8e; }
+    .text { fill: #3b3b3b; font-family: system-ui, sans-serif; font-size: 14px; }
+    .heading { font-size: 14px; }
+    .name { font-size: 14px; }
+    .detail { font-size: 14px; }
+    .label { font-size: 14px; }
+    @media (prefers-color-scheme: dark) {
+      .boundary { stroke: #343434; }
+      .node, .external { fill: #202020; }
+      .text { fill: #ccc; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path class="arrow" d="M 0 0 L 10 5 L 0 10 Z" />
+    </marker>
+  </defs>
+
+  <rect class="boundary" x="20" y="20" width="820" height="560" />
+  <text class="text heading" x="430" y="50" text-anchor="middle">Voice Freight Broker</text>
+  <path class="line" d="M 365 120 H 143 Q 135 120 135 128 V 290" marker-end="url(#arrow)" />
+  <path class="line" d="M 440 170 V 290" marker-end="url(#arrow)" />
+  <path class="line" d="M 610 135 H 692 Q 700 135 700 143 V 290" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <path class="line" d="M 680 385 V 500" marker-end="url(#arrow)" />
+  <path class="line" d="M 610 105 H 817 Q 825 105 825 113 V 532 Q 825 540 817 540 H 805" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <path class="line" d="M 325 385 V 557 Q 325 565 317 565 H 223 Q 215 565 215 573 V 620" marker-end="url(#arrow)" />
+  <path class="line" d="M 435 385 V 620" marker-end="url(#arrow)" />
+  <text class="text label" x="150" y="197" text-anchor="start">Read and write</text>
+  <text class="text label" x="452" y="220" text-anchor="start">Analysis and</text>
+  <text class="text label" x="452" y="240" text-anchor="start">confirmation / RPC</text>
+  <text class="text label" x="711" y="205" text-anchor="start">Publish and</text>
+  <text class="text label" x="711" y="225" text-anchor="start">consume jobs</text>
+  <text class="text label" x="690" y="450" text-anchor="start">Failed jobs</text>
+  <text class="text label" x="485" y="450" text-anchor="start">Publish and consume</text>
+  <text class="text label" x="485" y="470" text-anchor="start">failed jobs</text>
+  <text class="text label" x="24" y="594" text-anchor="start">Post-call analysis</text>
+  <text class="text label" x="24" y="614" text-anchor="start">/ HTTPS</text>
+  <text class="text label" x="447" y="605" text-anchor="start">Confirmation classification / HTTPS</text>
+  <rect class="node" x="365" y="75" width="245" height="95" />
+  <text class="text" x="487.5" y="103.5" text-anchor="middle">Tools Worker</text>
+  <text class="text" x="487.5" y="127.5" text-anchor="middle">[Cloudflare Worker]</text>
+  <text class="text" x="487.5" y="151.5" text-anchor="middle">Business actions and analysis</text>
+  <path class="node" d="M 50 305 V 375 C 50 392 220 392 220 375 V 305 Z" />
+  <ellipse class="node" cx="135" cy="305" rx="85" ry="15" />
+  <text class="text" x="135" y="338" text-anchor="middle">Application data</text>
+  <text class="text" x="135" y="362" text-anchor="middle">[Cloudflare D1]</text>
+  <rect class="node" x="270" y="290" width="220" height="95" />
+  <text class="text" x="380" y="318.5" text-anchor="middle">API Worker</text>
+  <text class="text" x="380" y="342.5" text-anchor="middle">[Cloudflare Worker]</text>
+  <text class="text" x="380" y="366.5" text-anchor="middle">Private provider entrypoints</text>
+  <rect class="node" x="590" y="290" width="215" height="95" />
+  <text class="text" x="697.5" y="330.5" text-anchor="middle">Analysis queue</text>
+  <text class="text" x="697.5" y="354.5" text-anchor="middle">[Cloudflare Queues]</text>
+  <rect class="node" x="590" y="500" width="215" height="75" />
+  <text class="text" x="697.5" y="530.5" text-anchor="middle">Dead-letter queue</text>
+  <text class="text" x="697.5" y="554.5" text-anchor="middle">[Cloudflare Queues]</text>
+  <rect class="node" x="110" y="620" width="210" height="70" />
+  <text class="text" x="215" y="660" text-anchor="middle">OpenAI Responses API</text>
+  <rect class="node" x="330" y="620" width="210" height="70" />
+  <text class="text" x="435" y="660" text-anchor="middle">OpenAI Decisions API</text>
+</svg>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="450" viewBox="0 0 760 450" role="img"
+  aria-labelledby="title description">
+  <title id="title">App and API Workers</title>
+  <desc id="description">The App Worker forwards requests to the API Worker over a private service binding. The API Worker fetches signing keys from Cloudflare Access to validate access tokens.</desc>
+  <style>
+    .boundary { fill: none; stroke: #ccc; }
+    .node { fill: #f8f8f8; stroke: #226c8e; }
+    .external { fill: #f8f8f8; stroke: #226c8e; }
+    .line { fill: none; stroke: #226c8e; stroke-width: 1.25; }
+    .arrow { fill: #226c8e; }
+    .text { fill: #3b3b3b; font-family: system-ui, sans-serif; font-size: 14px; }
+    .heading { font-size: 14px; }
+    .name { font-size: 14px; }
+    .detail { font-size: 14px; }
+    .label { font-size: 14px; }
+    @media (prefers-color-scheme: dark) {
+      .boundary { stroke: #343434; }
+      .node, .external { fill: #202020; }
+      .text { fill: #ccc; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path class="arrow" d="M 0 0 L 10 5 L 0 10 Z" />
+    </marker>
+  </defs>
+
+  <rect class="boundary" x="20" y="20" width="415" height="410" />
+  <text class="text heading" x="227.5" y="50" text-anchor="middle">Voice Freight Broker</text>
+  <path class="line" d="M 225 165 V 230" marker-end="url(#arrow)" />
+  <path class="line" d="M 365 278 H 530" marker-end="url(#arrow)" />
+  <text class="text label" x="238" y="205" text-anchor="start">Private service binding</text>
+  <text class="text label" x="388" y="252" text-anchor="start">Token signing keys</text>
+  <text class="text label" x="388" y="272" text-anchor="start">/ HTTPS</text>
+  <rect class="node" x="95" y="70" width="270" height="95" />
+  <text class="text" x="230" y="98.5" text-anchor="middle">App Worker</text>
+  <text class="text" x="230" y="122.5" text-anchor="middle">[Cloudflare Worker]</text>
+  <text class="text" x="230" y="146.5" text-anchor="middle">Assets and request routing</text>
+  <rect class="node" x="95" y="230" width="270" height="95" />
+  <text class="text" x="230" y="258.5" text-anchor="middle">API Worker</text>
+  <text class="text" x="230" y="282.5" text-anchor="middle">[Hono / Cloudflare Worker]</text>
+  <text class="text" x="230" y="306.5" text-anchor="middle">Calls, identity and reports</text>
+  <rect class="node" x="530" y="240" width="210" height="75" />
+  <text class="text" x="635" y="282.5" text-anchor="middle">Cloudflare Access</text>
+</svg>
