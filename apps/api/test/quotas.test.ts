@@ -96,11 +96,11 @@ it("keeps active-call concurrency and uncertain termination checks after reset",
   });
 });
 
-it("preserves the monthly budget guard and hosted daily call accounting", async (): Promise<void> => {
+it("preserves the monthly budget guard and deployed daily call accounting", async (): Promise<void> => {
   const call = await reserveLiveCall(env.DB, "reviewer", "old", clock, limits, "local");
   await finishCall(call.id, "reviewer");
   await resetDailyQuotas(env.DB, "administrator", local, clock);
-  await expect(reserveLiveCall(env.DB, "reviewer", "hosted", clock, limits, "hosted")).rejects.toMatchObject({
+  await expect(reserveLiveCall(env.DB, "reviewer", "prod", clock, limits, "prod")).rejects.toMatchObject({
     code: "daily_limit",
   });
   await transact(env.DB, (state): void => {
@@ -131,7 +131,7 @@ it("serializes competing call starts against the fresh quota and renews the next
 
 it.each([
   ["reviewer", local],
-  ["administrator", { ENVIRONMENT: "hosted", AUTH_MODE: "local" }],
+  ["administrator", { ENVIRONMENT: "prod", AUTH_MODE: "local" }],
   ["administrator", { ENVIRONMENT: "local", AUTH_MODE: "access" }],
 ])("rejects reset by %s with configuration %j", async (userId, configuration): Promise<void> => {
   await expect(resetDailyQuotas(env.DB, userId, configuration, clock)).rejects.toMatchObject({ code: "forbidden" });

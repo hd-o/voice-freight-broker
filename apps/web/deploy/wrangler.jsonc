@@ -1,7 +1,7 @@
 {
   "$schema": "../../../node_modules/wrangler/config-schema.json",
   "name": "voice-freight-app",
-  // Set the hosted account and PUBLIC_ORIGIN once during infrastructure setup.
+  // Set the deployed account and PUBLIC_ORIGIN once during infrastructure setup.
   "account_id": "00000000000000000000000000000000",
   "compatibility_date": "2026-11-12",
   "workers_dev": true,

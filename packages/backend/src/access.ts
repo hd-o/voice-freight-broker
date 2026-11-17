@@ -20,7 +20,7 @@ export async function verifyAccessToken(
 }> {
   requireCondition(token, "unauthenticated", "Sign in to continue.", 401);
   const { ACCESS_ISSUER: issuer, ACCESS_AUDIENCE: audience } = configuration;
-  requireCondition(issuer && audience, "auth_unavailable", "Hosted authentication is not configured.", 503);
+  requireCondition(issuer && audience, "auth_unavailable", "Deployed authentication is not configured.", 503);
   const domain = new URL(issuer);
 
   requireCondition(

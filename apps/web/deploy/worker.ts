@@ -8,18 +8,18 @@ type AppBindings = {
 export default {
   async fetch(request: Request, environment: AppBindings): Promise<Response> {
     const url = new URL(request.url);
-    const hosted = environment.AUTH_MODE === "access";
+    const access = environment.AUTH_MODE === "access";
     const privateHeaders = { "Cache-Control": "private, no-store", Vary: "Cookie, Cf-Access-Jwt-Assertion" };
 
-    if (hosted && url.origin !== environment.PUBLIC_ORIGIN) {
+    if (access && url.origin !== environment.PUBLIC_ORIGIN) {
       return new Response("Use the public application origin.", { status: 403, headers: privateHeaders });
     }
 
     if (url.pathname === "/auth/configuration") {
-      return Response.json({ mode: hosted ? "access" : "local" }, { headers: privateHeaders });
+      return Response.json({ mode: access ? "access" : "local" }, { headers: privateHeaders });
     }
 
-    if (url.pathname === "/auth/identity" && hosted) {
+    if (url.pathname === "/auth/identity" && access) {
       if (request.method !== "GET") {
         return new Response(null, { status: 405, headers: privateHeaders });
       }
@@ -43,7 +43,7 @@ export default {
     }
 
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
-      if (!hosted || !environment.API) {
+      if (!access || !environment.API) {
         return Response.json(
           { error: { code: "unavailable", message: "API unavailable." } },
           { status: 503, headers: privateHeaders },

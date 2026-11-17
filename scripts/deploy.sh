@@ -5,21 +5,21 @@ set -euo pipefail
 
 # Reject old preparation modes before invoking any deployment tools.
 if [[ "${1:-}" == --help && "$#" -eq 1 ]]; then
-  printf 'pnpm deploy:hosted\nValidate, migrate D1, and deploy API, Tools, and App with Wrangler.\n'
+  printf 'pnpm deploy:prod\nValidate, migrate D1, and deploy API, Tools, and App with Wrangler.\n'
   exit 0
 fi
 if [[ "$#" -ne 0 ]]; then
-  printf 'Use pnpm deploy:hosted without options; use pnpm deploy:roles for roles.\n' >&2
+  printf 'Use pnpm deploy:prod without options; use pnpm deploy:roles for roles.\n' >&2
   exit 1
 fi
 
 # Resolve every configuration from the checkout, regardless of the caller's directory.
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# A development shell must not select a named environment for hosted releases.
+# A development shell must not select a named environment for production releases.
 unset CLOUDFLARE_ENV
 
-# Complete local validation before making hosted changes. Wrangler authenticates
+# Complete local validation before deploying changes. Wrangler authenticates
 # with the operator's login or CLOUDFLARE_API_TOKEN when deployment begins.
 pnpm cf:types
 pnpm typecheck

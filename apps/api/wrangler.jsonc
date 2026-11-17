@@ -1,17 +1,17 @@
 {
-  // Hosted is the default environment. Copy real values from Terraform's hosting
+  // Prod is the default environment. Copy real values from Terraform's hosting
   // output once, then maintain this file as the Worker configuration source.
   "account_id": "00000000000000000000000000000000",
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "voice-freight-hosted",
+      "database_name": "voice-freight-prod",
       "database_id": "00000000-0000-0000-0000-000000000003",
       "migrations_dir": "../../packages/backend/migrations",
     },
   ],
   "vars": {
-    "ENVIRONMENT": "hosted",
+    "ENVIRONMENT": "prod",
     "AUTH_MODE": "access",
     "PUBLIC_ORIGIN": "https://deployment.invalid",
     "ACCESS_ISSUER": "https://TEAM.cloudflareaccess.com",

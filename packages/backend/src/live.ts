@@ -25,7 +25,7 @@ export async function reserveLiveCall(
   operationId: string,
   now = new Date().toISOString(),
   limits = usageLimits,
-  environment = "hosted",
+  environment = "prod",
 ): Promise<{
   id: string;
 }> {

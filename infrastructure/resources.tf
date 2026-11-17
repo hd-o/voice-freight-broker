@@ -5,7 +5,7 @@ locals {
 
 resource "cloudflare_d1_database" "hosting" {
   account_id = var.account_id
-  name       = "voice-freight-hosted"
+  name       = "voice-freight-prod"
   lifecycle {
     prevent_destroy = true
   }

@@ -28,11 +28,11 @@ export const Dashboard: Story = {
   },
 };
 
-export const HostedAdministrator: Story = {
+export const DeployedAdministrator: Story = {
   args: { signedIn: true, accountName: "admin@example.com", activePage: "dashboard" },
 };
 
-export const HostedReviewer: Story = {
+export const DeployedReviewer: Story = {
   args: { signedIn: true, accountName: "reviewer@example.com" },
 };
 

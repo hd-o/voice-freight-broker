@@ -46,7 +46,7 @@ beforeEach(async (): Promise<void> => {
   hosting = {
     accountId,
     databaseId,
-    databaseName: "voice-freight-hosted",
+    databaseName: "voice-freight-prod",
     administrators: [" ADMIN@example.com "],
     reviewers: ["o'brien@example.com"],
   };
@@ -60,7 +60,7 @@ beforeEach(async (): Promise<void> => {
       // Comments and trailing commas are accepted by Wrangler.
       "account_id": "${accountId}",
       "d1_databases": [
-        {"binding":"DB","database_id":"${databaseId}","database_name":"voice-freight-hosted"},
+        {"binding":"DB","database_id":"${databaseId}","database_name":"voice-freight-prod"},
       ],
     }`,
   );
@@ -175,7 +175,7 @@ it.each(["account", "database", "name"])(
 );
 
 it.each(["empty", "overlap", "duplicate", "email"])(
-  "rejects invalid %s user lists before hosted writes",
+  "rejects invalid %s user lists before deployed writes",
   async (field): Promise<void> => {
     if (field === "empty") {
       hosting.administrators = [];

@@ -1,6 +1,6 @@
 variable "account_id" {
   type        = string
-  description = "Hosted Cloudflare account ID."
+  description = "Deployed Cloudflare account ID."
   validation {
     condition     = can(regex("^[a-f0-9]{32}$", var.account_id))
     error_message = "Use the 32-character Cloudflare account ID."

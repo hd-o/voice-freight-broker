@@ -1,4 +1,4 @@
-# Hosted deployment
+# Production deployment
 
 Terraform owns D1, queues, and Cloudflare Access. The committed Wrangler configurations own the three Workers, their
 bindings, schedules, and application bundles. Releases run locally with Wrangler.
@@ -19,9 +19,9 @@ Worker route permissions for custom domains. Keep credentials outside committed 
 Copy `infrastructure/terraform.tfvars.example` to `infrastructure/terraform.tfvars`. Set the account, public origin,
 Access team domain, and administrator/reviewer emails.
 
-The resource names are fixed: `voice-freight-hosted`, `voice-freight-analysis`, and
-`voice-freight-analysis-dead-letter`. Workers are named `voice-freight-api`, `voice-freight-tools`, and
-`voice-freight-app`. A separate installation requires updating the committed names and settings.
+The resource names are fixed: `voice-freight-prod`, `voice-freight-analysis`, and `voice-freight-analysis-dead-letter`.
+Workers are named `voice-freight-api`, `voice-freight-tools`, and `voice-freight-app`. A separate installation requires
+updating the committed names and settings.
 
 ```sh
 terraform -chdir=infrastructure init
@@ -42,8 +42,9 @@ without a deliberate migration.
 
 ## Configure Wrangler once
 
-Hosted is the default top-level environment. The `local` environment retains its development settings and tests supply
-their own stub providers. The checkout contains placeholders because no hosted account is configured.
+The default top-level Wrangler configuration sets `ENVIRONMENT` to `prod`. The `local` environment retains its
+development settings and tests supply their own stub providers. The checkout contains placeholders because no deployed
+account is configured.
 
 Copy these values from Terraform's `hosting` output:
 
@@ -77,7 +78,7 @@ pnpm exec wrangler deploy --env="" \
 Never run that command over an established Tools Worker: it replaces its code with an unavailable placeholder. Existing
 installations skip this step. Routine releases never deploy the placeholder.
 
-Provision the hosted provider key separately through Wrangler's hidden prompt:
+Provision the deployed provider key separately through Wrangler's hidden prompt:
 
 ```sh
 pnpm exec wrangler secret put OPENAI_API_KEY --env="" \
@@ -97,9 +98,9 @@ invited users to use the app.
 
 ## Routine releases and roles
 
-`pnpm deploy` and `pnpm deploy:hosted` run the same release workflow in `scripts/deploy.sh`. It generates local
-Cloudflare types, validates types and code, runs integration tests, builds Workers, App, and Storybook, and runs browser
-tests. Only after these succeed does it apply remote D1 migrations and deploy API, Tools, then App with the committed
+`pnpm deploy` and `pnpm deploy:prod` run the same release workflow in `scripts/deploy.sh`. It generates local Cloudflare
+types, validates types and code, runs integration tests, builds Workers, App, and Storybook, and runs browser tests.
+Only after these succeed does it apply remote D1 migrations and deploy API, Tools, then App with the committed
 configurations.
 
 Wrangler bundles the current source during deployment. Keep the checkout stable while releasing; this workflow does not
@@ -110,7 +111,7 @@ After changing administrator/reviewer lists, review and apply Terraform, then sy
 ```sh
 pnpm deploy:roles
 # Equivalent command with structured output:
-pnpm --silent cli hosted roles sync --json
+pnpm --silent cli deployed roles sync --json
 ```
 
 Synchronization reads applied Terraform state and checks its account, database ID, and database name against the
@@ -143,7 +144,7 @@ terraform -chdir=infrastructure plan -out=hosting.tfplan
 Set `identity_provider_id` to reuse an existing organization identity provider. Review the complete Access policy list
 before applying. Existing Workers and secrets remain under Wrangler ownership.
 
-When migrating from generated configuration, copy existing hosted values into the committed Wrangler files first.
+When migrating from generated configuration, copy existing deployed values into the committed Wrangler files first.
 Preserve Worker names, Durable Object migration tags, and the D1 migration history. Skip the Tools placeholder for
 existing installations. Old `.local/wrangler`, `.local/releases`, and `.local/deployment.json` files are no longer used;
 archive any release records you still need.
@@ -151,8 +152,8 @@ archive any release records you still need.
 ## Verification and recovery
 
 After releasing, verify public pages, Access login and rejected users, authenticated `/api/health`, and a short call
-through saved transcript and completed analysis. Local browser tests do not replace this hosted check. Monitor Worker
-errors, queue backlog/dead letters, and provider spending.
+through saved transcript and completed analysis. Local browser tests do not replace verification of the deployed app.
+Monitor Worker errors, queue backlog/dead letters, and provider spending.
 
 Cloudflare records Worker versions and deployments. Inspect them and roll back each affected Worker using its committed
 configuration:

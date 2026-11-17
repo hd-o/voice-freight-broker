@@ -12,7 +12,7 @@ run "hosting" {
   command = plan
 
   assert {
-    condition     = cloudflare_d1_database.hosting.name == "voice-freight-hosted"
+    condition     = cloudflare_d1_database.hosting.name == "voice-freight-prod"
     error_message = "The database name must match the committed Wrangler bindings."
   }
   assert {

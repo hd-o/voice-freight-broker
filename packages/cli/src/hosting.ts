@@ -65,7 +65,7 @@ export async function synchronizeRoles(directory = repositoryPath): Promise<Role
   } catch (error) {
     throw new CommandError(
       "roles_configuration_invalid",
-      error instanceof Error ? error.message : "Cannot read hosted role configuration.",
+      error instanceof Error ? error.message : "Cannot read deployed role configuration.",
       hint,
     );
   }
@@ -90,12 +90,12 @@ export async function synchronizeRoles(directory = repositoryPath): Promise<Role
       database?.database_id !== hosting.databaseId ||
       database.database_name !== hosting.databaseName
     ) {
-      throw new Error("Terraform's hosted account or database does not match apps/api/wrangler.jsonc.");
+      throw new Error("Terraform's deployed account or database does not match apps/api/wrangler.jsonc.");
     }
   } catch (error) {
     throw new CommandError(
       "roles_configuration_invalid",
-      error instanceof Error ? error.message : "Cannot read hosted Worker configuration.",
+      error instanceof Error ? error.message : "Cannot read deployed Worker configuration.",
       hint,
     );
   }
@@ -158,7 +158,7 @@ export async function synchronizeRoles(directory = repositoryPath): Promise<Role
   } catch (error) {
     throw new CommandError(
       "roles_sync_failed",
-      error instanceof Error ? error.message : "Hosted role synchronization failed.",
+      error instanceof Error ? error.message : "Deployed role synchronization failed.",
       hint,
     );
   } finally {

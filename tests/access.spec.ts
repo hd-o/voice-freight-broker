@@ -28,7 +28,7 @@ test.beforeEach(async ({ page, baseURL }): Promise<void> => {
   );
 });
 
-test("hosted login returns to the selected page, reload restores identity, and logout clears it", async ({
+test("deployed login returns to the selected page, reload restores identity, and logout clears it", async ({
   page,
 }): Promise<void> => {
   await page.goto("/dashboard?page=2");
@@ -44,7 +44,7 @@ test("hosted login returns to the selected page, reload restores identity, and l
   await expect(page.getByRole("img", { name: "Signed in as Local Reviewer" })).toHaveCount(0);
 });
 
-test("hosted account controls complete a stubbed multi-agreement call and recover from expiry", async ({
+test("deployed account controls complete a stubbed multi-agreement call and recover from expiry", async ({
   page,
   baseURL,
 }): Promise<void> => {
@@ -86,7 +86,7 @@ test("hosted account controls complete a stubbed multi-agreement call and recove
   await expect(page.getByText("Accepted agreement 2")).toHaveCount(0);
 });
 
-test("hosted logout clears another tab before a delayed revocation completes", async ({
+test("deployed logout clears another tab before a delayed revocation completes", async ({
   page,
   context,
   baseURL,
@@ -131,7 +131,7 @@ test("hosted logout clears another tab before a delayed revocation completes", a
   await other.close();
 });
 
-test("hosted logout clears Access after a lost revocation response and permits sign-in", async ({
+test("deployed logout clears Access after a lost revocation response and permits sign-in", async ({
   page,
 }): Promise<void> => {
   await page.goto("/call");

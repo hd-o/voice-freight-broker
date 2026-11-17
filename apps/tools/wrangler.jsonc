@@ -1,10 +1,10 @@
 {
-  // Match API's hosted account and D1 database; local bindings stay below.
+  // Match API's deployed account and D1 database; local bindings stay below.
   "account_id": "00000000000000000000000000000000",
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "voice-freight-hosted",
+      "database_name": "voice-freight-prod",
       "database_id": "00000000-0000-0000-0000-000000000003",
       "migrations_dir": "../../packages/backend/migrations",
     },

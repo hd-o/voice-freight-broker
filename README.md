@@ -24,7 +24,7 @@ Open the web app at <http://localhost:3000>.
 
 For evaluations, see [evals/README.md](evals/README.md).
 
-Use the CLI for local development and hosted administration commands:
+Use the CLI for local development and commands for administering the deployment:
 
 ```sh
 pnpm --silent cli --help
@@ -32,7 +32,7 @@ pnpm --silent cli calls transcript <call-id> --json
 pnpm --silent cli db schema --json
 pnpm --silent cli dev limits reset --json
 pnpm --silent cli eval --suite confirmations dallas-fragmented --json
-pnpm --silent cli hosted roles sync --json
+pnpm --silent cli deployed roles sync --json
 ```
 
 `calls` and `db` inspect local storage read-only without running Workers or credentials. Their `--database` and
@@ -40,11 +40,11 @@ pnpm --silent cli hosted roles sync --json
 while preserving history, spending, and active-call checks. `eval` makes paid requests using the existing provider key
 and shared allowance. With `--json`, results go to stdout and errors or progress go to stderr.
 
-## Hosted deployment
+## Production deployment
 
-Use Terraform for infrastructure and committed Wrangler configuration for local releases. The `hosted roles sync` CLI
-command synchronizes application roles from applied Terraform state. See [hosted deployment](infrastructure/README.md)
-for setup, credentials, deployment, and recovery.
+Use Terraform for infrastructure and committed Wrangler configuration for local releases. The `deployed roles sync` CLI
+command synchronizes application roles from applied Terraform state. See
+[production deployment](infrastructure/README.md) for setup, credentials, deployment, and recovery.
 
 ## Architecture
 

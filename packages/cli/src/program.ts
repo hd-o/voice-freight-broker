@@ -14,7 +14,7 @@ const inspectionOptionsSchema = z.object({
 export async function runCli(arguments_: string[]): Promise<void> {
   const program = new Command()
     .name("cli")
-    .description("Freight development, inspection, evaluation, and hosted administration commands.")
+    .description("Freight development, inspection, evaluation, and deployment administration commands.")
     .option("--json", "emit compact JSON; errors are JSON on stderr")
     .showSuggestionAfterError(false)
     .exitOverride()
@@ -28,7 +28,7 @@ Usage notes:
   calls/db inspect local storage read-only, without running Workers or credentials.
   dev limits reset changes daily quotas through running local Workers.
   eval makes paid provider requests using the shared application allowance.
-  hosted roles sync changes hosted Access users using applied Terraform state.
+  deployed roles sync changes deployed Access users using applied Terraform state.
   Help never opens storage, contacts Workers, or invokes Terraform or Wrangler.
 
 Database selection (calls/db only):
@@ -174,7 +174,7 @@ Examples:
       `
 Requires local Workers and a seeded development database. Signs in as the local
 administrator and removes the command's session afterward. Call history,
-spending, and active-call checks are preserved. Hosted environments reject resets.
+spending, and active-call checks are preserved. Deployed environments reject resets.
 
 Example:
   pnpm --silent cli dev limits reset --origin http://localhost:8787 --json`,
@@ -193,16 +193,16 @@ Example:
       );
     });
 
-  const hosted = program.command("hosted").description("Administer the hosted installation.");
-  const roles = hosted.command("roles").description("Manage hosted application roles.");
+  const deployed = program.command("deployed").description("Administer the deployed installation.");
+  const roles = deployed.command("roles").description("Manage deployed application roles.");
 
   roles
     .command("sync")
-    .description("Synchronize hosted administrator and reviewer roles from applied Terraform state.")
+    .description("Synchronize deployed administrator and reviewer roles from applied Terraform state.")
     .addHelpText(
       "after",
       `
-Requires Terraform, Wrangler authentication, and an initialized hosted database.
+Requires Terraform, Wrangler authentication, and an initialized deployed database.
 Reads terraform output -json hosting and checks the account and database against
 the committed API configuration before modifying D1. Adds or updates configured
 Access users, removes omitted Access users, and preserves local identities and
@@ -213,7 +213,7 @@ Output:
   configured users. Help does not invoke Terraform or Wrangler.
 
 Example:
-  pnpm --silent cli hosted roles sync --json`,
+  pnpm --silent cli deployed roles sync --json`,
     )
     .action(async (_options: unknown, command: Command): Promise<void> => {
       const options = z.object({ json: z.boolean().default(false) }).parse(command.optsWithGlobals());
@@ -223,7 +223,7 @@ Example:
       process.stdout.write(
         options.json
           ? `${serializeJson(receipt)}\n`
-          : `Hosted roles synchronized: ${receipt.administrators} administrators, ${receipt.reviewers} reviewers.\n`,
+          : `Deployed roles synchronized: ${receipt.administrators} administrators, ${receipt.reviewers} reviewers.\n`,
       );
     });
 

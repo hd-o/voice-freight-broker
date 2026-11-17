@@ -488,8 +488,8 @@ it("restocks additively and repeatably with fixed membership and current fixture
   });
 });
 
-it("uses equivalent REST and private RPC rules, validates arguments, origin, sessions, and hosted auth", async (): Promise<void> => {
-  expect((): ReturnType<typeof checkLocalAuthentication> => checkLocalAuthentication("hosted", "local")).toThrow(
+it("uses equivalent REST and private RPC rules, validates arguments, origin, sessions, and deployed auth", async (): Promise<void> => {
+  expect((): ReturnType<typeof checkLocalAuthentication> => checkLocalAuthentication("prod", "local")).toThrow(
     "disabled",
   );
 

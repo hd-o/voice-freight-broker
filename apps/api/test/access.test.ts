@@ -13,7 +13,7 @@ const origin = "https://demo.example.test";
 const audience = "test-application";
 const configuration = {
   ...env,
-  ENVIRONMENT: "hosted",
+  ENVIRONMENT: "prod",
   AUTH_MODE: "access",
   ACCESS_ISSUER: issuer,
   ACCESS_AUDIENCE: audience,
