@@ -19,6 +19,20 @@ These rules are never optional and never overridden:
 - **Files / Modules**: Nouns
 - **Script Files**: Verbs
 
+## Comments
+
+- Names explain what, comments explain why
+- Explain non-obvious decisions near the relevant code
+- Avoid unnecessary documentation that merely repeat types
+- Format comments as justified blocks instead of max line length
+
+## Code
+
+Separate an intermediate multiline statement from adjacent statements with a blank line.
+A statement is intermediate when another statement comes before or after it in the same block.
+Do not add blank lines between a statement and the opening or closing boundary of its enclosing
+block. A block containing only one statement needs no padding.
+
 ## Project
 
 IMPORTANT: Keep this section concisely up-to-date

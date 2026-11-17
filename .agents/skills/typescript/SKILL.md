@@ -28,13 +28,6 @@ paths: ["**/*.ts", "**/*.tsx"]
 - Derive related types and values from a single definition when practical
 - Avoid redundant state and independently maintained representations
 
-## Comments
-
-- Names explain what; comments explain why
-- Improve unclear names before adding explanatory comments
-- Explain non-obvious decisions near the relevant code
-- Avoid unnecessary documentation that merely repeat types
-
 ## Readability
 
 - Prefer early returns when they reduce nesting
