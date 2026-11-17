@@ -44,13 +44,12 @@ Output:
   Help remains readable text, including with --json.
 
 Examples:
-  pnpm --silent cli calls transcript <call-id> --json
-  pnpm --silent cli db schema calls
-  pnpm --silent cli db query 'SELECT id FROM calls ORDER BY id' --json
-  pnpm --silent cli db schema --persist-to .wrangler/state
-  pnpm --silent cli db schema --database /absolute/path/database.sqlite --json
-  pnpm --silent cli dev limits reset --json
-  pnpm --silent cli eval --suite confirmations dallas-fragmented --json
+  vpr cli calls transcript <call-id> --json
+  vpr cli db schema calls
+  vpr cli db query 'SELECT id FROM calls ORDER BY id'
+
+Agents can use "pnpm --silent" like:
+  pnpm --silent calls transcript <call-id> --json
 
 Exit codes:
   0 success/help; 1 operational failure, failed evaluation, or invalid stored transcript;
