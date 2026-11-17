@@ -46,7 +46,7 @@ const notifications: Record<CallNotificationKind, { title: string; description: 
   },
   inactivity: {
     title: "Are you still there?",
-    description: "This call ends in 15 seconds without caller speech. Speak to keep it active.",
+    description: "Speak to keep the call active.",
   },
 };
 

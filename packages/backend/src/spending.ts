@@ -46,7 +46,7 @@ export const callReservationMicrodollars = calculateCallReservationMicrodollars(
 
 export const usageLimits = {
   maximumCallSeconds,
-  inactivitySeconds: 60,
+  inactivitySeconds: 120,
   reviewerConcurrency: 1,
   globalConcurrency: 2,
   reviewerDailyCalls: 6,

@@ -882,7 +882,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
           return;
         }
 
-        const warningSeconds = Math.min(15, Math.max(1, Math.floor(session.inactivitySeconds / 4)));
+        const warningSeconds = Math.min(30, Math.max(1, Math.floor(session.inactivitySeconds / 4)));
 
         if (idle >= session.inactivitySeconds - warningSeconds && !session.warned) {
           await this.updateSession((current): void => {
