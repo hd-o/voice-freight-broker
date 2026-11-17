@@ -337,11 +337,11 @@ it("finalizes abandoned calls and closes with spending headroom, preserving unce
 
   await transact(env.DB, (state): void => {
     const session = state.liveSessions.find((entry): boolean => entry.id === id)!;
-    session.lastInputAt = new Date(Date.now() - 50_000).toISOString();
+    session.lastInputAt = new Date(Date.now() - 95_000).toISOString();
   });
 
   await runDurableObjectAlarm(stub);
-  expect((await queryLiveStatus(env.DB, context)).notice).toContain("15 seconds");
+  expect((await queryLiveStatus(env.DB, context)).notice).toContain("30 seconds");
   await stub.observeFixture(createTranscriptEvent("input", "Still here.", 1000));
   expect((await queryLiveStatus(env.DB, context)).notice).toBeNull();
 
