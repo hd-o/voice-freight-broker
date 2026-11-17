@@ -170,3 +170,12 @@ test-results/
 evals/results/
 .vscode/*
 !.vscode/extensions.json
+
+# Terraform local state, environment inputs, and plans (commit the lockfile).
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan
+crash.log

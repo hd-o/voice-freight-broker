@@ -24,8 +24,10 @@ These rules are never optional and never overridden:
 IMPORTANT: Keep this section concisely up-to-date
 
 Local voice workflows, Decisions confirmation, queued post-call analysis, and
-text evaluations, and hosted Access are implemented. Cloudflare release
-validation is in progress.
+text evaluations, and hosted Access are implemented. Terraform manages hosted
+resources; Wrangler releases run locally. Cloudflare
+release validation is in progress.
+The local development CLI supports inspection, quota resets, and evaluations.
 
 ## Structure
 
@@ -36,7 +38,7 @@ This TypeScript monorepo uses pnpm workspaces and Vite+:
 - `apps/tools/`: private business RPC worker and analysis queue consumer
 - `packages/backend/`: domain logic, Drizzle schema, and D1 migrations
 - `packages/contracts/`: shared types and Zod contracts
-- `packages/cli/`: local, read-only agent/admin CLI
+- `packages/cli/`: local development CLI; storage inspection stays read-only
 - `tests/`: Playwright browser tests; Storybook is in web
 
 ### Testing
@@ -55,13 +57,19 @@ Commander.js `pnpm --silent cli [command]` commands:
 - This CLI is made for coding agents
 - Where possible, run with `--json`
 - Run with `--help` for command details
+- `calls` and `db` inspect storage read-only without Workers or credentials
+- `dev limits reset` requires local Workers and changes daily call quotas
+- `eval` makes paid requests using the existing provider key and shared allowance
+- `--database` and `--persist-to` belong to the `calls` and `db` command groups
 
 ```txt
 cli calls                       Inspect locally stored calls.
-cli calls transcript <call-id>  Fetch saved dialogue with timestamps and completion status.
+cli calls transcript <call-id>  Fetch saved dialogue and completion status.
 cli db                          Inspect a local D1 database without changing it.
-cli db schema [table]           List actual table, index, view, and trigger definitions.
-cli db query [options] <sql>    Execute one read-only SELECT or CTE
+cli db schema [table]           List table, index, view, and trigger definitions.
+cli db query [options] <sql>     Execute one read-only SELECT or CTE.
+cli dev limits reset            Reset daily call quotas through local Workers.
+cli eval [case-prefix]           Run workflow and confirmation evaluations.
 ```
 
 Vite+ `vpr [command]` project commands:
@@ -75,7 +83,9 @@ Vite+ `vpr [command]` project commands:
 "db:check": Verify the local D1 database is reachable.
 "db:generate": Generate the backend Drizzle schema migrations.
 "db:migrate": Apply local D1 migrations to the development database.
-"deploy:hosted": Validate and deploy the hosted Cloudflare demo.
+"deploy:hosted": Validate and deploy Workers using Terraform outputs.
+"deploy:prepare": Generate hosted Wrangler configuration from Terraform.
+"deploy:roles": Synchronize hosted application roles.
 "dev": Start the web and API development servers in parallel.
 "dev:reset:limits": Reset local daily call quotas for all users.
 "dev:stub:workers": Start the stub worker environment for local development.
@@ -90,9 +100,10 @@ Vite+ `vpr [command]` project commands:
 "prepare": Prepare the workspace configuration without agent setup.
 "preview": Preview the web app locally.
 "storybook": Start the Storybook development server.
-"test": Run the CLI, tools build, and API test suite.
+"test": Run deployment, CLI, tools build, and API tests.
 "test:browser": Run the Playwright browser test suite.
 "test:cli": Run the CLI test suite.
+"test:deploy": Test local deployment configuration without Cloudflare access.
 "test:eval": Run free Cloudflare evaluation harness integration checks.
 "typecheck": Run repository-wide TypeScript type checks.
 "@voice-freight/api#build": Dry-run deploy the API worker.

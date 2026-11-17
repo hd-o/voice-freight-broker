@@ -24,6 +24,26 @@ Open the web app at <http://localhost:3000>.
 
 For evaluations, see [evals/README.md](evals/README.md).
 
+Use the local development CLI for inspection and administrative commands:
+
+```sh
+pnpm --silent cli --help
+pnpm --silent cli calls transcript <call-id> --json
+pnpm --silent cli db schema --json
+pnpm --silent cli dev limits reset --json
+pnpm --silent cli eval --suite confirmations dallas-fragmented --json
+```
+
+`calls` and `db` inspect local storage read-only without running Workers or credentials. Their `--database` and
+`--persist-to` options select storage. `dev limits reset` requires local Workers and resets all users' daily call quotas
+while preserving history, spending, and active-call checks. `eval` makes paid requests using the existing provider key
+and shared allowance. With `--json`, results go to stdout and errors or progress go to stderr.
+
+## Hosted deployment
+
+Use Terraform for infrastructure and Wrangler for local releases. See [hosted deployment](infrastructure/README.md) for
+setup, importing existing resources, credentials, deployment, and recovery.
+
 ## Architecture
 
 <!-- C4 Model -->
