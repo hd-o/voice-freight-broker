@@ -125,6 +125,7 @@ Vite+ `vpr [command]` project commands:
 "deploy:bootstrap": Bootstrap the private Workers for a fresh installation.
 "deploy:prod": Run the same local release workflow as deploy.
 "deploy:roles": Synchronize deployed application roles.
+"dev:reset:db": Delete local D1 data and reapply migrations (stop Workers first).
 "dev:reset:limits": Reset local daily call quotas for all users.
 "dev:web": Start the web frontend in development mode.
 "dev:workers": Start the API worker in development mode.

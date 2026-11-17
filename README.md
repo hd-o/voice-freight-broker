@@ -22,6 +22,9 @@ vpr dev
 
 Open the web app at <http://localhost:3000>.
 
+To reset the local database, stop the dev servers and run `vpr dev:reset:db`. This deletes local D1 data and reapplies
+the migrations.
+
 For evaluations, see [evals/README.md](evals/README.md).
 
 Use the CLI for local development and commands for administering the deployment:

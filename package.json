@@ -15,6 +15,7 @@
     "deploy:roles": "pnpm --silent cli deployed roles sync",
     "deploy": "vpr deploy:prod",
     "dev:reset:limits": "pnpm --silent cli dev limits reset",
+    "dev:reset:db": "rm -rf .wrangler/state/v3/d1 && vpr db:migrate",
     "dev:web": "vpr @voice-freight/web#dev",
     "dev:workers": "vpr @voice-freight/api#dev",
     "dev": "vpr --parallel --filter @voice-freight/web --filter @voice-freight/api dev",
