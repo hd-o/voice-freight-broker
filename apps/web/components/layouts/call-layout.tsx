@@ -83,7 +83,7 @@ export function CallLayout({
           {notice}
         </p>
       )}
-      <div className="mt-8 grid min-w-0 gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
+      <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[392px_minmax(0,1fr)]">
         <CallerBriefing carriers={carriers} className="xl:min-h-[492px]" />
         <div className="grid min-w-0 overflow-hidden rounded-[10px] border border-border bg-surface md:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">
           {state === "ready" ? (

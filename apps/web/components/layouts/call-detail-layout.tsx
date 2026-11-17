@@ -51,7 +51,7 @@ export function CallDetailLayout({
             role="status"
             aria-label="Loading call details"
             aria-busy="true"
-            className="grid gap-8 xl:grid-cols-[392px_minmax(0,1fr)]"
+            className="grid gap-8 lg:grid-cols-[392px_minmax(0,1fr)]"
           >
             <span className="sr-only">Loading call details</span>
             <Skeleton className="h-[720px]" />
@@ -60,7 +60,7 @@ export function CallDetailLayout({
         ) : (
           <section aria-label="Call details" className="space-y-6">
             {record ? (
-              <div className="grid items-stretch gap-8 xl:grid-cols-[392px_minmax(0,1fr)]">
+              <div className="grid items-stretch gap-8 lg:grid-cols-[392px_minmax(0,1fr)]">
                 <LoadSummary {...record.loadSummary} />
                 <div className="flex min-w-0 flex-col gap-4 rounded-[10px] border border-border bg-surface p-6">
                   <AnalysisSummary {...record.analysis} />
