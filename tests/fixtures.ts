@@ -14,13 +14,15 @@ type TestFixtures = {
 };
 
 export function createTestBackend(voiceScenario = "workflow"): TestHarness {
+  const directory = process.env.BROWSER_TEST_PREBUILT ? "dist" : "dist-test";
+
   return createTestHarness({
     root: resolve(import.meta.dirname, ".."),
     workers: [
       {
         configPath: "apps/api/wrangler.jsonc",
         env: "local",
-        prebuiltWorkerDir: "apps/api/dist-test",
+        prebuiltWorkerDir: `apps/api/${directory}`,
         vars: {
           VOICE_PROVIDER: "stub",
           VOICE_STUB_SCENARIO: voiceScenario === "analysis-failure" ? "workflow" : voiceScenario,
@@ -37,7 +39,7 @@ export function createTestBackend(voiceScenario = "workflow"): TestHarness {
       {
         configPath: "apps/tools/wrangler.jsonc",
         env: "local",
-        prebuiltWorkerDir: "apps/tools/dist-test",
+        prebuiltWorkerDir: `apps/tools/${directory}`,
       },
     ],
   });

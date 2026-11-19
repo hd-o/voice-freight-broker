@@ -24,6 +24,9 @@ jobs:
       - run: vpr check
       - run: vpr build
       - run: vpr build:storybook
-      - run: vpr test
+      - run: vpr test:cli
+      - run: vpr @voice-freight/api#test
       - run: vp exec playwright install --with-deps chromium
       - run: vpr test:browser
+        env:
+          BROWSER_TEST_PREBUILT: "1"

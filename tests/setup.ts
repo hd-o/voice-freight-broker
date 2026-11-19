@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
@@ -7,11 +7,22 @@ import { promisify } from "node:util";
 export default async function prepareTestWorkers(): Promise<() => Promise<void>> {
   const root = resolve(import.meta.dirname, "..");
 
-  await promisify(execFile)(
-    "pnpm",
-    ["exec", "vp", "run", "--filter", "@voice-freight/api", "--filter", "@voice-freight/tools", "build:test"],
-    { cwd: root, timeout: 60_000 },
-  );
+  if (process.env.BROWSER_TEST_PREBUILT) {
+    await Promise.all(
+      [
+        "apps/api/dist/worker.js",
+        "apps/tools/dist/worker.js",
+        "apps/web/dist/client/index.html",
+        "apps/web/storybook-static/iframe.html",
+      ].map((path): Promise<void> => access(resolve(root, path))),
+    );
+  } else {
+    await promisify(execFile)(
+      "pnpm",
+      ["exec", "vp", "run", "--filter", "@voice-freight/api", "--filter", "@voice-freight/tools", "build:test"],
+      { cwd: root, timeout: 60_000 },
+    );
+  }
 
   // Both /tmp and the workspace are host-mounted in the devcontainer. Chromium's
   // mmap-backed scratch files need the container's native filesystem on Linux.

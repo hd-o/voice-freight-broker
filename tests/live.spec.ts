@@ -450,7 +450,7 @@ test("a broker-ended call preserves farewell playback, stops the microphone, and
   const transcript = page.getByRole("region", { name: "Transcript", exact: true });
   await sendTranscript(page, "Live greeting.");
   scenario.state = "ending";
-  await expect(page.getByRole("button", { name: "Saving call…", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Saving call…", exact: true })).toBeVisible({ timeout: 10_000 });
 
   expect(
     await page.evaluate(

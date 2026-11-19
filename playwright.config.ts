@@ -45,12 +45,16 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "pnpm --filter @voice-freight/web build && pnpm preview",
+      command: process.env.BROWSER_TEST_PREBUILT
+        ? "pnpm preview"
+        : "pnpm --filter @voice-freight/web build && pnpm preview",
       url: "http://127.0.0.1:4173",
       timeout: 120_000,
     },
     {
-      command: "pnpm storybook --ci",
+      command: process.env.BROWSER_TEST_PREBUILT
+        ? "python3 -m http.server 6006 --bind 127.0.0.1 --directory apps/web/storybook-static"
+        : "pnpm storybook --ci",
       url: "http://127.0.0.1:6006",
       timeout: 60_000,
     },
