@@ -662,19 +662,24 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
       await this.ctx.storage.put(pendingId, invocation);
 
-      if (this.isStub() || invocation.event.item.name === "end_call") {
+      const needsTranscript = !["verify_carrier", "search_loads", "end_call"].includes(invocation.event.item.name);
+
+      if (this.isStub() || !needsTranscript) {
         await this.executeFunction(invocation);
       } else {
         // Let transcript fragments following the tool event arrive before checking
-        // confirmation. No transcript event itself marks a completed caller turn.
+        // confirmation or establishing a new evidence boundary. No transcript
+        // event itself marks a completed caller turn.
         this.ctx.waitUntil(
-          new Promise<void>((resolve): ReturnType<typeof setTimeout> => setTimeout(resolve, 1500)).then((): void => {
-            this.ctx.waitUntil(
-              this.executeFunction(invocation).catch(async (): Promise<void> => {
-                await this.closeCall("Interrupted", "The call was interrupted. Your saved agreements are preserved.");
-              }),
-            );
-          }),
+          new Promise<void>((resolve): ReturnType<typeof setTimeout> => setTimeout(resolve, confirmationQuietMs)).then(
+            (): void => {
+              this.ctx.waitUntil(
+                this.executeFunction(invocation).catch(async (): Promise<void> => {
+                  await this.closeCall("Interrupted", "The call was interrupted. Your saved agreements are preserved.");
+                }),
+              );
+            },
+          ),
         );
       }
     }
