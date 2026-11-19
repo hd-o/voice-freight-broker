@@ -341,6 +341,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@voice-freight/backend':
+        specifier: workspace:*
+        version: link:../backend
       '@voice-freight/contracts':
         specifier: workspace:*
         version: link:../contracts

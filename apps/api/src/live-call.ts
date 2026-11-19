@@ -8,14 +8,17 @@ import { createReadback } from "@voice-freight/backend/readbacks";
 import { completeCall, finalizeCall } from "@voice-freight/backend/calls";
 import { findPendingAnalysis, retryAnalysis, type AnalysisJob } from "@voice-freight/backend/analysis";
 import { findLiveSession, reserveLiveCall } from "@voice-freight/backend/live";
-import { ingestProviderEvent, providerEventSchema } from "@voice-freight/backend/provider-events";
+import { ingestProviderEvent, providerEventSchema, responseEventSchema } from "@voice-freight/backend/provider-events";
 import { BusinessError, requireCondition } from "@voice-freight/backend/model";
 import { readState, transact } from "@voice-freight/backend/repository";
 import {
   calculateAvailableMicrodollars,
+  calculateReservationHold,
+  countUnreportedResponses,
   maximumContinuationCount,
   maximumResponseCount,
   resolveUsageLimits,
+  settleCallSpending,
   shutdownHeadroomMicrodollars,
 } from "@voice-freight/backend/spending";
 import { createSessionConfiguration, greeting, voiceToolArguments, voiceToolNameSchema } from "./live-configuration";
@@ -42,6 +45,7 @@ const functionEventSchema = z.object({
 const startupTimeout = 30_000;
 const recoveryDelay = 30_000;
 const closureRetryInterval = 300_000;
+const drainTimeout = 10_000;
 
 type AnalysisCommand = { context: CallContext } & (
   | { action: "finalize"; input: z.infer<typeof finalizationSchema>; completedAt: string }
@@ -72,9 +76,11 @@ async function captureOutcome<T>(command: () => Promise<T>): Promise<CallOutcome
 
 export class LiveCall extends DurableObject<LiveBindings> {
   private socket: WebSocket | null = null;
+  private closingSocket: WebSocket | null = null;
   private queue: Promise<void> = Promise.resolve();
   private context: CallContext | null = null;
   private closing = false;
+  private pendingAccountingGap = false;
   private invocations = new Set<string>();
 
   private async updateWork<T>(command: (work: CallWork) => T): Promise<T> {
@@ -241,21 +247,19 @@ export class LiveCall extends DurableObject<LiveBindings> {
     return outcome;
   }
 
-  private haltProvider(): void {
-    if (this.socket?.readyState !== WebSocket.OPEN) {
+  private requestProviderClose(): void {
+    const socket = this.socket;
+
+    if (socket?.readyState !== WebSocket.OPEN || socket === this.closingSocket) {
       return;
     }
 
+    this.closingSocket = socket;
+
     try {
-      this.socket.send(
-        JSON.stringify({
-          type: "session.close",
-          event_id: crypto.randomUUID(),
-        }),
-      );
+      socket.send(JSON.stringify({ type: "session.close", event_id: crypto.randomUUID() }));
     } catch {
-      this.socket.close();
-      this.socket = null;
+      this.observeDisconnect(socket, "Could not close the voice connection. Your partial transcript is saved.");
     }
   }
 
@@ -266,8 +270,8 @@ export class LiveCall extends DurableObject<LiveBindings> {
   private enqueue(command: () => Promise<void>): void {
     this.queue = this.queue.then(command).catch(async (): Promise<void> => {
       this.closing = true;
-      this.haltProvider();
 
+      await this.recordAccountingGap().catch((): void => {});
       await this.closeCall("Interrupted", "The call was interrupted. Your saved agreements are preserved.").catch(
         (): void => {},
       );
@@ -540,38 +544,53 @@ export class LiveCall extends DurableObject<LiveBindings> {
       this.enqueue((): Promise<void> => this.observe(event));
     });
 
-    socket.addEventListener("close", (): void => {
-      if (this.socket !== socket) {
-        return;
-      }
-
-      this.socket = null;
-
-      this.enqueue(async (): Promise<void> => {
-        const { session } = await this.readSession();
-
-        if (!session.providerClosed) {
-          await this.updateSession((current): void => {
-            current.gap = true;
-            current.accountingGap = true;
-          });
-          await this.closeCall("Interrupted", "Connection interrupted. Your partial transcript is saved.");
-        }
-      });
-    });
+    socket.addEventListener("close", (event): void =>
+      this.observeDisconnect(socket, "Connection interrupted. Your partial transcript is saved.", event.code === 1000),
+    );
 
     socket.addEventListener("error", (): void =>
-      this.enqueue(async (): Promise<void> => {
-        await this.updateSession((current): void => {
-          current.gap = true;
-          current.accountingGap = true;
-        });
-        await this.closeCall("Interrupted", "Voice connection failed. Your partial transcript is saved.");
-      }),
+      this.observeDisconnect(socket, "Voice connection failed. Your partial transcript is saved."),
     );
   }
 
+  private observeDisconnect(socket: WebSocket, notice: string, clean = false): void {
+    if (this.socket !== socket) {
+      return;
+    }
+
+    this.disconnectProvider();
+
+    this.enqueue(async (): Promise<void> => {
+      const { session } = await this.readSession();
+
+      if (session.providerClosed && clean) {
+        await this.finish();
+        return;
+      }
+
+      if (!session.providerClosed || countUnreportedResponses(session)) {
+        await this.recordAccountingGap();
+        await this.closeCall("Interrupted", notice);
+      }
+    });
+  }
+
+  private async recordAccountingGap(): Promise<void> {
+    this.pendingAccountingGap = true;
+
+    await this.updateSession((session): void => {
+      session.gap = true;
+      session.accountingGap = true;
+    });
+
+    this.pendingAccountingGap = false;
+  }
+
   private async send(event: Record<string, unknown>): Promise<void> {
+    if (this.closing) {
+      return;
+    }
+
     if (this.isStub()) {
       const outgoing = (await this.ctx.storage.get<Record<string, unknown>[]>("fixtureOutput")) ?? [];
       outgoing.push(event);
@@ -592,17 +611,23 @@ export class LiveCall extends DurableObject<LiveBindings> {
   private async observe(input: unknown): Promise<void> {
     const event = providerEventSchema.parse(input);
 
+    if (this.pendingAccountingGap) {
+      await this.recordAccountingGap();
+    }
+
     if (!(await ingestProviderEvent(this.env.DB, this.context!, event))) {
       return;
     }
 
-    if (event.type === "session.closed") {
-      await this.finish();
-      return;
-    }
+    const { session } = await this.readSession();
 
-    if ((await this.readSession()).session.providerClosed) {
-      await this.finish();
+    if (session.providerClosed) {
+      if (!countUnreportedResponses(session)) {
+        await this.finish();
+      } else if (session.state !== "ended" && (session.state !== "ending" || session.farewell)) {
+        await this.closeCall("Interrupted", "The voice session closed unexpectedly. Your partial call is saved.");
+      }
+
       return;
     }
 
@@ -611,7 +636,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
       return;
     }
 
-    if (!(await this.checkAllowance())) {
+    if (this.closing || !(await this.checkAllowance())) {
       return;
     }
 
@@ -653,6 +678,11 @@ export class LiveCall extends DurableObject<LiveBindings> {
       if (
         ["response.completed", "response.failed", "response.incomplete", "response.cancelled"].includes(nested.type)
       ) {
+        if (!responseEventSchema.parse(nested).response.usage) {
+          await this.closeCall("Interrupted", "Final model usage was unavailable. Your partial transcript is saved.");
+          return;
+        }
+
         await this.continueResponse(z.string().parse(event.delegation_id));
       }
     }
@@ -718,7 +748,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
       return;
     }
 
-    if (!(await this.checkAllowance())) {
+    if (!(await this.checkAllowance()) || this.closing) {
       return;
     }
 
@@ -741,8 +771,9 @@ export class LiveCall extends DurableObject<LiveBindings> {
     const current = await this.readSession();
 
     if (
-      current.session.state !== "connected" &&
-      !(item.name === "end_call" && current.session.farewell?.delegationId === delegationId)
+      this.closing ||
+      (current.session.state !== "connected" &&
+        !(item.name === "end_call" && current.session.farewell?.delegationId === delegationId))
     ) {
       return;
     }
@@ -823,7 +854,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
     requireCondition(reservation, "accounting_unavailable", "Spending accounting unavailable.", 503);
 
     if (
-      reservation.reservedMicrodollars - reservation.chargedMicrodollars <= shutdownHeadroomMicrodollars ||
+      calculateReservationHold(reservation) <= shutdownHeadroomMicrodollars ||
       calculateAvailableMicrodollars(state, new Date().toISOString()) < 0 ||
       session.responseIds.length >= maximumResponseCount
     ) {
@@ -851,79 +882,67 @@ export class LiveCall extends DurableObject<LiveBindings> {
     abandonedStartup = false,
   ): Promise<void> {
     this.closing = true;
+    const { session, call } = await this.readSession();
 
-    try {
-      const { session } = await this.readSession();
+    if (session.state === "ended" || (session.state === "ending" && !session.farewell)) {
+      return;
+    }
 
-      if (session.state === "ended" || (session.state === "ending" && !session.farewell)) {
-        return;
-      }
+    const clock = Date.now();
+    const now = new Date(clock).toISOString();
+    await this.scheduleLive(clock + drainTimeout);
+    await this.stageAnalysis({ callId: session.id, version: 1 });
 
-      const now = new Date().toISOString();
-      await this.scheduleLive(Date.now() + 1000);
-      await this.stageAnalysis({ callId: session.id, version: 1 });
+    const closing = await observeOperation({ callId: session.id, function: "call", action: "ending" }, () =>
+      transact(this.env.DB, (state): typeof session | null => {
+        const current = state.liveSessions.find((entry): boolean => entry.id === session.id)!;
 
-      const closing = await observeOperation({ callId: session.id, function: "call", action: "ending" }, () =>
-        transact(this.env.DB, (state): typeof session | null => {
-          const current = state.liveSessions.find((entry): boolean => entry.id === session.id)!;
+        if (
+          current.state === "ended" ||
+          (current.state === "ending" && !current.farewell) ||
+          (abandonedStartup && (current.state !== "connecting" || current.providerAttempted))
+        ) {
+          return null;
+        }
 
-          if (
-            current.state === "ended" ||
-            (current.state === "ending" && !current.farewell) ||
-            (abandonedStartup && (current.state !== "connecting" || current.providerAttempted))
-          ) {
-            return null;
-          }
+        current.state = "ending";
+        current.notice = notice;
+        current.closingAt = now;
+        delete current.farewell;
 
-          current.state = "ending";
-          current.notice = notice;
-          current.closingAt = now;
-          delete current.farewell;
+        if (connection !== "Ended normally") {
+          current.gap = true;
+        }
 
-          if (connection !== "Ended normally") {
-            current.gap = true;
-          }
+        if (!this.isStub() && current.providerAttempted && !current.providerClosed && !this.socket) {
+          current.accountingGap = true;
+        }
 
-          if (!this.isStub() && current.providerAttempted && !current.providerClosed && !this.socket) {
-            current.accountingGap = true;
-          }
+        completeCall(state, this.context!, { connection, transcriptComplete: false }, now);
+        return current;
+      }),
+    );
 
-          completeCall(state, this.context!, { connection, transcriptComplete: false }, now);
-          return current;
-        }),
-      );
+    if (!closing) {
+      return;
+    }
 
-      if (!closing) {
-        return;
-      }
+    if (closing.providerAttempted && !closing.providerClosed && this.isStub()) {
+      await ingestProviderEvent(this.env.DB, this.context!, {
+        type: "session.closed",
+        event_id: `closed-${closing.id}`,
+        usage: {
+          seconds: Math.max(closing.voiceSeconds, (Date.now() - Date.parse(call.record.startedAt)) / 1000),
+        },
+      });
 
-      if (!closing.providerAttempted) {
-        await this.finish();
-      } else if (this.isStub()) {
-        await ingestProviderEvent(this.env.DB, this.context!, {
-          type: "session.closed",
-          event_id: `closed-${closing.id}`,
-          usage: {
-            seconds: Math.max(
-              closing.voiceSeconds,
-              (Date.now() - Date.parse((await this.readSession()).call.record.startedAt)) / 1000,
-            ),
-          },
-        });
-
-        await this.finish();
-      } else if (this.socket?.readyState === WebSocket.OPEN) {
-        await this.send({
-          type: "session.close",
-          event_id: crypto.randomUUID(),
-        });
-      } else if (closing.providerClosed) {
+      if (!countUnreportedResponses(closing)) {
         await this.finish();
       }
-    } finally {
-      if (!this.isStub()) {
-        this.haltProvider();
-      }
+    } else if (!closing.providerAttempted || (closing.providerClosed && !countUnreportedResponses(closing))) {
+      await this.finish();
+    } else if (!closing.providerClosed) {
+      this.requestProviderClose();
     }
   }
 
@@ -937,8 +956,6 @@ export class LiveCall extends DurableObject<LiveBindings> {
     const needsClosure = await transact(this.env.DB, (state): boolean => {
       const current = state.liveSessions.find((entry): boolean => entry.id === session.id)!;
       const call = state.calls.find((entry): boolean => entry.id === session.id)!;
-      const reservation = state.reservations.find((entry): boolean => entry.id === session.id)!;
-
       if (!call.finalSnapshot) {
         completeCall(
           state,
@@ -955,32 +972,29 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
       current.state = "ended";
       delete current.farewell;
-      const complete = current.providerClosed && !current.gap;
-      call.record.transcript.complete = complete;
 
-      if (
-        !current.providerAttempted ||
-        (!current.accountingGap &&
-          current.usageConfirmed &&
-          current.responseIds.every((id): boolean => current.completedResponseIds.includes(id)))
-      ) {
-        reservation.settled = true;
+      if (current.providerAttempted && !current.providerClosed) {
+        current.gap = true;
+        current.accountingGap = true;
       }
 
+      call.record.transcript.complete = current.providerClosed && !current.gap;
+      settleCallSpending(state, current);
       return current.providerAttempted && !current.providerClosed && Boolean(current.providerId) && !this.isStub();
     });
 
-    if (!needsClosure) {
-      this.disconnectProvider();
-    }
-
+    this.disconnectProvider();
     await this.releaseAnalysis(needsClosure ? Date.now() + 1000 : null);
   }
 
   private disconnectProvider(): void {
     const socket = this.socket;
     this.socket = null;
-    socket?.close(1000);
+    this.closingSocket = null;
+
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.close(1000);
+    }
   }
 
   private async reconcileClosure(providerId: string): Promise<void> {
@@ -1010,8 +1024,8 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
     await this.ctx.storage.put("lastRecovery", now);
     await this.attach(providerId);
-    this.haltProvider();
-    await this.scheduleLive(Date.now() + 10_000);
+    this.requestProviderClose();
+    await this.scheduleLive(Date.now() + drainTimeout);
   }
 
   async alarm(): Promise<void> {
@@ -1082,6 +1096,11 @@ export class LiveCall extends DurableObject<LiveBindings> {
       this.context ??= (await this.ctx.storage.get<CallContext>("context")) ?? null;
       const context = this.context;
       requireCondition(context, "call_unavailable", "Call unavailable.", 404);
+
+      if (this.pendingAccountingGap) {
+        await this.recordAccountingGap();
+      }
+
       let live = await findLiveSession(this.env.DB, context.callId);
 
       if (!live) {
@@ -1148,6 +1167,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
       }
 
       if (session.state === "ending") {
+        this.closing = true;
         const closingAt = session.closingAt ?? new Date().toISOString();
 
         if (!session.closingAt || !call.finalSnapshot) {
@@ -1168,31 +1188,25 @@ export class LiveCall extends DurableObject<LiveBindings> {
           });
         }
 
-        if (!this.socket && session.providerId && !this.isStub() && !session.providerClosed) {
-          const attempts = (await this.ctx.storage.get<number>("recoveryAttempts")) ?? 0;
+        const drained = session.providerClosed && !countUnreportedResponses(session);
 
-          if (attempts < 2) {
-            await this.ctx.storage.put("recoveryAttempts", attempts + 1);
-
-            await this.updateSession((current): void => {
-              current.gap = true;
-              current.accountingGap = true;
-            });
-
-            await this.attach(session.providerId);
-
-            await this.send({
-              type: "session.close",
-              event_id: crypto.randomUUID(),
-            });
-          }
+        if (!drained && session.providerAttempted && !session.accountingGap && !this.isStub() && !this.socket) {
+          await this.recordAccountingGap();
         }
 
-        if (Date.now() - Date.parse(closingAt) >= 10_000) {
+        const deadline = Date.parse(closingAt) + drainTimeout;
+
+        if (drained || !session.providerAttempted || Date.now() >= deadline) {
           await this.finish();
-          this.disconnectProvider();
-          return;
+        } else {
+          if (!session.providerClosed) {
+            this.requestProviderClose();
+          }
+
+          await this.scheduleLive(deadline);
         }
+
+        return;
       } else {
         if (!this.isStub() && !this.socket) {
           await this.closeCall("Interrupted", "The voice coordinator restarted. Your partial call is saved.");
@@ -1242,7 +1256,6 @@ export class LiveCall extends DurableObject<LiveBindings> {
       await this.scheduleLive(Date.now() + 1000);
     } catch {
       this.closing = true;
-      this.haltProvider();
 
       await this.closeCall(
         "Interrupted",

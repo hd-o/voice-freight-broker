@@ -4,11 +4,17 @@ import type { CallContext } from "@voice-freight/contracts/business";
 import { authorizeCall } from "./authorization";
 import { requireCondition } from "./model";
 import { transact } from "./repository";
-import { chargeUsage, chargeVoice, calculateResponseCostMicrodollars, resolvePeriod } from "./spending";
+import {
+  chargeUsage,
+  chargeVoice,
+  calculateResponseCostMicrodollars,
+  resolvePeriod,
+  settleCallSpending,
+} from "./spending";
 
 export const providerEventSchema = z.object({ type: z.string(), event_id: z.string().optional() }).passthrough();
 
-const responseEventSchema = z.object({
+export const responseEventSchema = z.object({
   type: z.string(),
   response: z
     .object({
@@ -80,11 +86,20 @@ export async function ingestProviderEvent(
     } else if (event.type === "session.usage.updated" || event.type === "session.closed") {
       const usage = z.object({ seconds: z.number().nonnegative() }).parse(event.usage);
 
-      chargeVoice(state, call.id, usage.seconds);
+      if (!session.usageConfirmed) {
+        chargeVoice(state, call.id, usage.seconds);
+      }
 
-      if (event.type === "session.closed") {
+      if (event.type === "session.closed" && !session.usageConfirmed) {
         session.providerClosed = true;
         session.usageConfirmed = true;
+
+        if (event.reason === "connection_lost" && !state.reservations.find((entry) => entry.id === call.id)?.settled) {
+          session.gap = true;
+          session.accountingGap = true;
+        }
+
+        settleCallSpending(state, session);
       }
     } else if (event.type === "session.delegation.created") {
       const delegation = z.object({ target: z.string(), response_id: z.string().optional() }).parse(event.delegation);
@@ -114,14 +129,17 @@ export async function ingestProviderEvent(
           session.responseIds.push(response.id);
         }
 
-        if (nested.type !== "response.created") {
-          requireCondition(response.usage, "accounting_unavailable", "Final delegated usage is missing.", 503);
+        if (nested.type !== "response.created" && response.usage) {
+          const usageId = `${call.id}:response:${response.id}`;
+          const savedUsage = state.providerUsage.find((entry): boolean => entry.id === usageId);
 
           chargeUsage(
             state,
             call.id,
-            `${call.id}:response:${response.id}`,
-            resolvePeriod(response.created_at ? new Date(response.created_at * 1000).toISOString() : now),
+            usageId,
+            response.created_at
+              ? resolvePeriod(new Date(response.created_at * 1000).toISOString())
+              : (savedUsage?.periodId ?? resolvePeriod(now)),
             calculateResponseCostMicrodollars(
               response.usage.input_tokens,
               response.usage.input_tokens_details?.cached_tokens ?? 0,
@@ -132,6 +150,10 @@ export async function ingestProviderEvent(
 
           if (!session.completedResponseIds.includes(response.id)) {
             session.completedResponseIds.push(response.id);
+          }
+
+          if (session.providerClosed) {
+            settleCallSpending(state, session);
           }
         }
       }

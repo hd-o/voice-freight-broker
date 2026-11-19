@@ -1,5 +1,5 @@
-import type { State, ModelPrices } from "./model";
-import { requireCondition } from "./model";
+import type { CallSpending, LiveSession, ModelPrices, ProviderUsage, Reservation, State } from "./model.ts";
+import { requireCondition } from "./model.ts";
 import { z } from "zod";
 
 export const monthlyLimitMicrodollars = 25_000_000;
@@ -31,18 +31,94 @@ export const maximumResponseMicrodollars = Math.ceil(
     1_000_000,
 );
 
-export const shutdownHeadroomMicrodollars = maximumResponseMicrodollars * 2 + 50_000;
+const voiceHeadroomMicrodollars = 50_000;
+const reservationMultiplier = 1.25;
+export const shutdownHeadroomMicrodollars = maximumResponseMicrodollars * 2 + voiceHeadroomMicrodollars;
 
 export function calculateCallReservationMicrodollars(durationSeconds = maximumCallSeconds): number {
   return Math.ceil(
     ((durationSeconds * modelPrices.voiceMicrodollarsPerMinute) / 60 +
       maximumResponseCount * maximumResponseMicrodollars +
       shutdownHeadroomMicrodollars) *
-      1.25,
+      reservationMultiplier,
   );
 }
 
 export const callReservationMicrodollars = calculateCallReservationMicrodollars();
+
+export function resolveCallSpending(
+  reservation: Reservation,
+  session: Pick<LiveSession, "id" | "maximumCallSeconds">,
+  usage: ProviderUsage[],
+): CallSpending {
+  return (
+    reservation.callSpending ?? {
+      voiceReservedMicrodollars: Math.min(
+        reservation.reservedMicrodollars,
+        Math.ceil(
+          ((session.maximumCallSeconds * reservation.prices.voiceMicrodollarsPerMinute) / 60 +
+            voiceHeadroomMicrodollars) *
+            reservationMultiplier,
+        ),
+      ),
+      voiceChargedMicrodollars: usage
+        .filter((entry): boolean => entry.callId === session.id && entry.id.startsWith(`${session.id}:voice:`))
+        .reduce((sum, entry): number => sum + entry.costMicrodollars, 0),
+      voiceSettled: reservation.settled,
+      ...(reservation.settled ? { delegatedHoldLimitMicrodollars: 0 } : {}),
+    }
+  );
+}
+
+export function calculateReservationHold(reservation: Reservation): number {
+  if (reservation.settled) {
+    return 0;
+  }
+
+  const spending = reservation.callSpending;
+
+  if (!spending) {
+    return Math.max(0, reservation.reservedMicrodollars - reservation.chargedMicrodollars);
+  }
+
+  const voiceReserved = Math.min(reservation.reservedMicrodollars, spending.voiceReservedMicrodollars);
+  const voice = spending.voiceSettled ? 0 : Math.max(0, voiceReserved - spending.voiceChargedMicrodollars);
+
+  const delegated = Math.max(
+    0,
+    reservation.reservedMicrodollars -
+      voiceReserved -
+      (reservation.chargedMicrodollars - spending.voiceChargedMicrodollars),
+  );
+
+  return voice + Math.min(delegated, spending.delegatedHoldLimitMicrodollars ?? delegated);
+}
+
+export function countUnreportedResponses(session: LiveSession): number {
+  return session.responseIds.filter((id): boolean => !session.completedResponseIds.includes(id)).length;
+}
+
+export function settleCallSpending(state: State, session: LiveSession): void {
+  const reservation = state.reservations.find((entry): boolean => entry.id === session.id)!;
+  const spending = (reservation.callSpending ??= resolveCallSpending(reservation, session, state.providerUsage));
+
+  if (!session.providerAttempted || session.usageConfirmed) {
+    spending.voiceSettled = true;
+  }
+
+  if (!session.providerAttempted) {
+    spending.delegatedHoldLimitMicrodollars = 0;
+  } else if (session.usageConfirmed && !session.accountingGap) {
+    const missing = countUnreportedResponses(session);
+
+    if (missing === 0 || session.state === "ended") {
+      spending.delegatedHoldLimitMicrodollars =
+        missing * Math.ceil(maximumResponseMicrodollars * reservationMultiplier);
+    }
+  }
+
+  reservation.settled = spending.voiceSettled && spending.delegatedHoldLimitMicrodollars === 0;
+}
 
 export const usageLimits = {
   maximumCallSeconds,
@@ -91,13 +167,10 @@ export function calculateAvailableMicrodollars(state: State, now: string): numbe
     state.spendingPeriods.find((period): boolean => period.id === resolvePeriod(now))?.spentMicrodollars ?? 0;
 
   // Unresolved reservations carry forward, including those from earlier months.
-  const reservedMicrodollars = state.reservations
-    .filter((reservation): boolean => !reservation.settled)
-    .reduce(
-      (totalMicrodollars, reservation): number =>
-        totalMicrodollars + Math.max(0, reservation.reservedMicrodollars - reservation.chargedMicrodollars),
-      0,
-    );
+  const reservedMicrodollars = state.reservations.reduce(
+    (total, reservation): number => total + calculateReservationHold(reservation),
+    0,
+  );
 
   return monthlyLimitMicrodollars - spentMicrodollars - reservedMicrodollars;
 }
@@ -161,6 +234,8 @@ export function chargeVoice(state: State, callId: string, seconds: number): void
     return;
   }
 
+  const spending = (reservation.callSpending ??= resolveCallSpending(reservation, session, state.providerUsage));
+
   // Split cumulative voice duration at UTC month boundaries. Round the cumulative
   // cost per period, so fragmented updates never inflate the bill.
   const origin = Date.parse(call.record.startedAt);
@@ -182,7 +257,9 @@ export function chargeVoice(state: State, callId: string, seconds: number): void
     const previousMicrodollars = existing?.costMicrodollars ?? 0;
 
     if (cumulativeMicrodollars > previousMicrodollars) {
-      chargeUsage(state, callId, `${id}:${seconds}`, periodId, cumulativeMicrodollars - previousMicrodollars);
+      const delta = cumulativeMicrodollars - previousMicrodollars;
+      chargeUsage(state, callId, `${id}:${seconds}`, periodId, delta);
+      spending.voiceChargedMicrodollars += delta;
 
       const recorded = state.providerUsage.pop()!;
 

@@ -8,7 +8,9 @@ import { ingestProviderEvent } from "@voice-freight/backend/provider-events";
 import { readState, transact } from "@voice-freight/backend/repository";
 import {
   calculateAvailableMicrodollars,
+  calculateReservationHold,
   callReservationMicrodollars,
+  maximumResponseMicrodollars,
   monthlyLimitMicrodollars,
   shutdownHeadroomMicrodollars,
 } from "@voice-freight/backend/spending";
@@ -892,68 +894,117 @@ it("projects fresh and legacy business results for voice without changing saved 
   });
 });
 
-it("sends provider closure after the goodbye window and waits for final usage before releasing the socket", async (): Promise<void> => {
-  const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID());
-  const context = { userId: "reviewer", callId: id };
-  const stub = env.CALLS.get(env.CALLS.idFromName(id));
+it.each([true, false])(
+  "drains voice and delegated usage after farewell (delegated usage arrives: %s)",
+  async (reportsUsage): Promise<void> => {
+    const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID());
+    const context = { userId: "reviewer", callId: id };
+    const stub = env.CALLS.get(env.CALLS.idFromName(id));
 
-  await runInDurableObject(stub, async (_instance, storage): Promise<void> => {
-    const pair = new WebSocketPair();
-    const provider = pair[0];
-    provider.accept();
-    const messages: { type: string }[] = [];
-    provider.addEventListener("message", (event): void => {
-      messages.push(JSON.parse(String(event.data)));
-    });
+    await runInDurableObject(stub, async (_instance, storage): Promise<void> => {
+      const pair = new WebSocketPair();
+      const provider = pair[0];
+      provider.accept();
+      const messages: { type: string }[] = [];
+      provider.addEventListener("message", (event): void => {
+        messages.push(JSON.parse(String(event.data)));
+      });
 
-    const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input): Promise<Response> => {
-      const url = input instanceof Request ? input.url : input.toString();
+      const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input): Promise<Response> => {
+        const url = input instanceof Request ? input.url : input.toString();
 
-      if (url.endsWith("/attach")) {
-        return new Response(null, { status: 101, webSocket: pair[1] });
-      }
+        if (url.endsWith("/attach")) {
+          return new Response(null, { status: 101, webSocket: pair[1] });
+        }
 
-      return Response.json({ session: { id: "provider-farewell" }, transport: { sdp: "provider-answer" } });
-    });
+        return Response.json({ session: { id: "provider-farewell" }, transport: { sdp: "provider-answer" } });
+      });
 
-    vi.useFakeTimers({ toFake: ["Date"] });
+      vi.useFakeTimers({ toFake: ["Date"] });
 
-    try {
-      const coordinator = new LiveCall(storage, { ...env, VOICE_PROVIDER: "openai", OPENAI_API_KEY: "test-key" });
-      await coordinator.start(context, "offer");
-      provider.send(JSON.stringify(createFunctionEvent("end_call", {}, "provider-end", "provider-delegation")));
-      await expect.poll(async (): Promise<string> => (await queryLiveStatus(env.DB, context)).state).toBe("ending");
-      await expect
-        .poll((): number => messages.filter((event): boolean => event.type === "response.create").length)
-        .toBe(1);
-      expect(messages.some((event): boolean => event.type === "session.close")).toBe(false);
-      const farewell = (await readState(env.DB)).state.liveSessions[0].farewell!;
-      vi.setSystemTime(Date.parse(farewell.deadline));
-      await coordinator.alarm();
-      await expect.poll((): boolean => messages.some((event): boolean => event.type === "session.close")).toBe(true);
-      expect(provider.readyState).toBe(WebSocket.OPEN);
-      expect((await queryLiveStatus(env.DB, context)).state).toBe("ending");
-      expect((await readState(env.DB)).state.reservations[0].settled).toBe(false);
-      provider.send(
-        JSON.stringify({
+      try {
+        const coordinator = new LiveCall(storage, { ...env, VOICE_PROVIDER: "openai", OPENAI_API_KEY: "test-key" });
+        await coordinator.start(context, "offer");
+        const response = { id: "farewell-response" };
+        provider.send(JSON.stringify({ type: "response.event", event: { type: "response.created", response } }));
+        await expect
+          .poll(async () => (await readState(env.DB)).state.liveSessions[0].responseIds)
+          .toEqual([response.id]);
+        provider.send(JSON.stringify(createFunctionEvent("end_call", {}, "provider-end", "provider-delegation")));
+        await expect.poll(async (): Promise<string> => (await queryLiveStatus(env.DB, context)).state).toBe("ending");
+        await expect
+          .poll((): number => messages.filter((event): boolean => event.type === "response.create").length)
+          .toBe(1);
+        expect(messages.some((event): boolean => event.type === "session.close")).toBe(false);
+        const farewell = (await readState(env.DB)).state.liveSessions[0].farewell!;
+        vi.setSystemTime(Date.parse(farewell.deadline));
+        await coordinator.alarm();
+        await coordinator.end();
+        await expect.poll((): boolean => messages.some((event): boolean => event.type === "session.close")).toBe(true);
+        expect(provider.readyState).toBe(WebSocket.OPEN);
+        expect((await queryLiveStatus(env.DB, context)).state).toBe("ending");
+        expect((await readState(env.DB)).state.reservations[0].settled).toBe(false);
+        const closed = {
           type: "session.closed",
           event_id: "provider-closed",
           reason: "close_requested",
           usage: { seconds: 4 },
-        }),
-      );
-      await expect.poll(async (): Promise<string> => (await queryLiveStatus(env.DB, context)).state).toBe("ended");
-      const { state } = await readState(env.DB);
-      expect(state.liveSessions[0]).toMatchObject({ providerClosed: true, usageConfirmed: true, voiceSeconds: 4 });
-      expect(state.reservations[0].settled).toBe(true);
-      expect((await queryCall(env.DB, context)).connection).toBe("Ended normally");
-    } finally {
-      request.mockRestore();
-      vi.useRealTimers();
-      provider.close();
-    }
-  });
-});
+        };
+        provider.send(JSON.stringify(closed));
+        await expect
+          .poll(async () => (await readState(env.DB)).state.reservations[0].callSpending?.voiceSettled)
+          .toBe(true);
+        expect((await queryLiveStatus(env.DB, context)).state).toBe("ending");
+        expect(provider.readyState).toBe(WebSocket.OPEN);
+        expect(messages.filter((event): boolean => event.type === "session.close")).toHaveLength(1);
+        provider.send(JSON.stringify(createFunctionEvent("verify_carrier", { mcNumber: "123456" }, "late-tool")));
+
+        const final = {
+          type: "response.event",
+          event_id: "provider-response-final",
+          event: {
+            type: "response.completed",
+            response: { ...response, usage: { input_tokens: 100, output_tokens: 50 } },
+          },
+        };
+
+        if (reportsUsage) {
+          provider.send(JSON.stringify(final));
+        } else {
+          vi.setSystemTime(Date.now() + 10_000);
+          await coordinator.alarm();
+        }
+
+        await expect.poll(async (): Promise<string> => (await queryLiveStatus(env.DB, context)).state).toBe("ended");
+        const { state } = await readState(env.DB);
+        expect(state.liveSessions[0]).toMatchObject({ providerClosed: true, usageConfirmed: true, voiceSeconds: 4 });
+        expect(state.reservations[0].settled).toBe(reportsUsage);
+        expect(calculateReservationHold(state.reservations[0])).toBe(
+          reportsUsage ? 0 : Math.ceil(maximumResponseMicrodollars * 1.25),
+        );
+        expect((await queryCall(env.DB, context)).connection).toBe("Ended normally");
+        expect(state.receipts).toHaveLength(0);
+
+        if (reportsUsage) {
+          await ingestProviderEvent(
+            env.DB,
+            context,
+            { ...final, event_id: "provider-response-replayed" },
+            "2026-12-01T00:00:00Z",
+          );
+          await ingestProviderEvent(env.DB, context, closed);
+          expect((await readState(env.DB)).state.providerUsage).toEqual(state.providerUsage);
+        }
+
+        await expect.poll(async () => (await storage.storage.get<{ live?: number }>("work"))?.live).toBeUndefined();
+      } finally {
+        request.mockRestore();
+        vi.useRealTimers();
+        provider.close();
+      }
+    });
+  },
+);
 
 it("recovers a reservation abandoned before Durable Object startup without charging a provider", async (): Promise<void> => {
   const now = Date.now();
@@ -1023,14 +1074,19 @@ it("keeps missing transcript and delegated usage unknown after reattaching an en
     try {
       const coordinator = new LiveCall(storage, { ...env, VOICE_PROVIDER: "openai", OPENAI_API_KEY: "test-key" });
       await coordinator.start(context, "offer");
+      const response = { id: "response-before-disconnect" };
+      initial[0].send(JSON.stringify({ type: "response.event", event: { type: "response.created", response } }));
+      await expect.poll(async () => (await readState(env.DB)).state.liveSessions[0].responseIds).toEqual([response.id]);
       await coordinator.end();
+      initial[0].close(1011, "provider transport lost");
+      await expect.poll(async () => (await readState(env.DB)).state.liveSessions[0].accountingGap).toBe(true);
       vi.setSystemTime(Date.now() + 11_000);
       await coordinator.alarm();
       expect((await queryLiveStatus(env.DB, context)).state).toBe("ended");
       vi.setSystemTime(Date.now() + 1000);
       await coordinator.alarm();
-      const seconds = (await readState(env.DB)).state.liveSessions[0].voiceSeconds;
-      provider.send(JSON.stringify({ type: "session.closed", event_id: "recovered-close", usage: { seconds } }));
+      const before = (await readState(env.DB)).state.reservations[0];
+      provider.send(JSON.stringify({ type: "session.closed", event_id: "recovered-close", usage: { seconds: 4 } }));
       await expect
         .poll(async (): Promise<boolean> => (await readState(env.DB)).state.liveSessions[0].providerClosed)
         .toBe(true);
@@ -1038,6 +1094,27 @@ it("keeps missing transcript and delegated usage unknown after reattaching an en
       expect(state.liveSessions[0]).toMatchObject({ gap: true, accountingGap: true });
       expect(state.calls[0].record.transcript.complete).toBe(false);
       expect(state.reservations[0].settled).toBe(false);
+      expect(state.reservations[0].callSpending?.voiceSettled).toBe(true);
+      expect(calculateReservationHold(before) - calculateReservationHold(state.reservations[0])).toBe(
+        before.callSpending?.voiceReservedMicrodollars,
+      );
+
+      expect(provider.readyState).toBe(WebSocket.OPEN);
+      provider.send(
+        JSON.stringify({
+          type: "response.event",
+          event: {
+            type: "response.completed",
+            response: { ...response, usage: { input_tokens: 100, output_tokens: 50 } },
+          },
+        }),
+      );
+
+      await expect
+        .poll(async () => (await readState(env.DB)).state.liveSessions[0].completedResponseIds)
+        .toEqual([response.id]);
+      const recovered = (await readState(env.DB)).state;
+      expect(calculateReservationHold(recovered.reservations[0])).toBeGreaterThan(9_000_000);
       await expect.poll(async () => (await storage.storage.get<{ live?: number }>("work"))?.live).toBeUndefined();
     } finally {
       request.mockRestore();

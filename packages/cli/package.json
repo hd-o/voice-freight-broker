@@ -8,6 +8,7 @@
     "test": "vp test run"
   },
   "dependencies": {
+    "@voice-freight/backend": "workspace:*",
     "@voice-freight/contracts": "workspace:*",
     "commander": "15.1.0",
     "jsonc-parser": "3.3.1",

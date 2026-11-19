@@ -22,7 +22,7 @@ const configurationSchema = z.object({
 });
 type Configuration = z.infer<typeof configurationSchema>;
 
-function quoteSql(value: string): string {
+export function quoteSql(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
@@ -86,6 +86,16 @@ async function query(configuration: Configuration, sql: string): Promise<unknown
     method: "POST",
     body: { sql },
   });
+}
+
+export async function openDeployedDatabase(variable?: string): Promise<{
+  id: string;
+  query: (sql: string) => Promise<unknown>;
+}> {
+  const configuration = await readConfiguration(variable);
+  await validateDatabase(configuration);
+
+  return { id: configuration.databaseId, query: (sql): Promise<unknown> => query(configuration, sql) };
 }
 
 export async function migrateDatabase(variable?: string): Promise<{ applied: string[] }> {

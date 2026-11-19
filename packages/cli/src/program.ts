@@ -48,8 +48,8 @@ Examples:
   vpr cli db schema calls
   vpr cli db query 'SELECT id FROM calls ORDER BY id'
 
-Agents can use "pnpm --silent" like:
-  pnpm --silent calls transcript <call-id> --json
+Agents can use "pnpm --silent cli" like:
+  pnpm --silent cli calls transcript <call-id> --json
 
 Exit codes:
   0 success/help; 1 operational failure, failed evaluation, or invalid stored transcript;
@@ -216,6 +216,30 @@ Example:
     .action(async (): Promise<void> => {
       const { reconcileSchedules } = await import("./schedules.ts");
       await reconcileSchedules();
+    });
+
+  deployed
+    .command("reconcile-voice")
+    .description("Preview the release of confirmed voice holds for specific ended calls.")
+    .addHelpText("after", "\nExample:\n  pnpm --silent cli deployed reconcile-voice <call-id> --json")
+    .argument("<call-ids...>", "IDs of ended calls with recorded final voice usage")
+    .option("--apply <preview-token>", "apply the reviewed preview")
+    .option("--configuration-env <name>", "environment variable containing resolved configuration")
+    .action(async (ids: unknown, _options: unknown, command: Command): Promise<void> => {
+      const options = z
+        .object({
+          json: z.boolean().default(false),
+          configurationEnv: z.string().optional(),
+          apply: z.string().optional(),
+        })
+        .parse(command.optsWithGlobals());
+      const { reconcileVoice } = await import("./voice-reconciliation.ts");
+      const receipt = await reconcileVoice(
+        z.array(z.uuid()).min(1).parse(ids),
+        options.apply,
+        options.configurationEnv,
+      );
+      process.stdout.write(`${serializeJson(receipt, options.json ? undefined : 2)}\n`);
     });
 
   const database = deployed.command("database").description("Manage deployed database migrations.");

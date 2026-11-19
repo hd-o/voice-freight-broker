@@ -8,13 +8,14 @@ import {
 import { authorizeCall, resolveIdentity } from "./authorization";
 import { initializeCall } from "./calls";
 import { requireCondition } from "./model";
-import type { LiveSession, State } from "./model";
+import type { LiveSession, Reservation, State } from "./model";
 import { localDailyQuotaId } from "./quotas";
 import { readState, transact } from "./repository";
 import {
   calculateAvailableMicrodollars,
   calculateCallReservationMicrodollars,
   fastModelPrices,
+  resolveCallSpending,
   resolvePeriod,
   usageLimits,
 } from "./spending";
@@ -83,7 +84,7 @@ export async function reserveLiveCall(
 
     const { id } = initializeCall(state, userId, now, callId);
 
-    state.reservations.push({
+    const reservation: Reservation = {
       ...(quotaVersion ? { dailyQuotaVersion: quotaVersion } : {}),
       id,
       ownerId: userId,
@@ -93,7 +94,14 @@ export async function reserveLiveCall(
       chargedMicrodollars: 0,
       settled: false,
       prices: { ...fastModelPrices },
-    });
+    };
+
+    reservation.callSpending = resolveCallSpending(
+      reservation,
+      { id, maximumCallSeconds: limits.maximumCallSeconds },
+      [],
+    );
+    state.reservations.push(reservation);
 
     state.liveSessions.push({
       closingAt: null,

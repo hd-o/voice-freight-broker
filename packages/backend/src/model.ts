@@ -173,6 +173,22 @@ export type Reservation = {
   chargedMicrodollars: number;
   settled: boolean;
   prices: ModelPrices;
+  callSpending?: CallSpending;
+};
+
+export type CallSpending = {
+  voiceReservedMicrodollars: number;
+  voiceChargedMicrodollars: number;
+  voiceSettled: boolean;
+  delegatedHoldLimitMicrodollars?: number;
+  voiceReconciliation?: {
+    id: string;
+    at: string;
+    providerSessionId: string;
+    finalVoiceSeconds: number;
+    heldBeforeMicrodollars: number;
+    heldAfterMicrodollars: number;
+  };
 };
 
 export type ModelPrices = {
@@ -227,12 +243,13 @@ export type TranscriptFragment = {
 };
 
 export class BusinessError extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public status: 400 | 401 | 403 | 404 | 409 | 503 = 409,
-  ) {
+  code: string;
+  status: 400 | 401 | 403 | 404 | 409 | 503;
+
+  constructor(code: string, message: string, status: BusinessError["status"] = 409) {
     super(message);
+    this.code = code;
+    this.status = status;
   }
 }
 

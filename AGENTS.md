@@ -42,8 +42,8 @@ post-call analysis, text evaluations, and deployed Access are implemented. Terra
 manages deployed resources and releases; Wrangler supports local development
 and packaging.
 Deployed account settings still require initial configuration.
-The CLI supports local inspection, quota resets, evaluations, and deployed role
-synchronization.
+The CLI supports local inspection, quota resets, evaluations, deployed role
+synchronization, and reconciliation of confirmed voice holds.
 
 ## Structure
 
