@@ -231,7 +231,7 @@ test("WebRTC transcripts survive status polls and reconcile with the saved snaps
   await expect(page.getByText("Live greeting.", { exact: true })).toHaveCount(1);
   expect(scenario.polls).toBe(polls);
   expect(scenario.requests).toBe(0);
-  await page.clock.runFor(1100);
+  await page.clock.runFor(5100);
   await expect.poll((): number => scenario.polls).toBeGreaterThan(polls);
   await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
   expect(scenario.requests).toBe(0);
@@ -257,7 +257,6 @@ test("data channel failure polls transcripts without ending audio or losing unsa
 }): Promise<void> => {
   const scenario = await simulateVoice(page);
   await expect.poll((): number => scenario.polls).toBeGreaterThan(0);
-  await page.clock.install();
   await sendTranscript(page);
   scenario.failures = 1;
 
@@ -281,15 +280,16 @@ test("data channel failure polls transcripts without ending audio or losing unsa
   await expect(page.getByRole("link", { name: "View this call in dashboard →" })).toBeVisible();
 });
 
-test("status failure preserves unsaved WebRTC text until saved-transcript retry", async ({ page }): Promise<void> => {
+test("repeated status failures preserve unsaved WebRTC text until saved-transcript retry", async ({
+  page,
+}): Promise<void> => {
   const scenario = await simulateVoice(page);
   await expect.poll((): number => scenario.polls).toBeGreaterThan(0);
   await page.clock.install();
   await sendTranscript(page);
   await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
-  scenario.statusFailures = 1;
-  await page.clock.runFor(1100);
-  await expect(page.getByRole("button", { name: "Retry saved transcript" })).toBeVisible();
+  scenario.statusFailures = 3;
+  await expect(page.getByRole("button", { name: "Retry saved transcript" })).toBeVisible({ timeout: 12000 });
   await expect(page.getByText("Live greeting.", { exact: true })).toBeVisible();
   expect(scenario.requests).toBe(0);
   await sendTranscript(page, "Ignored after failure.", "late");
@@ -341,7 +341,7 @@ test("microphone denial leaves paid startup untouched and allows a retry", async
   expect(paidStarts).toBe(0);
 });
 
-test("a status failure ends the call without reviving disposed audio", async ({
+test("repeated status failures end the call without reviving disposed audio", async ({
   page,
   request,
   baseURL,
@@ -362,7 +362,7 @@ test("a status failure ends the call without reviving disposed audio", async ({
   await page.route("**/api/calls/*/live", async (route): Promise<void> => {
     polls++;
 
-    if (polls === 1) {
+    if (polls <= 3) {
       await route.fulfill({
         status: 503,
         json: {
@@ -381,12 +381,34 @@ test("a status failure ends the call without reviving disposed audio", async ({
   await expect(page.getByRole("button", { name: "Clear and Start New Call" })).toBeVisible();
   await page.waitForTimeout(2200);
   await expect(page.getByRole("button", { name: "Hang up", exact: true })).toHaveCount(0);
-  expect(polls).toBe(1);
+  expect(polls).toBe(3);
   await page.getByRole("link", { name: "View this call in dashboard →" }).click();
 
   await expect(
     page.getByRole("region", { name: "Call analysis" }).getByText("Interrupted", { exact: true }),
   ).toBeVisible();
+});
+
+test("a transient status failure preserves the voice connection", async ({ page }): Promise<void> => {
+  const scenario = await simulateVoice(page);
+  await expect.poll((): number => scenario.polls).toBeGreaterThan(0);
+  const polls = scenario.polls;
+  scenario.statusFailures = 1;
+  await expect.poll((): number => scenario.polls, { timeout: 10000 }).toBeGreaterThan(polls + 1);
+  await expect(page.getByRole("button", { name: "Hang up", exact: true })).toBeVisible();
+  expect(await page.evaluate((): boolean => window.voiceResources.peerClosed)).toBe(false);
+});
+
+test("a failed hangup reconciles a later provider closure", async ({ page }): Promise<void> => {
+  const scenario = await simulateVoice(page);
+  await page.route("**/api/calls/voice-test/hangup", (route): Promise<void> =>
+    route.fulfill({ status: 503, json: {} }),
+  );
+  await page.getByRole("button", { name: "Hang up", exact: true }).click();
+  await expect(page.getByText("Could not load the saved transcript.")).toBeVisible();
+  scenario.state = "ended";
+  await expect(page.getByText("Could not load the saved transcript.")).toHaveCount(0, { timeout: 10000 });
+  await expect(page.getByRole("button", { name: "Clear and Start New Call" })).toBeEnabled();
 });
 
 test("a broker-ended call preserves farewell playback, stops the microphone, and retrieves the saved transcript", async ({

@@ -1245,7 +1245,9 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
         const warningSeconds = Math.min(30, Math.max(1, Math.floor(session.inactivitySeconds / 4)));
 
-        if (idle >= session.inactivitySeconds - warningSeconds && !session.warned) {
+        const warn = idle >= session.inactivitySeconds - warningSeconds && !session.warned;
+
+        if (warn) {
           await this.updateSession((current): void => {
             current.warned = true;
             current.notice = `Are you still there? Speak within ${warningSeconds} seconds to keep the call active.`;
@@ -1263,9 +1265,19 @@ export class LiveCall extends DurableObject<LiveBindings> {
           await this.ctx.storage.put("fixtureStarted", true);
           await this.runFixture(this.env.VOICE_STUB_SCENARIO ?? "workflow");
         }
-      }
 
-      await this.scheduleLive(Date.now() + 1000);
+        const inactivityDeadline =
+          Date.parse(session.lastInputAt) +
+          (session.inactivitySeconds - (session.warned || warn ? 0 : warningSeconds)) * 1000;
+
+        await this.scheduleLive(
+          Math.min(
+            Date.now() + recoveryDelay,
+            Date.parse(call.record.startedAt) + session.maximumCallSeconds * 1000,
+            inactivityDeadline,
+          ),
+        );
+      }
     } catch {
       this.closing = true;
 

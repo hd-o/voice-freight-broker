@@ -187,20 +187,37 @@ export function useLiveCall(userId?: string): {
   }, [userId, dispose]);
 
   useEffect((): void | (() => void) => {
-    if (!status?.id || state === "ready") {
+    if (!status?.startedAt || state === "ready") {
+      return;
+    }
+
+    const startedAt = Date.parse(status.startedAt);
+    const endedAt = status.endedAt ? Date.parse(status.endedAt) : undefined;
+
+    function updateElapsed(): void {
+      setElapsedSeconds(Math.max(0, Math.floor(((endedAt ?? Date.now()) - startedAt) / 1000)));
+    }
+
+    updateElapsed();
+
+    if (endedAt !== undefined || state === "ended") {
+      return;
+    }
+
+    const timer = window.setInterval(updateElapsed, 1000);
+    return (): void => window.clearInterval(timer);
+  }, [status?.startedAt, status?.endedAt, state]);
+
+  useEffect((): void | (() => void) => {
+    if (!status?.id || state === "ready" || status.state === "ended") {
       return;
     }
 
     let active = true;
-    let polling = false;
+    let failures = 0;
+    let timer: number | undefined;
 
     async function refresh(): Promise<void> {
-      if (polling) {
-        return;
-      }
-
-      polling = true;
-
       try {
         const result = liveStatusSchema.parse(
           await (await requestApi(`/calls/${encodeURIComponent(status!.id)}/live`)).json(),
@@ -210,22 +227,16 @@ export function useLiveCall(userId?: string): {
           return;
         }
 
+        failures = 0;
         setStatus(result);
 
-        setState(
-          result.state === "connected" && session.current.peer && session.current.peer.connectionState !== "connected"
-            ? "connecting"
-            : result.state,
-        );
-
-        setElapsedSeconds(
-          Math.max(
-            0,
-            Math.floor(
-              ((result.endedAt ? Date.parse(result.endedAt) : Date.now()) - Date.parse(result.startedAt)) / 1000,
-            ),
-          ),
-        );
+        if (state !== "ended" || result.state === "ended") {
+          setState(
+            result.state === "connected" && session.current.peer && session.current.peer.connectionState !== "connected"
+              ? "connecting"
+              : result.state,
+          );
+        }
 
         if (result.state === "ending") {
           session.current.stream?.getAudioTracks().forEach((track): void => {
@@ -234,15 +245,23 @@ export function useLiveCall(userId?: string): {
         }
 
         if (result.state === "ended") {
-          window.clearInterval(timer);
+          active = false;
           void session.current.transcript?.complete();
           dispose();
           void cache.invalidateQueries({ queryKey: ["private"] });
+        } else {
+          timer = window.setTimeout(refresh, result.state === "connected" && state !== "ended" ? 5000 : 1000);
         }
       } catch (error) {
         if (active) {
+          failures++;
+
+          if (failures < 3) {
+            timer = window.setTimeout(refresh, 1000);
+            return;
+          }
+
           active = false;
-          window.clearInterval(timer);
           const transcriptSession = session.current.transcript;
           transcriptSession?.suspend();
           setTranscriptFailure(true);
@@ -259,22 +278,16 @@ export function useLiveCall(userId?: string): {
             .then((): Promise<void> => cache.invalidateQueries({ queryKey: ["private"] }))
             .catch((): void => {});
         }
-      } finally {
-        polling = false;
       }
     }
 
     void refresh();
 
-    const timer = window.setInterval((): void => {
-      void refresh();
-    }, 1000);
-
     return (): void => {
       active = false;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
-  }, [status?.id, state === "ready", cache, dispose]);
+  }, [status?.id, status?.state, state, cache, dispose]);
 
   async function start(): Promise<void> {
     if (busy.current || !userId) {
