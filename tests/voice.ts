@@ -22,6 +22,7 @@ type VoiceScenario = {
   fragments: TranscriptFragment[];
   failures: number;
   requests: number;
+  cursors: number[];
   polls: number;
   statusFailures: number;
 };
@@ -32,6 +33,7 @@ export async function simulateVoice(page: Page, channelOpening = true, remoteAud
     fragments: [],
     failures: 0,
     requests: 0,
+    cursors: [],
     polls: 0,
     statusFailures: 0,
   };
@@ -72,7 +74,7 @@ export async function simulateVoice(page: Page, channelOpening = true, remoteAud
     });
   });
 
-  await page.route("**/api/calls/voice-test/transcript", async (route): Promise<void> => {
+  await page.route(/\/api\/calls\/voice-test\/transcript(?:\?.*)?$/, async (route): Promise<void> => {
     scenario.requests++;
 
     if (scenario.failures > 0) {
@@ -82,7 +84,20 @@ export async function simulateVoice(page: Page, channelOpening = true, remoteAud
       return;
     }
 
-    await route.fulfill({ json: { fragments: scenario.fragments } });
+    const after = new URL(route.request().url()).searchParams.get("after");
+
+    if (after === null) {
+      await route.fulfill({ json: { fragments: scenario.fragments } });
+    } else {
+      const cursor = Number(after);
+      scenario.cursors.push(cursor);
+      await route.fulfill({
+        json: {
+          fragments: scenario.fragments.slice(cursor + 1),
+          cursor: Math.max(cursor, scenario.fragments.length - 1),
+        },
+      });
+    }
   });
 
   await page.addInitScript(
@@ -167,6 +182,11 @@ export async function simulateVoice(page: Page, channelOpening = true, remoteAud
             if (event instanceof CustomEvent) {
               this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(event.detail) }));
             }
+          });
+
+          window.addEventListener("voice-open", (): void => {
+            this.readyState = "open";
+            this.dispatchEvent(new Event("open"));
           });
 
           window.addEventListener("voice-close", (): void => {

@@ -53,3 +53,40 @@ it("preserves concurrent calls and legacy usage while applying scoped provider e
   ).toBe(false);
   expect((await readState(env.DB)).version).toBe(version);
 });
+
+it("appends transcript deltas and materializes saved entries at finalization", async (): Promise<void> => {
+  const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), clock);
+  const context = { userId: "reviewer", callId: id };
+  const fragment = (eventId: string, start: number, text: string): object => ({
+    type: "session.input_transcript.delta",
+    event_id: eventId,
+    start_ms: start,
+    end_ms: start + 50,
+    delta: text,
+  });
+
+  await Promise.all([
+    ingestProviderEvent(env.DB, context, fragment("one", 100, "one")),
+    ingestProviderEvent(env.DB, context, fragment("two", 0, "two")),
+  ]);
+
+  const active = (await readState(env.DB)).state;
+  expect(active.calls.find((call) => call.id === id)?.record.transcript.entries).toEqual([]);
+  expect(
+    active.transcriptFragments
+      .filter((entry) => entry.callId === id)
+      .map((entry) => entry.sequence)
+      .sort((first, second): number => first - second),
+  ).toEqual([0, 1]);
+
+  const { completeCall } = await import("@voice-freight/backend/calls");
+  const snapshot = await transact(env.DB, (state) =>
+    completeCall(state, context, { connection: "Ended normally", transcriptComplete: false }, clock),
+  );
+  expect(snapshot.transcript.entries.map((entry) => entry.text)).toEqual(["two", "one"]);
+
+  await ingestProviderEvent(env.DB, context, fragment("late", 200, "late"));
+  const { queryCall } = await import("@voice-freight/backend/reporting");
+  const saved = await queryCall(env.DB, context);
+  expect(saved.transcript.entries.map((entry) => entry.text).join("")).toBe("twoonelate");
+});

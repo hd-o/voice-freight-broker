@@ -39,7 +39,10 @@ export const transcriptFragmentSchema = z.object({
   text: z.string(),
 });
 
-export const transcriptSchema = z.object({ fragments: z.array(transcriptFragmentSchema) });
+export const transcriptSchema = z.object({
+  fragments: z.array(transcriptFragmentSchema),
+  cursor: z.number().int().min(-1).optional(),
+});
 export type TranscriptFragment = z.infer<typeof transcriptFragmentSchema>;
 export type Transcript = z.infer<typeof transcriptSchema>;
 

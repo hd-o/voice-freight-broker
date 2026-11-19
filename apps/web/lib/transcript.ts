@@ -4,7 +4,10 @@ import {
   transcriptSchema,
   type TranscriptFragment,
 } from "@voice-freight/contracts/live";
+import { z } from "zod";
 import { requestApi } from "./account";
+
+const transcriptPageSchema = transcriptSchema.extend({ cursor: z.number().int().min(-1).optional() });
 
 export type TranscriptSession = {
   monitorChannel: () => void;
@@ -23,6 +26,8 @@ export function createTranscriptSession(
   let cancellation = false;
   let suspension = false;
   let fallback = false;
+  let cursor = -1;
+  let identifiers = new Set<string>();
   let pollingTimer: ReturnType<typeof setInterval> | undefined;
   let channelDeadline: ReturnType<typeof setTimeout> | undefined;
   let pendingRequest: AbortController | undefined;
@@ -41,26 +46,36 @@ export function createTranscriptSession(
     pendingRequest = requestController;
 
     try {
+      const path = `/calls/${encodeURIComponent(callId)}/transcript`;
       const response = await requestApi(
-        `/calls/${encodeURIComponent(callId)}/transcript`,
+        mode === "replace" ? path : `${path}?after=${cursor}`,
         "GET",
         undefined,
         requestController.signal,
       );
 
-      const snapshot = transcriptSchema.parse(await response.json());
+      const snapshot = transcriptPageSchema.parse(await response.json());
 
       if (cancellation || requestController.signal.aborted) {
         return;
       }
 
-      // Saved fragments take precedence; retain events the backend has not saved yet.
-      const identifiers = new Set(snapshot.fragments.map((entry): string => entry.id));
+      if (mode === "replace") {
+        fragments = snapshot.fragments;
+        identifiers = new Set(fragments.map((entry): string => entry.id));
+      } else {
+        const saved = new Map(snapshot.fragments.map((entry): [string, TranscriptFragment] => [entry.id, entry]));
+        fragments = fragments.map((entry): TranscriptFragment => saved.get(entry.id) ?? entry);
 
-      fragments =
-        mode === "replace"
-          ? snapshot.fragments
-          : [...snapshot.fragments, ...fragments.filter((entry): boolean => !identifiers.has(entry.id))];
+        for (const entry of snapshot.fragments) {
+          if (!identifiers.has(entry.id)) {
+            fragments.push(entry);
+            identifiers.add(entry.id);
+          }
+        }
+
+        cursor = snapshot.cursor ?? cursor;
+      }
 
       publishTranscript();
       updateTranscriptFailure(false);
@@ -76,7 +91,7 @@ export function createTranscriptSession(
   }
 
   function receiveTranscript(event: MessageEvent): void {
-    if (cancellation || suspension || fallback || typeof event.data !== "string") {
+    if (cancellation || suspension || typeof event.data !== "string") {
       return;
     }
 
@@ -96,10 +111,11 @@ export function createTranscriptSession(
 
     const fragmentId = `${callId}:${transcriptEvent.data.event_id}`;
 
-    if (fragments.some((entry): boolean => entry.id === fragmentId)) {
+    if (identifiers.has(fragmentId)) {
       return;
     }
 
+    identifiers.add(fragmentId);
     fragments.push({
       id: fragmentId,
       speaker: transcriptEvent.data.type === "session.input_transcript.delta" ? "carrier" : "broker",
@@ -113,15 +129,27 @@ export function createTranscriptSession(
 
   function clearChannelDeadline(): void {
     clearTimeout(channelDeadline);
+    channelDeadline = undefined;
+
+    if (fallback && !cancellation && !suspension) {
+      clearInterval(pollingTimer);
+      void refreshTranscript();
+      // Sideband persistence can lag behind channel recovery, so continue
+      // reconciling missed events while receiving new channel messages.
+      pollingTimer = setInterval((): void => {
+        void refreshTranscript();
+      }, 5000);
+    }
   }
 
   function startPolling(): void {
-    if (cancellation || suspension || fallback) {
+    if (cancellation || suspension) {
       return;
     }
 
     fallback = true;
     clearTimeout(channelDeadline);
+    clearInterval(pollingTimer);
     void refreshTranscript();
 
     pollingTimer = setInterval((): void => {

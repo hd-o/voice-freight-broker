@@ -309,6 +309,31 @@ test("a data channel that never opens falls back after audio connects", async ({
   await expect(page.getByRole("button", { name: "Hang up", exact: true })).toBeVisible();
 });
 
+test("late data channel recovery merges cursor updates without losing live speech", async ({ page }): Promise<void> => {
+  const scenario = await simulateVoice(page, false);
+  await page.clock.install();
+  scenario.fragments = [{ id: "voice-test:saved", speaker: "broker", startMs: 0, endMs: 500, text: "Saved speech." }];
+  await page.clock.runFor(5100);
+  await expect(page.getByText("Saved speech.")).toBeVisible();
+  expect(scenario.cursors).toContain(-1);
+
+  await page.evaluate((): void => {
+    window.dispatchEvent(new Event("voice-open"));
+  });
+  await sendTranscript(page, "Live speech.", "live");
+  await expect(page.getByText("Saved speech.Live speech.")).toBeVisible();
+  scenario.fragments.push({
+    id: "voice-test:late",
+    speaker: "carrier",
+    startMs: 600,
+    endMs: 900,
+    text: "Late saved speech.",
+  });
+  await page.clock.runFor(5100);
+  await expect(page.getByText("Late saved speech.")).toBeVisible();
+  expect(scenario.cursors).toContain(0);
+});
+
 test("microphone denial leaves paid startup untouched and allows a retry", async ({ page }): Promise<void> => {
   await page.route("**/api/live/configuration", (route): Promise<void> =>
     route.fulfill({ json: { provider: "openai" } }),

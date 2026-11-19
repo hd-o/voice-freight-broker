@@ -264,12 +264,26 @@ app.get("/api/calls/:callId/live", async (context): Promise<Response> => {
 });
 app.get("/api/calls/:callId/transcript", async (context): Promise<Response> => {
   const user = await resolveUser(context);
+  const input = context.req.query("after");
+  const after =
+    input === undefined
+      ? undefined
+      : z
+          .string()
+          .regex(/^(?:-1|0|[1-9]\d*)$/)
+          .transform(Number)
+          .pipe(z.number().int().safe().min(-1))
+          .parse(input);
 
   return context.json(
-    await queryTranscript(context.env.DB, {
-      userId: user.id,
-      callId: context.req.param("callId"),
-    }),
+    await queryTranscript(
+      context.env.DB,
+      {
+        userId: user.id,
+        callId: context.req.param("callId"),
+      },
+      after,
+    ),
   );
 });
 app.post("/api/calls/:callId/connected", async (context): Promise<Response> => {

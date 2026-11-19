@@ -37,7 +37,7 @@ export const responseEventSchema = z.object({
 async function readProviderState(
   binding: D1Database,
   context: CallContext,
-): Promise<{ version: number; state: State }> {
+): Promise<{ version: number; state: State; nextSequence: number }> {
   const database = drizzle(binding);
 
   // The shared revision keeps these scoped writes compatible with all other
@@ -56,13 +56,16 @@ async function readProviderState(
         sql`${tables.providerUsage.id} >= ${`${context.callId}:`} AND ${tables.providerUsage.id} < ${`${context.callId};`}`,
       ),
     database
-      .select()
+      .select({ sequence: sql<number>`json_extract(${tables.transcriptFragments.data}, '$.sequence')` })
       .from(tables.transcriptFragments)
-      .where(sql`json_extract(${tables.transcriptFragments.data}, '$.callId') = ${context.callId}`),
+      .where(sql`json_extract(${tables.transcriptFragments.data}, '$.callId') = ${context.callId}`)
+      .orderBy(sql`json_extract(${tables.transcriptFragments.data}, '$.sequence') DESC`)
+      .limit(1),
   ]);
 
   return {
     version: revision[0].version,
+    nextSequence: (fragments[0]?.sequence ?? -1) + 1,
     state: {
       users: users.map((row) => row.data),
       calls: calls.map((row) => row.data),
@@ -70,7 +73,7 @@ async function readProviderState(
       reservations: reservations.map((row) => row.data),
       spendingPeriods: periods.map((row) => row.data),
       providerUsage: usage.map((row) => row.data),
-      transcriptFragments: fragments.map((row) => row.data),
+      transcriptFragments: [],
       quotaResets: [],
       confirmationAttempts: [],
       sessions: [],
@@ -100,6 +103,8 @@ export async function ingestProviderEvent(
     return false;
   }
 
+  let nextSequence = 0;
+
   return transact(
     binding,
     (state): boolean => {
@@ -117,7 +122,7 @@ export async function ingestProviderEvent(
 
         if (fragment.delta) {
           state.transcriptFragments.push({
-            sequence: state.transcriptFragments.filter((entry): boolean => entry.callId === call.id).length,
+            sequence: nextSequence,
             id: `${call.id}:${fragment.event_id}`,
             callId: call.id,
             speaker: event.type === "session.input_transcript.delta" ? "carrier" : "broker",
@@ -125,16 +130,6 @@ export async function ingestProviderEvent(
             endMs: fragment.end_ms,
             text: fragment.delta,
           });
-
-          call.record.transcript.entries = state.transcriptFragments
-            .filter((entry): boolean => entry.callId === call.id)
-            .sort((a, b): number => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence)
-            .map((entry): (typeof call.record.transcript.entries)[number] => ({
-              id: entry.id,
-              speaker: entry.speaker,
-              offsetSeconds: Math.floor(entry.startMs / 1000),
-              text: entry.text,
-            }));
         }
 
         if (event.type === "session.input_transcript.delta" && fragment.delta.trim()) {
@@ -231,6 +226,10 @@ export async function ingestProviderEvent(
 
       return true;
     },
-    (database) => readProviderState(database, context),
+    async (database) => {
+      const result = await readProviderState(database, context);
+      nextSequence = result.nextSequence;
+      return result;
+    },
   );
 }

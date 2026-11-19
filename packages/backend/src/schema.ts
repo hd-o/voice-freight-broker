@@ -154,6 +154,10 @@ export const transcriptFragments = sqliteTable(
   },
   (table): ReturnType<ReturnType<typeof index>["on"]>[] => [
     index("transcript_call").on(sql`json_extract(${table.data}, '$.callId')`),
+    index("transcript_call_sequence").on(
+      sql`json_extract(${table.data}, '$.callId')`,
+      sql`json_extract(${table.data}, '$.sequence')`,
+    ),
   ],
 );
 

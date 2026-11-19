@@ -93,6 +93,21 @@ export function completeCall(
   call.record.unresolvedError = command.connection !== "Ended normally";
   call.record.transcript.complete = command.transcriptComplete;
 
+  if (state.liveSessions.some((session): boolean => session.id === call.id)) {
+    call.record.transcript.entries = state.transcriptFragments
+      .filter((fragment): boolean => fragment.callId === call.id)
+      .sort(
+        (first, second): number =>
+          first.startMs - second.startMs || first.endMs - second.endMs || first.sequence - second.sequence,
+      )
+      .map((fragment): Call["transcript"]["entries"][number] => ({
+        id: fragment.id,
+        speaker: fragment.speaker,
+        offsetSeconds: Math.floor(fragment.startMs / 1000),
+        text: fragment.text,
+      }));
+  }
+
   call.record.outcomeReason = call.record.unresolvedError
     ? "System error"
     : call.record.agreements.length &&

@@ -181,14 +181,30 @@ export async function queryLiveStatus(binding: D1Database, context: CallContext)
   };
 }
 
-export async function queryTranscript(binding: D1Database, context: CallContext): Promise<Transcript> {
+export async function queryTranscript(binding: D1Database, context: CallContext, after?: number): Promise<Transcript> {
   const [access, transcript] = await binding.batch([
     selectCallAccess(binding, context),
-    selectTranscriptFragments(binding, context.callId),
+    after === undefined
+      ? selectTranscriptFragments(binding, context.callId)
+      : binding
+          .prepare(
+            `SELECT data FROM "transcriptFragments" WHERE json_extract(data, '$.callId') = ?
+             AND json_extract(data, '$.sequence') > ? ORDER BY json_extract(data, '$.sequence')`,
+          )
+          .bind(context.callId, after),
   ]);
 
   resolveCallAccess(access.results[0] as CallAccessRow | undefined);
-  return { fragments: parseTranscriptFragments(transcript.results as { data: string }[]) };
+  const rows = transcript.results as { data: string }[];
+  const fragments = parseTranscriptFragments(rows);
+
+  if (after === undefined) {
+    return { fragments };
+  }
+
+  const last = rows.at(-1);
+  const cursor = last ? (JSON.parse(last.data) as State["transcriptFragments"][number]).sequence : after;
+  return { fragments, cursor };
 }
 
 export function selectTranscriptFragments(binding: D1Database, callId: string): D1PreparedStatement {
