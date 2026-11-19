@@ -33,6 +33,57 @@ test("deployed sign-in returns to the homepage", async ({ page, baseURL }): Prom
   await expect(page.getByRole("img", { name: "Signed in as Local Reviewer" })).toBeVisible();
 });
 
+test("deployed bootstrap supplies identity without a second request", async ({ page }): Promise<void> => {
+  let identityRequests = 0;
+  await page.route("**/auth/configuration", (route): Promise<void> =>
+    route.fulfill({ json: { mode: "access", user: { id: "reviewer", name: "Local Reviewer", role: "reviewer" } } }),
+  );
+  await page.route("**/auth/identity", (route): Promise<void> => {
+    identityRequests++;
+    return route.abort();
+  });
+
+  await page.goto("/call");
+  await expect(page.getByRole("img", { name: "Signed in as Local Reviewer" })).toBeVisible();
+  expect(identityRequests).toBe(0);
+});
+
+test("a delayed login bootstrap respects a newer sign-out from another tab", async ({
+  page,
+  context,
+  baseURL,
+}): Promise<void> => {
+  await page.goto("/call");
+  await page.evaluate((): void => localStorage.setItem("freight-account-change", "signed-out:old"));
+
+  let release: () => void = (): void => {};
+  let started: () => void = (): void => {};
+  const pending = new Promise<void>((resolve): void => {
+    release = resolve;
+  });
+  const requested = new Promise<void>((resolve): void => {
+    started = resolve;
+  });
+  await page.route("**/auth/configuration", async (route): Promise<void> => {
+    started();
+    await pending;
+    await route.fulfill({
+      json: { mode: "access", user: { id: "reviewer", name: "Local Reviewer", role: "reviewer" } },
+    });
+  });
+
+  const navigation = page.goto("/call?account=signed-in", { waitUntil: "domcontentloaded" });
+  await requested;
+  const other = await context.newPage();
+  await other.goto(`${baseURL}/call`);
+  await other.evaluate((): void => localStorage.setItem("freight-account-change", "signed-out:new"));
+  release();
+  await navigation;
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
+  await expect(page.getByRole("img", { name: "Signed in as Local Reviewer" })).toHaveCount(0);
+  await other.close();
+});
+
 test("deployed login returns to the selected page, reload restores identity, and logout clears it", async ({
   page,
 }): Promise<void> => {

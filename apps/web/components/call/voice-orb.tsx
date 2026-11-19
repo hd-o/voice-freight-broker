@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { mergeClasses } from "@/lib/classes";
-import { createOrbRenderer } from "./orb-renderer";
 
 export type VoiceOrbProps = { connected?: boolean; className?: string; sampleAgentLevel?: () => number };
 
@@ -14,7 +13,24 @@ export function VoiceOrb({ connected = false, className, sampleAgentLevel }: Voi
       return;
     }
 
-    return createOrbRenderer(canvas.current, sampleAgentLevel);
+    const element = canvas.current;
+    let active = true;
+    let destroy: (() => void) | undefined;
+
+    void import("./orb-renderer")
+      .then(({ createOrbRenderer }): void => {
+        if (active) {
+          destroy = createOrbRenderer(element, sampleAgentLevel);
+        }
+      })
+      .catch((): void => {
+        // The static image remains available if the renderer cannot load.
+      });
+
+    return (): void => {
+      active = false;
+      destroy?.();
+    };
   }, [connected, sampleAgentLevel]);
 
   return (

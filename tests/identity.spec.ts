@@ -50,9 +50,12 @@ test("keeps the account sidebar mounted when navigating between pages", async ({
       json: { user: { id: "reviewer", name: "Local Reviewer", role: "reviewer" }, identities: [] },
     });
   });
-  await page.route("**/api/dashboard", async (route): Promise<void> => {
-    await route.fulfill({ json: { calls: [] } });
-  });
+  await page.route(
+    (url): boolean => url.pathname === "/api/dashboard",
+    async (route): Promise<void> => {
+      await route.fulfill({ json: { calls: [] } });
+    },
+  );
   await page.goto("/call");
   await expect(page.getByRole("img", { name: "Signed in as Local Reviewer" })).toBeVisible();
   await page.getByRole("navigation", { name: "Main navigation" }).evaluate((navigation): void => {

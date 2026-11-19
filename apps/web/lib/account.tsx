@@ -1,10 +1,38 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type ReactElement } from "react";
+import {
+  Suspense,
+  createContext,
+  lazy,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type ReactElement,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { identitySchema, errorSchema, type Identity } from "@voice-freight/contracts/business";
-import { AccountPanel } from "@/components/navigation/account-panel";
-import { AlertDialog } from "@/components/ui/alert-dialog";
+
+const AccountDialog = lazy(() =>
+  import("@/components/navigation/account-dialog").catch(() => ({ default: AccountUnavailable })),
+);
+
+function AccountUnavailable({ onOpenChange }: { onOpenChange: (open: boolean) => void }): React.JSX.Element {
+  return (
+    <div role="alert" className="fixed right-4 bottom-4 z-50 rounded-lg border border-border bg-surface p-4 shadow-lg">
+      <p>The sign-in panel could not load. Refresh the page and try again.</p>
+      <div className="mt-3 flex gap-4">
+        <button type="button" className="underline" onClick={(): void => window.location.reload()}>
+          Refresh page
+        </button>
+        <button type="button" className="underline" onClick={(): void => onOpenChange(false)}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const accountContext = createContext<{
   user: Identity | null;
@@ -120,7 +148,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     },
     enabled: configuration && !signedOut && (mode === "access" || !!session || panel),
     retry: false,
-    staleTime: 0,
+    staleTime: 10_000,
     refetchOnWindowFocus: "always",
   });
 
@@ -142,7 +170,8 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
   }, [user?.id, mode, cache]);
 
   useEffect((): void | (() => void) => {
-    setSession(localStorage.getItem(accountKey));
+    const restoredSession = localStorage.getItem(accountKey);
+    setSession(restoredSession);
     const location = new URL(window.location.href);
     loginReturn.current ||= location.searchParams.get("account") === "signed-in";
 
@@ -153,6 +182,7 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
 
     setRestored(true);
     const controller = new AbortController();
+    const restoredAccountChange = localStorage.getItem(accountChangeKey);
 
     void fetch("/auth/configuration", {
       cache: "no-store",
@@ -160,13 +190,32 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
     })
       .then(async (response): Promise<void> => {
         if (response.ok && response.headers.get("Content-Type")?.includes("application/json")) {
-          const data: { mode?: string } = await response.json();
-          setMode(data.mode === "access" ? "access" : "local");
-          setSignedOut(
+          const data: { mode?: string; user?: unknown } = await response.json();
+          const accountChange = localStorage.getItem(accountChangeKey);
+          const signedOut =
             data.mode === "access" &&
-              !loginReturn.current &&
-              localStorage.getItem(accountChangeKey)?.startsWith("signed-out:") === true,
-          );
+            accountChange?.startsWith("signed-out:") === true &&
+            (!loginReturn.current || accountChange !== restoredAccountChange);
+
+          if (
+            data.mode === "access" &&
+            !signedOut &&
+            accountChange === restoredAccountChange &&
+            localStorage.getItem(accountKey) === restoredSession &&
+            data.user !== undefined
+          ) {
+            const user = data.user === null ? null : identitySchema.safeParse(data.user);
+
+            if (user === null || user.success) {
+              cache.setQueryData(["identity", "access", restoredSession], {
+                user: user === null ? null : user.data,
+                identities: [],
+              });
+            }
+          }
+
+          setMode(data.mode === "access" ? "access" : "local");
+          setSignedOut(signedOut);
         }
       })
       .catch((): void => {})
@@ -345,17 +394,20 @@ export function AccountProvider({ children }: { children: ReactNode }): ReactEle
       }}
     >
       {children}
-      <AlertDialog open={panel} onOpenChange={setPanel}>
-        <AccountPanel
-          identities={identity.data?.identities ?? []}
-          pending={pending || identity.isFetching}
-          progress={progress}
-          error={pending ? undefined : (notice ?? identity.error?.message)}
-          onSignIn={(id): void => {
-            void signIn(id);
-          }}
-        />
-      </AlertDialog>
+      {panel && (
+        <Suspense fallback={<p role="status">Loading sign in…</p>}>
+          <AccountDialog
+            onOpenChange={setPanel}
+            identities={identity.data?.identities ?? []}
+            pending={pending || identity.isFetching}
+            progress={progress}
+            error={pending ? undefined : (notice ?? identity.error?.message)}
+            onSignIn={(id): void => {
+              void signIn(id);
+            }}
+          />
+        </Suspense>
+      )}
     </accountContext.Provider>
   );
 }

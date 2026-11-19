@@ -257,6 +257,18 @@ it("keeps public assets available without the API and validates cookies before e
     user: null,
     identities: [],
   });
+  expect(await (await application.fetch(new Request(`${origin}/auth/configuration`), bindings)).json()).toEqual({
+    mode: "access",
+    user: null,
+  });
+  expect(
+    await (
+      await application.fetch(
+        new Request(`${origin}/auth/configuration`, { headers: { Cookie: `CF_Authorization=${token}` } }),
+        bindings,
+      )
+    ).json(),
+  ).toEqual({ mode: "access", user: reviewer });
   expect(
     await (
       await application.fetch(

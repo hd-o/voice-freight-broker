@@ -16,7 +16,28 @@ export default {
     }
 
     if (url.pathname === "/auth/configuration") {
-      return Response.json({ mode: access ? "access" : "local" }, { headers: privateHeaders });
+      if (!access || !environment.API) {
+        return Response.json({ mode: access ? "access" : "local" }, { headers: privateHeaders });
+      }
+
+      const identityUrl = new URL("/api/identity", url);
+
+      try {
+        const identity = await environment.API.fetch(new Request(identityUrl, request));
+
+        if (identity.status === 401) {
+          return Response.json({ mode: "access", user: null }, { headers: privateHeaders });
+        }
+
+        if (identity.ok) {
+          const data: { user: unknown } = await identity.json();
+          return Response.json({ mode: "access", user: data.user }, { headers: privateHeaders });
+        }
+      } catch {
+        // Identity is retried through its normal endpoint if bootstrap fails.
+      }
+
+      return Response.json({ mode: "access" }, { headers: privateHeaders });
     }
 
     if (url.pathname === "/auth/identity" && access) {

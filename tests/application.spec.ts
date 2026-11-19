@@ -12,6 +12,43 @@ test("sign-in failure keeps public samples available", async ({ page }): Promise
   await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();
 });
 
+test("a failed sign-in panel download keeps the application usable", async ({ page }): Promise<void> => {
+  await page.goto(`${origin}/call`);
+  const signIn = page.getByRole("button", { name: "Sign in to start a call" });
+  await expect(signIn).toBeEnabled();
+  await page.route("**/_next/static/chunks/*.js", (route): Promise<void> => route.abort("failed"));
+  await signIn.click();
+
+  const failure = page.getByRole("alert").filter({ hasText: "The sign-in panel could not load" });
+  await expect(failure).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Voice Call Demo" })).toBeVisible();
+  await failure.getByRole("button", { name: "Close" }).click();
+  await expect(failure).toHaveCount(0);
+  await page.unroute("**/_next/static/chunks/*.js");
+  await page.reload();
+  await signIn.click();
+  await expect(page.getByRole("alertdialog", { name: "Local sign in" })).toBeVisible();
+});
+
+test("sample history is available while account configuration is loading", async ({ page }): Promise<void> => {
+  let releaseConfiguration: (() => void) | undefined;
+  const configuration = new Promise<void>((resolve): void => {
+    releaseConfiguration = resolve;
+  });
+
+  await page.route("**/auth/configuration", async (route): Promise<void> => {
+    await configuration;
+    await route.fulfill({ json: { mode: "local" } });
+  });
+
+  try {
+    await page.goto(`${origin}/dashboard`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Showing 1–5 of 8 calls")).toBeVisible();
+  } finally {
+    releaseConfiguration?.();
+  }
+});
+
 test.beforeEach(async ({ page }): Promise<void> => {
   await page.route("**/api{,/**}", (route): Promise<void> => route.abort("connectionrefused"));
 });

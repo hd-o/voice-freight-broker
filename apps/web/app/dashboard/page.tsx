@@ -119,7 +119,7 @@ export default function DashboardPage(): React.JSX.Element {
       onNavigate={navigatePage}
       onAccountAction={account.performAccountAction}
       notice={account.notice ?? live.error?.message}
-      loading={!readiness || account.loading || (!!account.user && live.isPending)}
+      loading={!readiness}
       controls={
         account.user?.role === "administrator" && (
           <DashboardControls
