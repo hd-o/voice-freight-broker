@@ -25,10 +25,24 @@ export const sessions = sqliteTable("sessions", {
   data: text({ mode: "json" }).$type<State["sessions"][number]>().notNull(),
 });
 
-export const calls = sqliteTable("calls", {
-  id: text().primaryKey(),
-  data: text({ mode: "json" }).$type<State["calls"][number]>().notNull(),
-});
+export const calls = sqliteTable(
+  "calls",
+  {
+    id: text().primaryKey(),
+    data: text({ mode: "json" }).$type<State["calls"][number]>().notNull(),
+  },
+  (table): ReturnType<ReturnType<typeof index>["on"]>[] => [
+    index("calls_owner_started").on(
+      sql`json_extract(${table.data}, '$.ownerId')`,
+      sql`json_extract(${table.data}, '$.record.startedAt')`,
+    ),
+    index("calls_started").on(sql`json_extract(${table.data}, '$.record.startedAt')`),
+    index("calls_ended").on(sql`json_extract(${table.data}, '$.record.endedAt')`),
+    index("calls_analysis_status").on(
+      sql`COALESCE(json_extract(${table.data}, '$.finalSnapshot.analysis.status'), json_extract(${table.data}, '$.record.analysis.status'))`,
+    ),
+  ],
+);
 
 export const inventory = sqliteTable("inventory", {
   id: text().primaryKey(),
@@ -90,10 +104,16 @@ export const events = sqliteTable(
   ],
 );
 
-export const analysis = sqliteTable("analysis", {
-  id: text().primaryKey(),
-  data: text({ mode: "json" }).$type<State["analysis"][number]>().notNull(),
-});
+export const analysis = sqliteTable(
+  "analysis",
+  {
+    id: text().primaryKey(),
+    data: text({ mode: "json" }).$type<State["analysis"][number]>().notNull(),
+  },
+  (table): ReturnType<ReturnType<typeof index>["on"]>[] => [
+    index("analysis_status").on(sql`json_extract(${table.data}, '$.status')`),
+  ],
+);
 
 export const spendingPeriods = sqliteTable(
   "spendingPeriods",

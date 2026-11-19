@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { callsSchema } from "@voice-freight/contracts/calls";
-import { summarizeCalls } from "@voice-freight/contracts/reporting";
+import { z } from "zod";
+import { dashboardSchema, summarizeCalls } from "@voice-freight/contracts/reporting";
 import { DashboardLayout } from "@/components/layouts/dashboard-layout";
 import { DashboardControls } from "@/components/dashboard/dashboard-controls";
 import { sampleCalls } from "@/lib/samples";
-import { createHistory, createMetrics } from "@/lib/reporting";
+import { createHistory, createReportMetrics, mergeReports } from "@/lib/reporting";
 import { useAccount, requestApi } from "@/lib/account";
 import { changeQuery, createCallHref, useQueryParameters } from "@/lib/navigation";
 
@@ -25,28 +25,59 @@ export default function DashboardPage(): React.JSX.Element {
   const [restocking, setRestocking] = useState(false);
   const [operationId, setOperationId] = useState<string>();
 
+  const pageNumber = Number(parameters.get("page") ?? 1);
+  const requestedPage = Number.isSafeInteger(pageNumber) && pageNumber >= 1 ? pageNumber : 1;
+
   const live = useQuery({
-    queryKey: ["private", account.user?.id, "dashboard"],
+    queryKey: ["private", account.user?.id, "dashboard", requestedPage],
     enabled: !!account.user,
     retry: false,
-    refetchInterval: (query): number | false =>
-      query.state.data?.some((call): boolean => !call.endedAt || call.analysis.status === "pending") ? 2000 : false,
-    queryFn: async (): Promise<ReturnType<typeof callsSchema.parse>> => {
-      const data: { calls: unknown } = await (await requestApi("/dashboard")).json();
-      return callsSchema.parse(data.calls);
+    queryFn: async (): Promise<ReturnType<typeof dashboardSchema.parse>> => {
+      const samples = sampleCalls.map(({ id, startedAt }) => ({ id, startedAt }));
+      const query = new URLSearchParams({ page: String(requestedPage), samples: JSON.stringify(samples) });
+      return dashboardSchema.parse(await (await requestApi(`/dashboard?${query}`)).json());
     },
   });
 
-  const calls = [...sampleCalls, ...(account.user ? (live.data ?? []) : [])].sort((a, b): number =>
+  const pending = live.data?.pending ?? [];
+  const nextRetry =
+    pending.length && pending.every((entry): boolean => !!entry.endedAt && !!entry.analysis.retryAt)
+      ? Math.min(...pending.map((entry): number => Date.parse(entry.analysis.retryAt!)))
+      : 0;
+  const status = useQuery({
+    queryKey: ["private", account.user?.id, "dashboard-status", live.data?.version],
+    enabled: !!account.user && !!live.data && pending.length > 0,
+    retry: false,
+    refetchInterval: (): number => Math.max(2000, Math.min(30_000, nextRetry - Date.now())),
+    queryFn: async (): Promise<{ version: string }> => {
+      const query = new URLSearchParams({ ids: JSON.stringify(pending.map((entry) => entry.id)) });
+      return z.object({ version: z.string() }).parse(await (await requestApi(`/dashboard/status?${query}`)).json());
+    },
+  });
+
+  useEffect((): void => {
+    if (status.data && live.data && status.data.version !== live.data.version) {
+      void live.refetch();
+    }
+  }, [status.data, live.data, live.refetch]);
+
+  const sampleReport = summarizeCalls(sampleCalls);
+  const report = account.user && live.data ? mergeReports(sampleReport, live.data.report) : sampleReport;
+  const count = account.user && live.data ? live.data.count : sampleCalls.length;
+  const lastPage = Math.max(1, Math.ceil(count / pageSize));
+  const currentPage = account.user && live.data ? live.data.page : requestedPage <= lastPage ? requestedPage : 1;
+  const offset = (currentPage - 1) * pageSize;
+  const samples =
+    account.user && live.data
+      ? sampleCalls.filter((call): boolean => live.data!.sampleIds.includes(call.id))
+      : sampleCalls
+          .slice()
+          .sort((a, b): number => b.startedAt.localeCompare(a.startedAt))
+          .slice(offset, offset + pageSize);
+  const calls = [...samples, ...(account.user ? (live.data?.calls ?? []) : [])].sort((a, b): number =>
     b.startedAt.localeCompare(a.startedAt),
   );
-
   const history = createHistory(calls);
-  const report = summarizeCalls(calls);
-  const pageNumber = Number(parameters.get("page") ?? 1);
-  const lastPage = Math.max(1, Math.ceil(history.length / pageSize));
-  const currentPage = Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= lastPage ? pageNumber : 1;
-  const offset = (currentPage - 1) * pageSize;
 
   function selectPage(page: number): void {
     parameters.set("page", String(page));
@@ -101,16 +132,14 @@ export default function DashboardPage(): React.JSX.Element {
           />
         )
       }
-      metrics={createMetrics(calls)}
+      metrics={createReportMetrics(report)}
       sentiment={{
         segments: report.sentiments,
         description: `${report.callCount} calls · One rating per call`,
       }}
       history={{
-        rows: history.slice(offset, offset + pageSize),
-        pageLabel: history.length
-          ? `Showing ${offset + 1}–${Math.min(offset + pageSize, history.length)} of ${history.length} calls`
-          : "0 calls",
+        rows: history,
+        pageLabel: count ? `Showing ${offset + 1}–${Math.min(offset + pageSize, count)} of ${count} calls` : "0 calls",
         nextDisabled: currentPage === lastPage,
         previousVisible: currentPage > 1,
         getCallHref: (id): string => createCallHref(id, currentPage),

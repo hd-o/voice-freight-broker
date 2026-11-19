@@ -2,13 +2,12 @@
 
 import { useRouter } from "next/navigation";
 
-import { useQuery } from "@tanstack/react-query";
-import { callSchema } from "@voice-freight/contracts/calls";
 import type { TranscriptEntry } from "@/components/call/transcript";
 import { CallLayout } from "@/components/layouts/call-layout";
 import { demoCarriers } from "@/components/call/carrier-fixtures";
 import type { NavigationPage } from "@/components/navigation/navigation";
-import { useAccount, requestApi } from "@/lib/account";
+import { useAccount } from "@/lib/account";
+import { useCallAnalysis } from "@/lib/analysis";
 import { useLiveCall } from "@/lib/live";
 
 export default function CallPage(): React.JSX.Element {
@@ -16,18 +15,11 @@ export default function CallPage(): React.JSX.Element {
   const navigatePage = (page: NavigationPage): void => router.push(`/${page}`);
   const account = useAccount();
   const call = useLiveCall(account.user?.id);
-  const analysis = useQuery({
-    queryKey: ["private", account.user?.id, "call", call.status?.id],
-    enabled: !!account.user && call.state === "ended" && !!call.status?.id,
-    retry: false,
-    refetchInterval: (query): number | false => (query.state.data?.analysis.status === "pending" ? 2000 : false),
-    queryFn: async (): Promise<ReturnType<typeof callSchema.parse>> =>
-      callSchema.parse(await (await requestApi(`/calls/${encodeURIComponent(call.status!.id)}`)).json()),
-  });
+  const analysis = useCallAnalysis(account.user?.id, call.status?.id, call.state === "ended");
 
   return (
     <CallLayout
-      analysis={account.user && call.state === "ended" ? analysis.data?.analysis : undefined}
+      analysis={account.user && call.state === "ended" ? analysis.data : undefined}
       state={call.state}
       muted={call.muted}
       sampleAgentLevel={call.sampleAgentLevel}

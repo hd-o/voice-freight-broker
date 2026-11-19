@@ -8,6 +8,7 @@ import { sampleCalls } from "@/lib/samples";
 import { createCallDetail } from "@/lib/reporting";
 import { changeQuery, createDashboardHref, useQueryParameters } from "@/lib/navigation";
 import { useAccount, requestApi } from "@/lib/account";
+import { useCallAnalysis } from "@/lib/analysis";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { callSchema } from "@voice-freight/contracts/calls";
 
@@ -25,15 +26,16 @@ export default function CallDetailsPage(): React.JSX.Element {
     queryKey: ["private", account.user?.id, "call", selection],
     enabled: privateSelection && !!account.user,
     retry: false,
-    refetchInterval: (query): number | false => (query.state.data?.analysis.status === "pending" ? 2000 : false),
+    refetchInterval: (query): number | false => (query.state.data?.endedAt === null ? 2000 : false),
     queryFn: async (): Promise<ReturnType<typeof callSchema.parse>> =>
       callSchema.parse(await (await requestApi(`/calls/${encodeURIComponent(selection!)}`)).json()),
   });
+  const analysis = useCallAnalysis(account.user?.id, selection, privateSelection && !!live.data);
 
   const retry = useMutation({
     mutationFn: async (): Promise<void> => {
       await requestApi(`/calls/${encodeURIComponent(selection!)}/analysis/retry`, "POST", {
-        version: live.data?.analysis.version,
+        version: analysis.data?.version ?? live.data?.analysis.version,
       });
     },
     onSuccess: async (): Promise<void> => {
@@ -41,7 +43,8 @@ export default function CallDetailsPage(): React.JSX.Element {
     },
   });
 
-  const call = sample ?? (account.user ? live.data : undefined);
+  const savedCall = sample ?? (account.user ? live.data : undefined);
+  const call = savedCall && analysis.data && !sample ? { ...savedCall, analysis: analysis.data } : savedCall;
 
   function selectLoad(id: string | null): void {
     if (id === null) {

@@ -1,4 +1,47 @@
 import type { Call } from "./calls";
+import { callsSchema } from "./calls";
+import { z } from "zod";
+
+export const reportSchema = z.object({
+  callCount: z.number().int().nonnegative(),
+  durationCount: z.number().int().nonnegative(),
+  averageDurationSeconds: z.number().nullable(),
+  matchedCallCount: z.number().int().nonnegative(),
+  agreementCallCount: z.number().int().nonnegative(),
+  agreementRate: z.number().nullable(),
+  finalAgreementCount: z.number().int().nonnegative(),
+  averageVarianceCents: z.number().nullable(),
+  sentiments: z.array(
+    z.object({
+      label: z.enum(["Positive", "Neutral", "Negative", "Unknown"]),
+      count: z.number().int().nonnegative(),
+      percentage: z.number(),
+    }),
+  ),
+});
+
+export const dashboardSchema = z.object({
+  calls: callsSchema,
+  sampleIds: z.array(z.string()),
+  report: reportSchema,
+  count: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  version: z.string(),
+  pending: z.array(
+    z.object({
+      id: z.string(),
+      endedAt: z.iso.datetime().nullable(),
+      analysis: z.object({
+        status: z.enum(["pending", "complete", "failed"]),
+        reason: z.enum(["queued", "processing", "retry", "allowance"]).optional(),
+        retryAt: z.iso.datetime().optional(),
+      }),
+    }),
+  ),
+});
+
+export type Dashboard = z.infer<typeof dashboardSchema>;
+export type DashboardReport = z.infer<typeof reportSchema>;
 
 export function listFinalAgreements(call: Call): Call["agreements"] {
   return call.agreements.filter((agreement): boolean => agreement.status === "effective");

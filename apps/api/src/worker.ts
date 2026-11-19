@@ -9,7 +9,8 @@ import { statusSchema } from "@voice-freight/contracts";
 import { toolNameSchema, invocationSchema, finalizationSchema, type Identity } from "@voice-freight/contracts/business";
 import { executeTool } from "@voice-freight/backend/business";
 import { createCall } from "@voice-freight/backend/calls";
-import { queryDashboard, queryCall } from "@voice-freight/backend/reporting";
+import { queryCallAnalysis } from "@voice-freight/backend/call-analysis";
+import { queryDashboard, queryDashboardPage, queryDashboardVersion, queryCall } from "@voice-freight/backend/reporting";
 import {
   checkLocalAuthentication,
   localIdentities,
@@ -174,15 +175,38 @@ app.delete("/api/session", async (context): Promise<Response> => {
   return context.json({ user: null });
 });
 
-app.get("/api/dashboard", async (context): Promise<Response> =>
-  context.json(await queryDashboard(context.env.DB, (await resolveUser(context)).id)),
-);
+app.get("/api/dashboard", async (context): Promise<Response> => {
+  const user = await resolveUser(context);
+  const page = context.req.query("page");
+
+  if (page === undefined) {
+    return context.json(await queryDashboard(context.env.DB, user.id));
+  }
+
+  const requestedPage = z.coerce.number().int().positive().parse(page);
+  const samples = z
+    .array(z.object({ id: z.string().min(1), startedAt: z.iso.datetime() }))
+    .parse(JSON.parse(context.req.query("samples") ?? "[]"));
+  return context.json(await queryDashboardPage(context.env.DB, user.id, requestedPage, samples));
+});
+app.get("/api/dashboard/status", async (context): Promise<Response> => {
+  const ids = z.array(z.string().min(1)).parse(JSON.parse(context.req.query("ids") ?? "[]"));
+  return context.json(await queryDashboardVersion(context.env.DB, (await resolveUser(context)).id, ids));
+});
 app.get("/api/calls", async (context): Promise<Response> =>
   context.json(await queryDashboard(context.env.DB, (await resolveUser(context)).id)),
 );
 app.get("/api/calls/:callId", async (context): Promise<Response> =>
   context.json(
     await queryCall(context.env.DB, {
+      userId: (await resolveUser(context)).id,
+      callId: context.req.param("callId"),
+    }),
+  ),
+);
+app.get("/api/calls/:callId/analysis", async (context): Promise<Response> =>
+  context.json(
+    await queryCallAnalysis(context.env.DB, {
       userId: (await resolveUser(context)).id,
       callId: context.req.param("callId"),
     }),

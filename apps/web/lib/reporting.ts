@@ -52,9 +52,47 @@ export function createHistory(calls: readonly Call[]): CallRecord[] {
   });
 }
 
-export function createMetrics(calls: readonly Call[]): { label: string; value: string; description: string }[] {
-  const report = summarizeCalls(calls);
+export function mergeReports(
+  first: ReturnType<typeof summarizeCalls>,
+  second: ReturnType<typeof summarizeCalls>,
+): ReturnType<typeof summarizeCalls> {
+  const callCount = first.callCount + second.callCount;
+  const durationCount = first.durationCount + second.durationCount;
+  const matchedCallCount = first.matchedCallCount + second.matchedCallCount;
+  const agreementCallCount = first.agreementCallCount + second.agreementCallCount;
+  const finalAgreementCount = first.finalAgreementCount + second.finalAgreementCount;
 
+  return {
+    callCount,
+    durationCount,
+    averageDurationSeconds: durationCount
+      ? ((first.averageDurationSeconds ?? 0) * first.durationCount +
+          (second.averageDurationSeconds ?? 0) * second.durationCount) /
+        durationCount
+      : null,
+    matchedCallCount,
+    agreementCallCount,
+    agreementRate: matchedCallCount ? agreementCallCount / matchedCallCount : null,
+    finalAgreementCount,
+    averageVarianceCents: finalAgreementCount
+      ? ((first.averageVarianceCents ?? 0) * first.finalAgreementCount +
+          (second.averageVarianceCents ?? 0) * second.finalAgreementCount) /
+        finalAgreementCount
+      : null,
+    sentiments: first.sentiments.map((entry, index) => {
+      const count = entry.count + second.sentiments[index].count;
+      return { label: entry.label, count, percentage: callCount ? Math.round((count / callCount) * 1000) / 10 : 0 };
+    }),
+  };
+}
+
+export function createMetrics(calls: readonly Call[]): { label: string; value: string; description: string }[] {
+  return createReportMetrics(summarizeCalls(calls));
+}
+
+export function createReportMetrics(
+  report: ReturnType<typeof summarizeCalls>,
+): { label: string; value: string; description: string }[] {
   return [
     {
       label: "Calls",

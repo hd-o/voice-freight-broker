@@ -50,6 +50,13 @@
       "when": 1795064786688,
       "tag": "0007_productive_meteorite",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795065300027,
+      "tag": "0008_nasty_energizer",
+      "breakpoints": true
     }
   ]
 }
