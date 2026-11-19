@@ -89,17 +89,32 @@ export function searchLoads(
 
   const normalize = (value: string): string => value.trim().replace(/\s+/g, " ").toLowerCase();
 
-  const loads = state.inventory
-    .filter((entry): boolean => call.inventoryIds.includes(entry.id) && checkAvailability(state, entry.id))
-    .map((entry): State["inventory"][number]["load"] => entry.load)
-    .filter(
-      (load): boolean =>
-        (!query.reference || normalize(load.reference) === normalize(query.reference)) &&
-        (!query.origin || matchLocation(load.origin, query.origin)) &&
-        (!query.destination || matchLocation(load.destination, query.destination)) &&
-        (!query.equipment || normalize(load.equipment) === normalize(query.equipment)),
-    )
-    .slice(0, 5);
+  const inventoryIds = new Set(call.inventoryIds);
+  const allocatedIds = new Set(
+    state.agreements
+      .filter((agreement): boolean => agreement.status === "effective")
+      .map((agreement): string => agreement.load.id),
+  );
+  const loads: State["inventory"][number]["load"][] = [];
+
+  for (const entry of state.inventory) {
+    const load = entry.load;
+
+    if (
+      inventoryIds.has(entry.id) &&
+      !allocatedIds.has(entry.id) &&
+      (!query.reference || normalize(load.reference) === normalize(query.reference)) &&
+      (!query.origin || matchLocation(load.origin, query.origin)) &&
+      (!query.destination || matchLocation(load.destination, query.destination)) &&
+      (!query.equipment || normalize(load.equipment) === normalize(query.equipment))
+    ) {
+      loads.push(load);
+
+      if (loads.length === 5) {
+        break;
+      }
+    }
+  }
 
   if (loads.length) {
     call.record.matched = true;

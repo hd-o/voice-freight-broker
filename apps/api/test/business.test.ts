@@ -488,6 +488,36 @@ it("restocks additively and repeatably with fixed membership and current fixture
   });
 });
 
+it("preserves search order and option labels across restocks and allocations", async (): Promise<void> => {
+  const first = await openCall();
+  const batch = crypto.randomUUID();
+  await restockInventory(env.DB, "administrator", batch, clock);
+  const second = await openCall("reviewer-two");
+
+  const search = (context: CallContext): ReturnType<typeof invoke> =>
+    invoke(context, "search_loads", { origin: "Dallas" });
+  const before = (await search(first)) as { loads: { id: string; spokenLabel: string }[] };
+  const after = (await search(second)) as { loads: { id: string; spokenLabel: string }[] };
+
+  expect(before.loads.map((load): string => load.id)).toEqual(["seed-v1-01", "seed-v1-06", "seed-v1-11", "seed-v1-16"]);
+  expect(after.loads.map((load): string => load.id)).toEqual([
+    "seed-v1-01",
+    "seed-v1-06",
+    "seed-v1-11",
+    "seed-v1-16",
+    `stock-${batch}-01`,
+  ]);
+  expect(after.loads[0].spokenLabel).toContain("option 1");
+  expect(after.loads[4].spokenLabel).toContain("option 2");
+  expect(before.loads[0].spokenLabel).not.toContain("option");
+
+  await confirm(first, await select(first));
+  const remaining = (await search(second)) as { loads: { id: string; spokenLabel: string }[] };
+  const duplicate = remaining.loads.find((load): boolean => load.id === `stock-${batch}-01`);
+  expect(remaining.loads.some((load): boolean => load.id === firstLoad)).toBe(false);
+  expect(duplicate?.spokenLabel).toContain("option 2");
+});
+
 it("uses equivalent REST and private RPC rules, validates arguments, origin, sessions, and deployed auth", async (): Promise<void> => {
   expect((): ReturnType<typeof checkLocalAuthentication> => checkLocalAuthentication("prod", "local")).toThrow(
     "disabled",

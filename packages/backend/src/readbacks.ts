@@ -20,8 +20,12 @@ export function describeLoad(state: State, callId: string, load: Load): Load & {
       }).format(new Date(load.pickupAt))
     : "time zone unavailable";
 
+  const inventory = new Map(
+    state.inventory.map((entry): [string, (typeof state.inventory)[number]] => [entry.id, entry]),
+  );
+
   const peers = call.inventoryIds
-    .map((id): (typeof state.inventory)[number] => state.inventory.find((entry): boolean => entry.id === id)!)
+    .map((id): (typeof state.inventory)[number] => inventory.get(id)!)
     .filter(
       (entry): boolean => describeRoute(entry.load) === describeRoute(load) && entry.load.pickupAt === load.pickupAt,
     );
