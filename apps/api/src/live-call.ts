@@ -44,7 +44,7 @@ const functionEventSchema = z.object({
 
 const startupTimeout = 30_000;
 const recoveryDelay = 30_000;
-const closureRetryInterval = 300_000;
+const closureRetryIntervals = [300_000, 900_000, 3_600_000, 21_600_000, 86_400_000];
 const drainTimeout = 10_000;
 
 type AnalysisCommand = { context: CallContext } & (
@@ -76,6 +76,9 @@ async function captureOutcome<T>(command: () => Promise<T>): Promise<CallOutcome
 
 export class LiveCall extends DurableObject<LiveBindings> {
   private socket: WebSocket | null = null;
+  private providerId: string | null = null;
+  private recoveryAttempted = false;
+  private observedProviderClose = false;
   private closingSocket: WebSocket | null = null;
   private queue: Promise<void> = Promise.resolve();
   private context: CallContext | null = null;
@@ -503,6 +506,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   private async attach(providerId: string): Promise<void> {
+    this.providerId = providerId;
     const controller = new AbortController();
     const timer = setTimeout((): void => controller.abort(), 10_000);
     let response: Response;
@@ -548,11 +552,15 @@ export class LiveCall extends DurableObject<LiveBindings> {
         return;
       }
 
+      if (parsed.data.type === "session.closed") {
+        this.observedProviderClose = true;
+      }
+
       this.enqueue((): Promise<void> => this.observe(event));
     });
 
-    socket.addEventListener("close", (event): void =>
-      this.observeDisconnect(socket, "Connection interrupted. Your partial transcript is saved.", event.code === 1000),
+    socket.addEventListener("close", (): void =>
+      this.observeDisconnect(socket, "Connection interrupted. Your partial transcript is saved."),
     );
 
     socket.addEventListener("error", (): void =>
@@ -560,17 +568,25 @@ export class LiveCall extends DurableObject<LiveBindings> {
     );
   }
 
-  private observeDisconnect(socket: WebSocket, notice: string, clean = false): void {
+  private observeDisconnect(socket: WebSocket, notice: string): void {
     if (this.socket !== socket) {
       return;
     }
 
     this.disconnectProvider();
+    this.closing = true;
+
+    // Start attachment before waiting for previously queued database work so
+    // recent provider events can still fall within the replay window.
+    const providerId = this.providerId;
+    const recover = providerId && !this.recoveryAttempted && !this.observedProviderClose;
+    const recovery = recover ? this.recoverSideband(providerId) : Promise.resolve();
 
     this.enqueue(async (): Promise<void> => {
       const { session } = await this.readSession();
 
-      if (session.providerClosed && clean) {
+      if (session.providerClosed && !countUnreportedResponses(session)) {
+        await recovery;
         await this.finish();
         return;
       }
@@ -579,7 +595,44 @@ export class LiveCall extends DurableObject<LiveBindings> {
         await this.recordAccountingGap();
         await this.closeCall("Interrupted", notice);
       }
+
+      await recovery;
+
+      if (session.providerClosed && countUnreportedResponses(session) && providerId) {
+        await this.recoverSideband(providerId);
+      }
+
+      this.requestProviderClose();
+
+      if (this.socket) {
+        const current = (await this.readSession()).session;
+
+        if (current.state === "ended" && (!current.providerClosed || countUnreportedResponses(current))) {
+          await this.scheduleLive(Date.now() + drainTimeout);
+        }
+      }
     });
+  }
+
+  private async recoverSideband(providerId: string): Promise<void> {
+    if (this.recoveryAttempted) {
+      return;
+    }
+
+    this.recoveryAttempted = true;
+
+    try {
+      const previous = await this.ctx.storage.get<{ attempts: number; lastAttempt: number }>("closureRecovery");
+
+      if (previous || (await this.ctx.storage.get<number>("lastRecovery")) !== undefined) {
+        return;
+      }
+
+      await this.ctx.storage.put("closureRecovery", { attempts: 1, lastAttempt: Date.now() });
+      await this.attach(providerId);
+    } catch {
+      // The durable alarm will retry when an immediate attachment fails.
+    }
   }
 
   private async recordAccountingGap(): Promise<void> {
@@ -992,7 +1045,12 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
       call.record.transcript.complete = current.providerClosed && !current.gap;
       settleCallSpending(state, current);
-      return current.providerAttempted && !current.providerClosed && Boolean(current.providerId) && !this.isStub();
+      return (
+        current.providerAttempted &&
+        (!current.providerClosed || countUnreportedResponses(current) > 0) &&
+        Boolean(current.providerId) &&
+        !this.isStub()
+      );
     });
 
     this.disconnectProvider();
@@ -1011,21 +1069,26 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
   private async reconcileClosure(providerId: string): Promise<void> {
     const now = Date.now();
-    const lastRecovery = await this.ctx.storage.get<number>("lastRecovery");
+    const recovery = await this.ctx.storage.get<{ attempts: number; lastAttempt: number }>("closureRecovery");
+    const lastRecovery = recovery?.lastAttempt ?? (await this.ctx.storage.get<number>("lastRecovery"));
+    const attempts = recovery?.attempts ?? (lastRecovery === undefined ? 0 : 1);
+    const interval = closureRetryIntervals[Math.min(Math.max(0, attempts - 1), closureRetryIntervals.length - 1)];
     this.disconnectProvider();
 
-    if (lastRecovery !== undefined && now < lastRecovery + closureRetryInterval) {
-      await this.scheduleLive(lastRecovery + closureRetryInterval);
+    if (lastRecovery !== undefined && now < lastRecovery + interval) {
+      await this.scheduleLive(lastRecovery + interval);
       return;
     }
 
     const unresolved = await this.updateSession((current): boolean => {
-      if (current.state !== "ended" || current.providerClosed) {
+      if (current.state !== "ended" || (current.providerClosed && !countUnreportedResponses(current))) {
         return false;
       }
 
-      current.gap = true;
-      current.accountingGap = true;
+      if (!current.providerClosed) {
+        current.gap = true;
+        current.accountingGap = true;
+      }
       return true;
     });
 
@@ -1034,10 +1097,20 @@ export class LiveCall extends DurableObject<LiveBindings> {
       return;
     }
 
-    await this.ctx.storage.put("lastRecovery", now);
-    await this.attach(providerId);
-    this.requestProviderClose();
-    await this.scheduleLive(Date.now() + drainTimeout);
+    await this.ctx.storage.put("closureRecovery", { attempts: attempts + 1, lastAttempt: now });
+
+    if (attempts === closureRetryIntervals.length) {
+      console.error({ event: "voice_closure_unresolved", callId: this.context!.callId, attempts });
+    }
+
+    try {
+      await this.attach(providerId);
+      this.requestProviderClose();
+      await this.scheduleLive(Date.now() + drainTimeout);
+    } catch {
+      const nextInterval = closureRetryIntervals[Math.min(attempts, closureRetryIntervals.length - 1)];
+      await this.scheduleLive(now + nextInterval);
+    }
   }
 
   async alarm(): Promise<void> {
@@ -1130,7 +1203,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
       }
 
       if (live.state === "ended") {
-        if (live.providerId && !live.providerClosed && !this.isStub()) {
+        if (live.providerId && (!live.providerClosed || countUnreportedResponses(live)) && !this.isStub()) {
           await this.releaseAnalysis();
           await this.reconcileClosure(live.providerId);
         } else if (live.providerClosed) {

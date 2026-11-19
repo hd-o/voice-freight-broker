@@ -996,7 +996,11 @@ it.each([true, false])(
           expect((await readState(env.DB)).state.providerUsage).toEqual(state.providerUsage);
         }
 
-        await expect.poll(async () => (await storage.storage.get<{ live?: number }>("work"))?.live).toBeUndefined();
+        if (reportsUsage) {
+          await expect.poll(async () => (await storage.storage.get<{ live?: number }>("work"))?.live).toBeUndefined();
+        } else {
+          expect((await storage.storage.get<{ live?: number }>("work"))?.live).toEqual(expect.any(Number));
+        }
       } finally {
         request.mockRestore();
         vi.useRealTimers();
@@ -1080,11 +1084,7 @@ it("keeps missing transcript and delegated usage unknown after reattaching an en
       await coordinator.end();
       initial[0].close(1011, "provider transport lost");
       await expect.poll(async () => (await readState(env.DB)).state.liveSessions[0].accountingGap).toBe(true);
-      vi.setSystemTime(Date.now() + 11_000);
-      await coordinator.alarm();
-      expect((await queryLiveStatus(env.DB, context)).state).toBe("ended");
-      vi.setSystemTime(Date.now() + 1000);
-      await coordinator.alarm();
+      await expect.poll((): number => request.mock.calls.length).toBe(3);
       const before = (await readState(env.DB)).state.reservations[0];
       provider.send(JSON.stringify({ type: "session.closed", event_id: "recovered-close", usage: { seconds: 4 } }));
       await expect
@@ -1113,6 +1113,7 @@ it("keeps missing transcript and delegated usage unknown after reattaching an en
       await expect
         .poll(async () => (await readState(env.DB)).state.liveSessions[0].completedResponseIds)
         .toEqual([response.id]);
+      await expect.poll(async (): Promise<string> => (await queryLiveStatus(env.DB, context)).state).toBe("ended");
       const recovered = (await readState(env.DB)).state;
       expect(calculateReservationHold(recovered.reservations[0])).toBeGreaterThan(9_000_000);
       await expect.poll(async () => (await storage.storage.get<{ live?: number }>("work"))?.live).toBeUndefined();
