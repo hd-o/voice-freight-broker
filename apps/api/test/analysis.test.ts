@@ -13,6 +13,8 @@ import {
   type AnalysisResponse,
 } from "@voice-freight/backend/analysis";
 import { generateAnalysis } from "@voice-freight/backend/analysis-provider";
+import { reserveLiveCall } from "@voice-freight/backend/live";
+import { ingestProviderEvent } from "@voice-freight/backend/provider-events";
 import { sanitizeTelemetry } from "@voice-freight/backend/telemetry";
 import { calculateAvailableMicrodollars, monthlyLimitMicrodollars } from "@voice-freight/backend/spending";
 import { BusinessError } from "@voice-freight/backend/model";
@@ -179,7 +181,7 @@ it("automatically analyzes live and non-live calls through the queue and clears 
     .toEqual(["complete", "complete"]);
 
   const { state } = await readState(env.DB);
-  expect(state.analysis.map((row) => row.attempts)).toEqual([1, 1]);
+  expect(state.analysis.map((row) => row.attempts)).toEqual([0, 0]);
 
   vi.useFakeTimers({ toFake: ["Date"] });
   try {
@@ -354,20 +356,79 @@ it("uses Unknown without caller evidence", async (): Promise<void> => {
   const job = await prepareCall();
   await transact(env.DB, (state): void => {
     state.calls[0].record.transcript.entries = [];
+    state.spendingPeriods.push({ id: "2026-11", spentMicrodollars: monthlyLimitMicrodollars });
   });
-  await processAnalysis(
-    env.DB,
-    job,
-    async (input, id): Promise<AnalysisResponse> => ({
-      ...(await respond(input, id)),
-      output: { summary: "Invented success", sentiment: "Positive", evidenceIds: [] },
-    }),
-    clock,
-  );
+  const provider = vi.fn(respond);
+  await Promise.all([processAnalysis(env.DB, job, provider, clock), processAnalysis(env.DB, job, provider, clock)]);
+  expect(provider).not.toHaveBeenCalled();
+  const { state } = await readState(env.DB);
+  expect(state.reservations).toHaveLength(0);
+  expect(state.analysis[0]).toMatchObject({ status: "complete", attempts: 0, evidenceIds: [] });
   expect((await queryCall(env.DB, { callId: job.callId, userId: "reviewer" })).analysis).toMatchObject({
     sentiment: "Unknown",
     summary: expect.stringContaining("No transcript"),
   });
+});
+
+it("keeps the same byte-limited transcript with escaped and multibyte text", async (): Promise<void> => {
+  const job = await prepareCall();
+
+  await transact(env.DB, (state): void => {
+    state.calls[0].record.transcript.entries = Array.from({ length: 200 }, (_, index) => ({
+      id: `entry-${index}`,
+      speaker: "carrier" as const,
+      offsetSeconds: index,
+      text: 'Freight 🚛 "quoted" \\ route\n'.repeat(18),
+    }));
+  });
+
+  const provider = vi.fn(respond);
+  await processAnalysis(env.DB, job, provider, clock);
+  const input = provider.mock.calls[0][0];
+  const entries = (await readState(env.DB)).state.calls[0].record.transcript.entries;
+  const expected: AnalysisInput = { ...input, transcript: { complete: false, entries: [] } };
+  const encoder = new TextEncoder();
+
+  for (const entry of entries) {
+    expected.transcript.entries.push(entry);
+
+    if (encoder.encode(JSON.stringify(expected)).byteLength > 54_000) {
+      expected.transcript.entries.pop();
+      break;
+    }
+  }
+
+  expect(input.transcript).toEqual(expected.transcript);
+  expect(input.transcript.entries.length).toBeLessThan(entries.length);
+});
+
+it("allows later analysis of recovered speech after an uncertain live closure", async (): Promise<void> => {
+  const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), clock);
+  const context = { callId: id, userId: "reviewer" };
+
+  await finalizeCall(env.DB, context, { connection: "Interrupted", transcriptComplete: false }, clock);
+  await transact(env.DB, (state): void => {
+    const session = state.liveSessions[0];
+    session.state = "ended";
+    session.providerAttempted = true;
+    session.gap = true;
+  });
+
+  const failure = vi.fn(async (): Promise<AnalysisResponse> => ({ status: "not_started" }));
+  expect(await processAnalysis(env.DB, { callId: id, version: 1 }, failure, clock)).toBe("retry");
+  expect(failure).toHaveBeenCalledTimes(1);
+
+  await ingestProviderEvent(env.DB, context, {
+    type: "session.input_transcript.delta",
+    event_id: "recovered",
+    start_ms: 1000,
+    end_ms: 2000,
+    delta: "Please find a load.",
+  });
+
+  const provider = vi.fn(respond);
+  expect(await processAnalysis(env.DB, { callId: id, version: 1 }, provider, retryClock)).toBe("ack");
+  expect(provider.mock.calls[0][0].transcript.entries[0].text).toBe("Please find a load.");
 });
 
 it("preserves usage for refusals and malformed model output through the real provider adapter", async (): Promise<void> => {
@@ -448,6 +509,18 @@ it("requires administrator authorization for REST retry", async (): Promise<void
 it("atomically reserves the last available analysis allowance across competing jobs", async (): Promise<void> => {
   const first = await prepareCall();
   const { id } = await createCall(env.DB, "reviewer-two", clock);
+
+  await transact(env.DB, (state): void => {
+    state.calls
+      .find((call): boolean => call.id === id)!
+      .record.transcript.entries.push({
+        id: "caller-2",
+        speaker: "carrier",
+        offsetSeconds: 1,
+        text: "Please find a load.",
+      });
+  });
+
   await finalizeCall(
     env.DB,
     { callId: id, userId: "reviewer-two" },

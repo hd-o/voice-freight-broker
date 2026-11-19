@@ -120,15 +120,18 @@ function collectInput(state: State, callId: string): AnalysisInput | null {
   };
 
   const encoder = new TextEncoder();
+  let bytes = encoder.encode(JSON.stringify(input)).byteLength;
 
   for (const entry of entries) {
-    input.transcript.entries.push(entry);
+    const entryBytes = encoder.encode(JSON.stringify(entry)).byteLength + (input.transcript.entries.length ? 1 : 0);
 
-    if (encoder.encode(JSON.stringify(input)).byteLength > 54_000) {
-      input.transcript.entries.pop();
+    if (bytes + entryBytes > 54_000) {
       input.transcript.complete = false;
       break;
     }
+
+    input.transcript.entries.push(entry);
+    bytes += entryBytes;
   }
 
   return encoder.encode(JSON.stringify(input)).byteLength <= 54_000 ? input : null;
@@ -170,6 +173,27 @@ export async function processAnalysis(
     const session = state.liveSessions.find((entry): boolean => entry.id === job.callId);
 
     if (!call?.finalSnapshot || (session && session.state !== "ended")) {
+      return null;
+    }
+
+    const hasTranscript = session
+      ? state.transcriptFragments.some((entry): boolean => entry.callId === call.id)
+      : call.record.transcript.entries.length > 0;
+
+    const transcriptFinal = !session || !session.providerAttempted || (session.providerClosed && !session.gap);
+
+    if (!hasTranscript && transcriptFinal) {
+      analysis.result = {
+        status: "complete",
+        summary: "No transcript was recorded. Agreement facts remain available in the call details.",
+        sentiment: "Unknown",
+      };
+      analysis.evidenceIds = [];
+      analysis.status = "complete";
+      analysis.publication = "published";
+      delete analysis.reason;
+      delete analysis.error;
+      delete analysis.nextAttemptAt;
       return null;
     }
 
