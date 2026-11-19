@@ -91,6 +91,14 @@ app.onError((error, context): Response => {
     return context.json({ error: { code: error.code, message: error.message } }, error.status);
   }
 
+  // Error messages can contain provider responses or private call data.
+  // Retain the registered route even when this request's trace is unsampled.
+  try {
+    console.error({ event: "api_request_failed", route: context.req.routePath, method: context.req.method });
+  } catch {
+    /* Logging cannot prevent the error response. */
+  }
+
   return context.json(
     {
       error: {

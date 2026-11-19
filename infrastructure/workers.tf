@@ -28,7 +28,7 @@ locals {
     traces = {
       enabled            = true
       persist            = true
-      head_sampling_rate = 1
+      head_sampling_rate = var.trace_sampling_rate
     }
   }
 }

@@ -63,6 +63,16 @@ variable "secret_revision" {
   description = "Change to upload a new production provider secret."
 }
 
+variable "trace_sampling_rate" {
+  type        = number
+  default     = 0.1
+  description = "Fraction of Worker invocations recorded as traces; application logs are retained separately."
+  validation {
+    condition     = var.trace_sampling_rate >= 0 && var.trace_sampling_rate <= 1
+    error_message = "Use a trace sampling rate between 0 and 1."
+  }
+}
+
 variable "zone_id" {
   type        = string
   default     = null
