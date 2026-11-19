@@ -74,9 +74,13 @@ export async function readState(binding: D1Database): Promise<{ version: number;
 
 // A revision guard serializes the small demo inventory across both Workers.
 // Its CHECK failure rolls back the entire D1 batch, including dependent writes.
-export async function transact<T>(binding: D1Database, command: (state: State) => T): Promise<T> {
+export async function transact<T>(
+  binding: D1Database,
+  command: (state: State) => T,
+  read: (binding: D1Database) => Promise<{ version: number; state: State }> = readState,
+): Promise<T> {
   for (let attempt = 0; attempt < 8; attempt++) {
-    const { state, version } = await readState(binding);
+    const { state, version } = await read(binding);
     const originals = structuredClone(state);
     const result = command(state);
     const token = crypto.randomUUID();
