@@ -3,10 +3,10 @@ import { observeOperation } from "@voice-freight/backend/telemetry";
 import { evaluateConfirmation, confirmationEvaluationSchema } from "@voice-freight/backend/confirmation-evaluations";
 import { classifyConfirmation } from "@voice-freight/backend/confirmation-provider";
 import { resetDailyQuotas } from "@voice-freight/backend/quotas";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { checkDatabase } from "@voice-freight/backend";
 import { statusSchema } from "@voice-freight/contracts";
-import { toolNameSchema, invocationSchema, finalizationSchema } from "@voice-freight/contracts/business";
+import { toolNameSchema, invocationSchema, finalizationSchema, type Identity } from "@voice-freight/contracts/business";
 import { executeTool } from "@voice-freight/backend/business";
 import { createCall } from "@voice-freight/backend/calls";
 import { queryDashboard, queryCall } from "@voice-freight/backend/reporting";
@@ -36,7 +36,8 @@ export { LiveCall } from "./live-call";
 
 // Runtime bindings also cover the supported local provider modes; generated
 // configuration literals describe only the values in the selected environment.
-const app = new Hono<{ Bindings: LiveBindings }>();
+type ApiEnvironment = { Bindings: LiveBindings; Variables: { user?: Identity } };
+const app = new Hono<ApiEnvironment>();
 
 app.use("/api/*", async (context, next): Promise<void> => {
   context.header("Cache-Control", "private, no-store");
@@ -49,7 +50,14 @@ app.use("/api/*", async (context, next): Promise<void> => {
       "Use the public application origin.",
       403,
     );
-    await resolveUser(context);
+
+    const user = await queryAccessIdentity(
+      context.env.DB,
+      context.req.header("Cf-Access-Jwt-Assertion") ?? getCookie(context, "CF_Authorization"),
+      context.env,
+    );
+
+    context.set("user", user);
   }
 
   if (!["GET", "HEAD"].includes(context.req.method)) {
@@ -93,15 +101,10 @@ app.onError((error, context): Response => {
   );
 });
 
-async function resolveUser(
-  context: import("hono").Context<{ Bindings: LiveBindings }>,
-): Promise<NonNullable<Awaited<ReturnType<typeof queryIdentity>>>> {
-  if (context.env.ENVIRONMENT !== "local" && context.env.AUTH_MODE === "access") {
-    return queryAccessIdentity(
-      context.env.DB,
-      context.req.header("Cf-Access-Jwt-Assertion") ?? getCookie(context, "CF_Authorization"),
-      context.env,
-    );
+async function resolveUser(context: Context<ApiEnvironment>): Promise<Identity> {
+  const accessUser = context.get("user");
+  if (accessUser) {
+    return accessUser;
   }
 
   checkLocalAuthentication(context.env.ENVIRONMENT, context.env.AUTH_MODE);

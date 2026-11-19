@@ -1,15 +1,15 @@
 import type { Call } from "@voice-freight/contracts/calls";
 import { callsSchema } from "@voice-freight/contracts/calls";
+import { groupTranscript, type TranscriptFragment } from "@voice-freight/contracts/live";
 import { summarizeCalls } from "@voice-freight/contracts/reporting";
-import { authorizeCall, resolveIdentity } from "./authorization";
+import { resolveCallAccess, resolveIdentity, selectCallAccess, type CallAccessRow } from "./authorization";
 import { readState } from "./repository";
 import type { CallContext } from "@voice-freight/contracts/business";
-import type { State, CallRecord } from "./model";
-import { collectTranscript } from "./live";
+import type { Analysis, CallRecord } from "./model";
+import { collectTranscript, parseTranscriptFragments, selectTranscriptFragments } from "./live";
 
-function projectCall(state: State, call: CallRecord): Call {
+function projectCall(call: CallRecord, analysis?: Analysis, transcript?: TranscriptFragment[]): Call {
   const snapshot = call.finalSnapshot ?? call.record;
-  const analysis = state.analysis.find((entry): boolean => entry.callId === call.id);
   const record: Call = {
     ...snapshot,
     analysis: analysis?.result
@@ -26,7 +26,7 @@ function projectCall(state: State, call: CallRecord): Call {
         : snapshot.analysis,
   };
 
-  if (!state.liveSessions.some((entry): boolean => entry.id === call.id)) {
+  if (!transcript) {
     return record;
   }
 
@@ -34,7 +34,7 @@ function projectCall(state: State, call: CallRecord): Call {
     ...record,
     transcript: {
       complete: call.record.transcript.complete,
-      entries: collectTranscript(state, call.id).map((entry): Call["transcript"]["entries"][number] => ({
+      entries: transcript.map((entry): Call["transcript"]["entries"][number] => ({
         id: entry.id,
         speaker: entry.speaker,
         offsetSeconds: Math.floor(entry.startMs / 1000),
@@ -54,7 +54,15 @@ export async function queryDashboard(
   const calls = callsSchema.parse(
     state.calls
       .filter((call): boolean => call.ownerId === user.id || user.role === "administrator")
-      .map((call): Call => projectCall(state, call))
+      .map((call): Call => {
+        const analysis = state.analysis.find((entry): boolean => entry.callId === call.id);
+
+        const transcript = state.liveSessions.some((entry): boolean => entry.id === call.id)
+          ? collectTranscript(state, call.id)
+          : undefined;
+
+        return projectCall(call, analysis, transcript);
+      })
       .sort((a, b): number => b.startedAt.localeCompare(a.startedAt)),
   );
 
@@ -62,8 +70,19 @@ export async function queryDashboard(
 }
 
 export async function queryCall(binding: D1Database, context: CallContext): Promise<Call> {
-  const { state } = await readState(binding);
-  const call = authorizeCall(state, context, false);
+  // Finalization writes the call and its analysis together. Read one snapshot
+  // so the page cannot combine the active call with its finalized analysis.
+  const [access, analysis, fragments] = await binding.batch([
+    selectCallAccess(binding, context),
+    binding.prepare("SELECT data FROM analysis WHERE id = ?").bind(context.callId),
+    selectTranscriptFragments(binding, context.callId),
+  ]);
 
-  return projectCall(state, call);
+  const { call, liveState } = resolveCallAccess(access.results[0] as CallAccessRow | undefined);
+  const analysisRow = analysis.results[0] as { data: string } | undefined;
+  const job = analysisRow ? (JSON.parse(analysisRow.data) as Analysis) : undefined;
+  const transcript = liveState
+    ? groupTranscript(parseTranscriptFragments(fragments.results as { data: string }[]))
+    : undefined;
+  return projectCall(call, job, transcript);
 }

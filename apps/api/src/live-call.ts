@@ -7,7 +7,7 @@ import type { Call } from "@voice-freight/contracts/calls";
 import { createReadback } from "@voice-freight/backend/readbacks";
 import { completeCall, finalizeCall } from "@voice-freight/backend/calls";
 import { findPendingAnalysis, retryAnalysis, type AnalysisJob } from "@voice-freight/backend/analysis";
-import { findLiveSession, reserveLiveCall } from "@voice-freight/backend/live";
+import { findLiveSession, readLiveCall, reserveLiveCall } from "@voice-freight/backend/live";
 import { ingestProviderEvent, providerEventSchema, responseEventSchema } from "@voice-freight/backend/provider-events";
 import { BusinessError, requireCondition } from "@voice-freight/backend/model";
 import { readState, transact } from "@voice-freight/backend/repository";
@@ -446,20 +446,27 @@ export class LiveCall extends DurableObject<LiveBindings> {
     }
   }
 
-  private async readSession(): Promise<{
+  private async resolveContext(): Promise<CallContext> {
+    this.context ??= (await this.ctx.storage.get<CallContext>("context")) ?? null;
+    requireCondition(this.context, "call_unavailable", "Call unavailable.", 404);
+    return this.context;
+  }
+
+  private async readSession(): ReturnType<typeof readLiveCall> {
+    return readLiveCall(this.env.DB, await this.resolveContext());
+  }
+
+  private async readSessionState(): Promise<{
     state: import("@voice-freight/backend/model").State;
     call: import("@voice-freight/backend/model").CallRecord;
     session: import("@voice-freight/backend/model").LiveSession;
   }> {
-    this.context ??= (await this.ctx.storage.get<CallContext>("context")) ?? null;
-    requireCondition(this.context, "call_unavailable", "Call unavailable.", 404);
+    const context = await this.resolveContext();
     const { state } = await readState(this.env.DB);
 
-    const call = state.calls.find(
-      (entry): boolean => entry.id === this.context!.callId && entry.ownerId === this.context!.userId,
-    );
+    const call = state.calls.find((entry): boolean => entry.id === context.callId && entry.ownerId === context.userId);
 
-    const session = state.liveSessions.find((entry): boolean => entry.id === this.context!.callId);
+    const session = state.liveSessions.find((entry): boolean => entry.id === context.callId);
     requireCondition(call && session, "call_unavailable", "Call unavailable.", 404);
     return { state, call, session };
   }
@@ -844,7 +851,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   private async checkAllowance(): Promise<boolean> {
-    const { state, session } = await this.readSession();
+    const { state, session } = await this.readSessionState();
 
     if (this.closing || (session.state !== "connected" && !session.farewell)) {
       return false;
@@ -1327,7 +1334,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
     };
 
     const readback = async (targetId: string, action: "handoff" | "cancel"): Promise<void> => {
-      const { state, call } = await this.readSession();
+      const { state, call } = await this.readSessionState();
       const quote = state.quotes.find((entry): boolean => entry.id === targetId);
       const agreement = state.agreements.find((entry): boolean => entry.id === targetId);
       const load = call.record.loads.find((entry): boolean => entry.id === (quote?.loadId ?? agreement?.load.id))!;
@@ -1383,7 +1390,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
     await invoke("verify_carrier", { mcNumber: "123456" });
     await invoke("search_loads", { origin: "Dallas" });
-    const initial = await this.readSession();
+    const initial = await this.readSessionState();
 
     const loadIds = initial.call.inventoryIds
       .filter(
@@ -1406,14 +1413,14 @@ export class LiveCall extends DurableObject<LiveBindings> {
       await invoke("confirm_handoff", { quoteId: current.call.quoteId });
     }
 
-    let current = await this.readSession();
+    let current = await this.readSessionState();
 
     const agreements = current.state.agreements.filter(
       (entry): boolean => entry.callId === current.call.id && entry.status === "effective",
     );
 
     const explainFailure = async (): Promise<void> => {
-      const current = await this.readSession();
+      const current = await this.readSessionState();
       const endMs = Math.max(
         0,
         ...current.state.transcriptFragments
@@ -1442,7 +1449,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
     await readback(agreements[0].id, "cancel");
     await invoke("cancel_agreement", { agreementId: agreements[0].id });
     await invoke("begin_renegotiation", { agreementId: agreements[1].id });
-    current = await this.readSession();
+    current = await this.readSessionState();
     await readback(current.call.quoteId!, "handoff");
     await invoke("confirm_handoff", { quoteId: current.call.quoteId });
     if (scenario === "confirmation-failure") {

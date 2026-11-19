@@ -5,6 +5,7 @@ import { readState, transact } from "@voice-freight/backend/repository";
 import { seedDatabase } from "@voice-freight/backend/seeding";
 import { queryAccessIdentity } from "@voice-freight/backend/access";
 import { calculateAvailableMicrodollars } from "@voice-freight/backend/spending";
+import { reserveLiveCall } from "@voice-freight/backend/live";
 import api from "../src/worker";
 import application from "../../web/deploy/worker";
 
@@ -65,6 +66,7 @@ async function requestApi(
   method = "GET",
   body?: unknown,
   requestOrigin = origin,
+  database = configuration.DB,
 ): Promise<Response> {
   const context = createExecutionContext();
   const response = await api.fetch(
@@ -77,7 +79,7 @@ async function requestApi(
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
-    configuration,
+    { ...configuration, DB: database },
     context,
   );
   await waitOnExecutionContext(context);
@@ -177,6 +179,60 @@ it("revokes the current token immediately and permits a fresh login token", asyn
   expect((await requestApi("/api/calls", token, "POST", {})).status).toBe(401);
   const freshToken = await signToken(undefined, { expiration: Math.floor(Date.now() / 1000) + 7200 });
   expect((await requestApi("/api/identity", freshToken)).status).toBe(200);
+});
+
+it("loads production call routes with bounded reads and keeps other calls private", async (): Promise<void> => {
+  const { id } = await reserveLiveCall(env.DB, reviewer.id, crypto.randomUUID());
+  const { id: privateId } = await reserveLiveCall(env.DB, administrator.id, crypto.randomUUID());
+
+  await transact(env.DB, (state): void => {
+    for (const callId of [id, privateId]) {
+      state.transcriptFragments.push({
+        id: `${callId}:fragment`,
+        callId,
+        sequence: 1,
+        speaker: "carrier",
+        text: callId === id ? "This call's transcript" : "A different call's transcript",
+        startMs: 500,
+        endMs: 1000,
+      });
+    }
+  });
+
+  const database = new Proxy(env.DB, {
+    get(database, property): unknown {
+      if (property === "prepare") {
+        return (query: string): D1PreparedStatement => {
+          expect(query).toMatch(/where/i);
+          return database.prepare(query);
+        };
+      }
+
+      if (property === "batch") {
+        return database.batch.bind(database);
+      }
+
+      return Reflect.get(database, property);
+    },
+  });
+  const token = await signToken();
+  const get = (path: string): Promise<Response> => requestApi(path, token, "GET", undefined, origin, database);
+
+  expect((await get("/api/identity")).status).toBe(200);
+  expect((await get("/api/login")).status).toBe(303);
+  expect(await (await get(`/api/calls/${id}/live`)).json()).toMatchObject({ id, state: "connecting" });
+  expect(await (await get(`/api/calls/${id}/transcript`)).json()).toEqual({
+    fragments: [
+      { id: `${id}:fragment`, speaker: "carrier", text: "This call's transcript", startMs: 500, endMs: 1000 },
+    ],
+  });
+  expect(await (await get(`/api/calls/${id}`)).json()).toMatchObject({
+    id,
+    transcript: { entries: [{ text: "This call's transcript" }] },
+  });
+  expect((await get(`/api/calls/${privateId}/transcript`)).status).toBe(404);
+  expect((await get(`/api/calls/${privateId}/live`)).status).toBe(404);
+  expect((await requestApi(`/api/calls/${privateId}/hangup`, token, "POST", {}, origin, database)).status).toBe(404);
 });
 
 it("keeps public assets available without the API and validates cookies before exposing identity", async (): Promise<void> => {

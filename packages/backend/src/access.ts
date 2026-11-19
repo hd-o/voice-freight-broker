@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { Identity } from "@voice-freight/contracts/business";
 import { BusinessError, requireCondition } from "./model";
-import { readState, transact } from "./repository";
+import { transact } from "./repository";
 
 export type AccessConfiguration = {
   ACCESS_ISSUER?: string;
@@ -78,16 +78,16 @@ export async function queryAccessIdentity(
   configuration: AccessConfiguration,
 ): Promise<Identity> {
   const claims = await verifyAccessToken(token, configuration);
-  const { state } = await readState(binding);
-  requireCondition(
-    !state.sessions.some((session): boolean => session.id === claims.tokenId),
-    "unauthenticated",
-    "Session signed out. Sign in again.",
-    401,
-  );
-  const user = state.users.find((entry): boolean => entry.id === claims.userId);
-  requireCondition(user, "forbidden", "This account has not been invited to the demo.", 403);
-  return user;
+
+  const account = await binding
+    .prepare(`SELECT (SELECT data FROM users WHERE id = ?1) AS user,
+                     EXISTS(SELECT 1 FROM sessions WHERE id = ?2) AS revoked`)
+    .bind(claims.userId, claims.tokenId)
+    .first<{ user: string | null; revoked: number }>();
+
+  requireCondition(!account?.revoked, "unauthenticated", "Session signed out. Sign in again.", 401);
+  requireCondition(account?.user, "forbidden", "This account has not been invited to the demo.", 403);
+  return JSON.parse(account.user) as Identity;
 }
 
 export async function revokeAccessSession(

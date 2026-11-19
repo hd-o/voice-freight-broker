@@ -1,4 +1,4 @@
-import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { State } from "./model";
 
@@ -146,10 +146,16 @@ export const liveSessions = sqliteTable("liveSessions", {
   data: text({ mode: "json" }).$type<State["liveSessions"][number]>().notNull(),
 });
 
-export const transcriptFragments = sqliteTable("transcriptFragments", {
-  id: text().primaryKey(),
-  data: text({ mode: "json" }).$type<State["transcriptFragments"][number]>().notNull(),
-});
+export const transcriptFragments = sqliteTable(
+  "transcriptFragments",
+  {
+    id: text().primaryKey(),
+    data: text({ mode: "json" }).$type<State["transcriptFragments"][number]>().notNull(),
+  },
+  (table): ReturnType<ReturnType<typeof index>["on"]>[] => [
+    index("transcript_call").on(sql`json_extract(${table.data}, '$.callId')`),
+  ],
+);
 
 export const confirmationAttempts = sqliteTable("confirmationAttempts", {
   id: text().primaryKey(),

@@ -1,16 +1,19 @@
 import type { CallContext } from "@voice-freight/contracts/business";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
 import {
   groupTranscript,
   type LiveStatus,
   type Transcript,
   type TranscriptFragment,
 } from "@voice-freight/contracts/live";
-import { authorizeCall, resolveIdentity } from "./authorization";
+import { resolveCallAccess, resolveIdentity, selectCallAccess, type CallAccessRow } from "./authorization";
 import { initializeCall } from "./calls";
 import { requireCondition } from "./model";
-import type { LiveSession, Reservation, State } from "./model";
+import type { CallRecord, LiveSession, Reservation, State } from "./model";
 import { localDailyQuotaId } from "./quotas";
-import { readState, transact } from "./repository";
+import { transact } from "./repository";
+import { calls, liveSessions } from "./schema";
 import {
   calculateAvailableMicrodollars,
   calculateCallReservationMicrodollars,
@@ -149,36 +152,64 @@ export async function findLiveSession(binding: D1Database, callId: string): Prom
   return row === null ? null : (JSON.parse(row) as LiveSession);
 }
 
+export async function readLiveCall(
+  binding: D1Database,
+  context: CallContext,
+): Promise<{ call: CallRecord; session: LiveSession }> {
+  const row = await drizzle(binding)
+    .select({ call: calls.data, session: liveSessions.data })
+    .from(calls)
+    .innerJoin(liveSessions, eq(liveSessions.id, calls.id))
+    .where(eq(calls.id, context.callId))
+    .get();
+
+  requireCondition(row?.call.ownerId === context.userId, "call_unavailable", "Call unavailable.", 404);
+  return row;
+}
+
 export async function queryLiveStatus(binding: D1Database, context: CallContext): Promise<LiveStatus> {
-  const { state } = await readState(binding);
-  const call = authorizeCall(state, context, false);
-  const session = state.liveSessions.find((entry): boolean => entry.id === call.id);
-  requireCondition(session, "call_unavailable", "Live call unavailable.", 404);
+  const row = await selectCallAccess(binding, context).first<CallAccessRow>();
+  const { call, liveState, notice } = resolveCallAccess(row);
+  requireCondition(liveState, "call_unavailable", "Live call unavailable.", 404);
 
   return {
     id: call.id,
-    state: session.state,
+    state: liveState,
     startedAt: call.record.startedAt,
     endedAt: call.record.endedAt,
-    notice: session.notice,
+    notice,
   };
 }
 
 export async function queryTranscript(binding: D1Database, context: CallContext): Promise<Transcript> {
-  const { state } = await readState(binding);
-  const call = authorizeCall(state, context, false);
-  return { fragments: collectTranscriptFragments(state, call.id) };
+  const [access, transcript] = await binding.batch([
+    selectCallAccess(binding, context),
+    selectTranscriptFragments(binding, context.callId),
+  ]);
+
+  resolveCallAccess(access.results[0] as CallAccessRow | undefined);
+  return { fragments: parseTranscriptFragments(transcript.results as { data: string }[]) };
 }
 
-function collectTranscriptFragments(state: State, callId: string): TranscriptFragment[] {
-  return state.transcriptFragments
-    .filter((fragment): boolean => fragment.callId === callId)
+export function selectTranscriptFragments(binding: D1Database, callId: string): D1PreparedStatement {
+  return binding
+    .prepare(`SELECT data FROM "transcriptFragments" WHERE json_extract(data, '$.callId') = ?`)
+    .bind(callId);
+}
+
+export function parseTranscriptFragments(rows: { data: string }[]): TranscriptFragment[] {
+  return orderTranscriptFragments(rows.map((row): State["transcriptFragments"][number] => JSON.parse(row.data)));
+}
+
+function orderTranscriptFragments(fragments: State["transcriptFragments"]): TranscriptFragment[] {
+  return fragments
     .sort((a, b): number => a.startMs - b.startMs || a.endMs - b.endMs || a.sequence - b.sequence)
     .map(({ id, speaker, startMs, endMs, text }): TranscriptFragment => ({ id, speaker, startMs, endMs, text }));
 }
 
 export function collectTranscript(state: State, callId: string): TranscriptFragment[] {
-  return groupTranscript(collectTranscriptFragments(state, callId));
+  const fragments = state.transcriptFragments.filter((fragment): boolean => fragment.callId === callId);
+  return groupTranscript(orderTranscriptFragments(fragments));
 }
 
 export async function prepareBudgetFixture(
