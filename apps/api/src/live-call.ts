@@ -7,12 +7,11 @@ import type { Call } from "@voice-freight/contracts/calls";
 import { createReadback } from "@voice-freight/backend/readbacks";
 import { completeCall, finalizeCall } from "@voice-freight/backend/calls";
 import { findPendingAnalysis, retryAnalysis, type AnalysisJob } from "@voice-freight/backend/analysis";
-import { findLiveSession, readLiveCall, reserveLiveCall } from "@voice-freight/backend/live";
+import { findLiveSession, readLiveAllowance, readLiveCall, reserveLiveCall } from "@voice-freight/backend/live";
 import { ingestProviderEvent, providerEventSchema, responseEventSchema } from "@voice-freight/backend/provider-events";
 import { BusinessError, requireCondition } from "@voice-freight/backend/model";
 import { readState, transact } from "@voice-freight/backend/repository";
 import {
-  calculateAvailableMicrodollars,
   calculateReservationHold,
   countUnreportedResponses,
   maximumContinuationCount,
@@ -909,18 +908,21 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   private async checkAllowance(): Promise<boolean> {
-    const { state, session } = await this.readSessionState();
+    const { session, reservation, availableMicrodollars } = await readLiveAllowance(
+      this.env.DB,
+      await this.resolveContext(),
+      new Date().toISOString(),
+    );
 
     if (this.closing || (session.state !== "connected" && !session.farewell)) {
       return false;
     }
 
-    const reservation = state.reservations.find((entry): boolean => entry.id === session.id);
     requireCondition(reservation, "accounting_unavailable", "Spending accounting unavailable.", 503);
 
     if (
       calculateReservationHold(reservation) <= shutdownHeadroomMicrodollars ||
-      calculateAvailableMicrodollars(state, new Date().toISOString()) < 0 ||
+      availableMicrodollars < 0 ||
       session.responseIds.length >= maximumResponseCount
     ) {
       await this.closeCall(

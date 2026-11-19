@@ -10,14 +10,16 @@ import {
 import { resolveCallAccess, resolveIdentity, selectCallAccess, type CallAccessRow } from "./authorization";
 import { initializeCall } from "./calls";
 import { requireCondition } from "./model";
-import type { CallRecord, LiveSession, Reservation, State } from "./model";
+import type { CallRecord, LiveSession, Reservation, SpendingPeriod, State } from "./model";
 import { localDailyQuotaId } from "./quotas";
 import { transact } from "./repository";
 import { calls, liveSessions } from "./schema";
 import {
   calculateAvailableMicrodollars,
   calculateCallReservationMicrodollars,
+  calculateReservationHold,
   fastModelPrices,
+  monthlyLimitMicrodollars,
   resolveCallSpending,
   resolvePeriod,
   usageLimits,
@@ -165,6 +167,43 @@ export async function readLiveCall(
 
   requireCondition(row?.call.ownerId === context.userId, "call_unavailable", "Call unavailable.", 404);
   return row;
+}
+
+export async function readLiveAllowance(
+  binding: D1Database,
+  context: CallContext,
+  now: string,
+): Promise<{ session: LiveSession; reservation: Reservation | null; availableMicrodollars: number }> {
+  const [callResult, reservationsResult, periodResult] = await binding.batch([
+    binding
+      .prepare(
+        `SELECT calls.data AS call, "liveSessions".data AS session, reservations.data AS reservation
+         FROM calls JOIN "liveSessions" ON "liveSessions".id = calls.id
+         LEFT JOIN reservations ON reservations.id = calls.id WHERE calls.id = ?`,
+      )
+      .bind(context.callId),
+    binding.prepare(`SELECT data FROM reservations WHERE json_extract(data, '$.settled') IS NOT 1`),
+    binding.prepare("SELECT data FROM spendingPeriods WHERE id = ?").bind(resolvePeriod(now)),
+  ]);
+
+  const row = callResult.results[0] as { call: string; session: string; reservation: string | null } | undefined;
+  const call = row ? (JSON.parse(row.call) as CallRecord) : null;
+  requireCondition(call?.ownerId === context.userId, "call_unavailable", "Call unavailable.", 404);
+  requireCondition(row, "call_unavailable", "Call unavailable.", 404);
+  const session = JSON.parse(row.session) as LiveSession;
+  const reservation = row.reservation ? (JSON.parse(row.reservation) as Reservation) : null;
+  const periodRow = periodResult.results[0] as { data: string } | undefined;
+  const period = periodRow ? (JSON.parse(periodRow.data) as SpendingPeriod) : undefined;
+  const holds = (reservationsResult.results as { data: string }[]).reduce(
+    (total, entry): number => total + calculateReservationHold(JSON.parse(entry.data) as Reservation),
+    0,
+  );
+
+  return {
+    session,
+    reservation,
+    availableMicrodollars: monthlyLimitMicrodollars - (period?.spentMicrodollars ?? 0) - holds,
+  };
 }
 
 export async function queryLiveStatus(binding: D1Database, context: CallContext): Promise<LiveStatus> {

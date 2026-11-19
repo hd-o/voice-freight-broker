@@ -3,7 +3,7 @@ import { addInventory } from "@voice-freight/backend/inventory";
 import { env, SELF, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { seedDatabase } from "@voice-freight/backend/seeding";
-import { reserveLiveCall, queryLiveStatus, queryTranscript } from "@voice-freight/backend/live";
+import { reserveLiveCall, queryLiveStatus, queryTranscript, readLiveAllowance } from "@voice-freight/backend/live";
 import { ingestProviderEvent } from "@voice-freight/backend/provider-events";
 import { readState, transact } from "@voice-freight/backend/repository";
 import {
@@ -169,6 +169,37 @@ it("reserves atomically across reviewers, deduplicates starts, and rejects insuf
 
   await expect(reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), clock)).rejects.toMatchObject({
     code: "budget_exhausted",
+  });
+});
+
+it("reads the same allowance as the full ledger with prior and settled reservations", async (): Promise<void> => {
+  const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), clock);
+
+  await transact(env.DB, (state): void => {
+    const original = state.reservations.find((entry): boolean => entry.id === id)!;
+    state.reservations.push({
+      ...original,
+      id: "prior-unresolved",
+      operationId: "prior-unresolved",
+      createdAt: "2026-10-30T12:00:00.000Z",
+      callSpending: undefined,
+    });
+    state.reservations.push({
+      ...original,
+      id: "prior-settled",
+      operationId: "prior-settled",
+      settled: true,
+    });
+    state.spendingPeriods.push({ id: "2026-11", spentMicrodollars: 12345 });
+  });
+
+  const { state } = await readState(env.DB);
+  const allowance = await readLiveAllowance(env.DB, { userId: "reviewer", callId: id }, clock);
+  expect(allowance.availableMicrodollars).toBe(calculateAvailableMicrodollars(state, clock));
+  expect(allowance.reservation).toEqual(state.reservations.find((entry): boolean => entry.id === id));
+
+  await expect(readLiveAllowance(env.DB, { userId: "other", callId: id }, clock)).rejects.toMatchObject({
+    code: "call_unavailable",
   });
 });
 
