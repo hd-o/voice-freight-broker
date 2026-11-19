@@ -37,8 +37,8 @@ block. A block containing only one statement needs no padding.
 
 IMPORTANT: Keep this section concisely up-to-date
 
-Local voice workflows, Decisions confirmation, queued post-call analysis, and
-text evaluations, and Access for the deployed app are implemented. Terraform
+Local voice workflows, Decisions confirmation, per-call recovery, queued
+post-call analysis, text evaluations, and deployed Access are implemented. Terraform
 manages deployed resources and releases; Wrangler supports local development
 and packaging.
 Deployed account settings still require initial configuration.

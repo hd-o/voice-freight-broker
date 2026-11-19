@@ -48,6 +48,25 @@ async function openCall(
   return { id, context, stub };
 }
 
+async function runLiveAlarm(stub: DurableObjectStub<LiveCall>): Promise<void> {
+  const deadline = await runInDurableObject(stub, (_instance, context): Promise<number | null> =>
+    context.storage.getAlarm(),
+  );
+
+  if (deadline === null || deadline <= Date.now() || vi.isFakeTimers()) {
+    await runDurableObjectAlarm(stub);
+    return;
+  }
+
+  vi.useFakeTimers({ toFake: ["Date"] });
+  try {
+    vi.setSystemTime(deadline);
+    await runDurableObjectAlarm(stub);
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 function createTranscriptEvent(
   speaker: "input" | "output",
   delta: string,
@@ -293,7 +312,7 @@ it("releases unattempted starts but retains reservations for uncertain provider 
       ).toISOString();
     });
 
-    await runDurableObjectAlarm(retryStub);
+    await runLiveAlarm(retryStub);
 
     await expect(reserveLiveCall(env.DB, "reviewer", crypto.randomUUID())).rejects.toMatchObject({
       code: "concurrent_limit",
@@ -340,7 +359,7 @@ it("finalizes abandoned calls and closes with spending headroom, preserving unce
     session.lastInputAt = new Date(Date.now() - 95_000).toISOString();
   });
 
-  await runDurableObjectAlarm(stub);
+  await runLiveAlarm(stub);
   expect((await queryLiveStatus(env.DB, context)).notice).toContain("30 seconds");
   await stub.observeFixture(createTranscriptEvent("input", "Still here.", 1000));
   expect((await queryLiveStatus(env.DB, context)).notice).toBeNull();
@@ -349,7 +368,7 @@ it("finalizes abandoned calls and closes with spending headroom, preserving unce
     state.reservations.find((entry): boolean => entry.id === id)!.reservedMicrodollars = shutdownHeadroomMicrodollars;
   });
 
-  await runDurableObjectAlarm(stub);
+  await runLiveAlarm(stub);
 
   expect(await queryLiveStatus(env.DB, context)).toMatchObject({
     state: "ended",
@@ -479,24 +498,33 @@ it("excludes confirmation and analysis spending from daily call quotas", async (
   });
 });
 
-it("enforces UTC daily limits, reclaims abandoned unattempted starts and renews the next day", async (): Promise<void> => {
-  for (let index = 0; index < 6; index++) {
-    await reserveLiveCall(
-      env.DB,
-      "reviewer",
-      crypto.randomUUID(),
-      `2026-11-13T12:${String(index).padStart(2, "0")}:00.000Z`,
-    );
+it("enforces UTC daily limits after the coordinators reclaim abandoned starts and renews the next day", async (): Promise<void> => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+
+  try {
+    for (let index = 0; index < 6; index++) {
+      const startedAt = `2026-11-13T12:${String(index).padStart(2, "0")}:00.000Z`;
+      vi.setSystemTime(Date.parse(startedAt));
+      const callId = crypto.randomUUID();
+      const stub = env.CALLS.get(env.CALLS.idFromName(callId));
+      expect(await stub.reserve({ callId, userId: "reviewer" }, crypto.randomUUID(), startedAt)).toEqual({
+        result: { id: callId },
+      });
+      vi.setSystemTime(Date.parse(startedAt) + 30_000);
+      await runDurableObjectAlarm(stub);
+    }
+
+    await expect(
+      reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), "2026-11-13T12:10:00.000Z"),
+    ).rejects.toMatchObject({ code: "daily_limit" });
+
+    await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), "2026-11-14T00:00:00.000Z");
+    const { state } = await readState(env.DB);
+    expect(state.reservations.filter((entry): typeof entry.settled => entry.settled)).toHaveLength(6);
+    expect(state.calls.filter((entry): typeof entry.finalSnapshot => entry.finalSnapshot)).toHaveLength(6);
+  } finally {
+    vi.useRealTimers();
   }
-
-  await expect(
-    reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), "2026-11-13T12:10:00.000Z"),
-  ).rejects.toMatchObject({ code: "daily_limit" });
-
-  await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), "2026-11-14T00:00:00.000Z");
-  const { state } = await readState(env.DB);
-  expect(state.reservations.filter((entry): typeof entry.settled => entry.settled)).toHaveLength(6);
-  expect(state.calls.filter((entry): typeof entry.finalSnapshot => entry.finalSnapshot)).toHaveLength(6);
 });
 
 it("preserves usage and agreement facts when a restarted coordinator finalizes the call", async (): Promise<void> => {
@@ -510,7 +538,14 @@ it("preserves usage and agreement facts when a restarted coordinator finalizes t
       OPENAI_API_KEY: undefined,
     });
 
-    await restarted.alarm();
+    const deadline = (await storage.storage.getAlarm())!;
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(deadline);
+      await restarted.alarm();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   expect(await queryCall(env.DB, context)).toMatchObject({
@@ -587,7 +622,7 @@ it("repairs interrupted closing states before settling or timing out", async ():
     state.liveSessions.find((entry): boolean => entry.id === second.id)!.state = "ending";
   });
 
-  await runDurableObjectAlarm(second.stub);
+  await runLiveAlarm(second.stub);
 
   const closingAt = (await readState(env.DB)).state.liveSessions.find(
     (entry): boolean => entry.id === second.id,
@@ -768,7 +803,7 @@ it("bypasses the goodbye window for manual hang-up and spending limits", async (
       shutdownHeadroomMicrodollars;
   });
 
-  await runDurableObjectAlarm(second.stub);
+  await runLiveAlarm(second.stub);
   expect(await queryLiveStatus(env.DB, second.context)).toMatchObject({
     state: "ended",
     notice: expect.stringContaining("spending allowance"),
@@ -922,10 +957,13 @@ it("sends provider closure after the goodbye window and waits for final usage be
 
 it("recovers a reservation abandoned before Durable Object startup without charging a provider", async (): Promise<void> => {
   const now = Date.now();
-  const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID(), new Date(now - 60_000).toISOString());
-  const context = { callId: id, userId: "reviewer" };
-  const stub = env.CALLS.get(env.CALLS.idFromName(id));
-  await stub.recover(context);
+  const callId = crypto.randomUUID();
+  const context = { callId, userId: "reviewer" };
+  const stub = env.CALLS.get(env.CALLS.idFromName(callId));
+  expect(await stub.reserve(context, crypto.randomUUID(), new Date(now).toISOString())).toEqual({
+    result: { id: callId },
+  });
+  await runLiveAlarm(stub);
   expect((await queryLiveStatus(env.DB, context)).state).toBe("ended");
   const { state } = await readState(env.DB);
   expect(state.reservations[0]).toMatchObject({ settled: true, chargedMicrodollars: 0 });
@@ -937,27 +975,60 @@ it("recovers a reservation abandoned before Durable Object startup without charg
   });
 });
 
-it("keeps missing transcript and delegated usage unknown after reattaching an ended provider", async (): Promise<void> => {
-  const { context, stub } = await openCall();
-  await stub.end();
-  await transact(env.DB, (state): void => {
-    state.liveSessions[0].providerClosed = false;
-    state.liveSessions[0].usageConfirmed = false;
-    state.liveSessions[0].providerId = "provider-recovery";
-    state.reservations[0].settled = false;
-    state.calls[0].record.transcript.complete = false;
+it("keeps startup and abandonment from both advancing the same reservation", async (): Promise<void> => {
+  const now = Date.now();
+  const callId = crypto.randomUUID();
+  const context = { callId, userId: "reviewer" };
+  const stub = env.CALLS.get(env.CALLS.idFromName(callId));
+  expect(await stub.reserve(context, crypto.randomUUID(), new Date(now).toISOString())).toEqual({
+    result: { id: callId },
   });
 
+  vi.useFakeTimers({ toFake: ["Date"] });
+  try {
+    vi.setSystemTime(now + 30_000);
+    const [, start] = await Promise.allSettled([runDurableObjectAlarm(stub), stub.start(context, "offer")]);
+    const { state } = await readState(env.DB);
+
+    if (start.status === "fulfilled") {
+      expect(state.liveSessions[0]).toMatchObject({ state: "connected", providerAttempted: true });
+      expect(state.calls[0].finalSnapshot).toBeNull();
+    } else {
+      expect(state.liveSessions[0]).toMatchObject({ state: "ended", providerAttempted: false });
+      expect(state.reservations[0].settled).toBe(true);
+    }
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps missing transcript and delegated usage unknown after reattaching an ended provider", async (): Promise<void> => {
+  const { id } = await reserveLiveCall(env.DB, "reviewer", crypto.randomUUID());
+  const context = { callId: id, userId: "reviewer" };
+  const stub = env.CALLS.get(env.CALLS.idFromName(id));
+
   await runInDurableObject(stub, async (_instance, storage): Promise<void> => {
+    const initial = new WebSocketPair();
+    initial[0].accept();
     const pair = new WebSocketPair();
     const provider = pair[0];
     provider.accept();
     const request = vi
       .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ session: { id: "provider-recovery" }, transport: { sdp: "answer" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 101, webSocket: initial[1] }))
       .mockResolvedValue(new Response(null, { status: 101, webSocket: pair[1] }));
+
+    vi.useFakeTimers({ toFake: ["Date"] });
     try {
       const coordinator = new LiveCall(storage, { ...env, VOICE_PROVIDER: "openai", OPENAI_API_KEY: "test-key" });
-      await coordinator.recover(context);
+      await coordinator.start(context, "offer");
+      await coordinator.end();
+      vi.setSystemTime(Date.now() + 11_000);
+      await coordinator.alarm();
+      expect((await queryLiveStatus(env.DB, context)).state).toBe("ended");
+      vi.setSystemTime(Date.now() + 1000);
+      await coordinator.alarm();
       const seconds = (await readState(env.DB)).state.liveSessions[0].voiceSeconds;
       provider.send(JSON.stringify({ type: "session.closed", event_id: "recovered-close", usage: { seconds } }));
       await expect
@@ -967,8 +1038,10 @@ it("keeps missing transcript and delegated usage unknown after reattaching an en
       expect(state.liveSessions[0]).toMatchObject({ gap: true, accountingGap: true });
       expect(state.calls[0].record.transcript.complete).toBe(false);
       expect(state.reservations[0].settled).toBe(false);
+      await expect.poll(async () => (await storage.storage.get<{ live?: number }>("work"))?.live).toBeUndefined();
     } finally {
       request.mockRestore();
+      vi.useRealTimers();
       provider.close();
     }
   });

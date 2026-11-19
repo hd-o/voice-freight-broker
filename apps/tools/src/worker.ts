@@ -1,13 +1,13 @@
 import {
   processAnalysis,
-  publishAnalysis,
-  recordDeadLetter,
+  dispatchAnalysis,
   analysisJobSchema,
   type AnalysisJob,
 } from "@voice-freight/backend/analysis";
 import { observeOperation } from "@voice-freight/backend/telemetry";
 import type { ConfirmationProvider } from "../../api/src/confirmation-provider";
 import type { AnalysisProvider } from "../../api/src/analysis-provider";
+import type { LiveCall } from "../../api/src/live-call";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { checkDatabase } from "@voice-freight/backend";
 import { statusSchema } from "@voice-freight/contracts";
@@ -22,8 +22,9 @@ import { executeTool, type ToolResult } from "@voice-freight/backend/business";
 import { recordEvidence } from "@voice-freight/backend/evidence";
 import { BusinessError } from "@voice-freight/backend/model";
 
-interface AnalysisBindings {
+interface ToolsBindings {
   DB: D1Database;
+  CALLS: DurableObjectNamespace<LiveCall>;
   ANALYSIS_QUEUE: Queue<AnalysisJob>;
   ANALYSIS_DEAD_LETTER: Queue<AnalysisJob>;
   ANALYSIS_PROVIDER: Service<AnalysisProvider>;
@@ -32,13 +33,13 @@ interface AnalysisBindings {
 
 type ToolResponse = ToolResult | { error: { code: string; message: string } };
 
-export class Tools extends WorkerEntrypoint<Env & AnalysisBindings> {
+export class Tools extends WorkerEntrypoint<ToolsBindings> {
   protected resolveClock(): string {
     return new Date().toISOString();
   }
 
-  async publishAnalysis(): Promise<void> {
-    return publishAnalysis(this.env.DB, this.env.ANALYSIS_QUEUE);
+  async dispatchAnalysis(job: AnalysisJob): Promise<number | null> {
+    return dispatchAnalysis(this.env.DB, this.env.ANALYSIS_QUEUE, analysisJobSchema.parse(job));
   }
 
   async executeObserved(
@@ -156,10 +157,7 @@ export class Tools extends WorkerEntrypoint<Env & AnalysisBindings> {
 }
 
 export default {
-  async scheduled(_controller: ScheduledController, env: Env & AnalysisBindings): Promise<void> {
-    await publishAnalysis(env.DB, env.ANALYSIS_QUEUE);
-  },
-  async queue(batch: MessageBatch<unknown>, env: Env & AnalysisBindings): Promise<void> {
+  async queue(batch: MessageBatch<unknown>, env: ToolsBindings, context: ExecutionContext): Promise<void> {
     for (const message of batch.messages) {
       const parsed = analysisJobSchema.safeParse(message.body);
 
@@ -170,7 +168,12 @@ export default {
       const job = parsed.data;
 
       if (batch.queue.endsWith("analysis-dead-letter")) {
-        await recordDeadLetter(env.DB, job);
+        // The coordinator can republish the job after a transport failure.
+        // A delayed dead letter carries no proof about the current attempt.
+        await observeOperation(
+          { callId: job.callId, version: job.version, function: "analysis", action: "dead-letter" },
+          async () => {},
+        );
         message.ack();
         continue;
       }
@@ -192,14 +195,18 @@ export default {
             ),
         );
 
-        if (disposition === "retry") {
-          message.retry({ delaySeconds: 30 });
-        } else {
-          if (disposition === "dead-letter") {
-            await env.ANALYSIS_DEAD_LETTER.send(job);
-          }
-          message.ack();
+        // Wake promptly for retries, renewals, and cleanup. The published
+        // job still has a durable watchdog if this notification is lost.
+        context.waitUntil(
+          env.CALLS.get(env.CALLS.idFromName(job.callId))
+            .refreshAnalysis(job)
+            .catch((): void => {}),
+        );
+
+        if (disposition === "dead-letter") {
+          await env.ANALYSIS_DEAD_LETTER.send(job);
         }
+        message.ack();
       } catch {
         message.retry({ delaySeconds: 30 });
       }
@@ -208,4 +215,4 @@ export default {
   fetch(): Response {
     return new Response("Not found", { status: 404 });
   },
-} satisfies ExportedHandler<Env & AnalysisBindings>;
+} satisfies ExportedHandler<ToolsBindings>;

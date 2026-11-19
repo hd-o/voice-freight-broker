@@ -13,12 +13,15 @@ export async function createCall(
   return transact(binding, (state): { id: string } => initializeCall(state, userId, now));
 }
 
-export function initializeCall(state: State, userId: string, now: string): { id: string } {
+export function initializeCall(
+  state: State,
+  userId: string,
+  now: string,
+  id: string = crypto.randomUUID(),
+): { id: string } {
   resolveIdentity(state, userId);
 
   requireCondition(state.inventory.length > 0, "inventory_unavailable", "Seed local inventory before creating calls.");
-
-  const id = crypto.randomUUID();
 
   state.calls.push({
     id,

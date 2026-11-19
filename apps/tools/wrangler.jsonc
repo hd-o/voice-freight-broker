@@ -8,6 +8,15 @@
   "preview_urls": false,
   "env": {
     "local": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "CALLS",
+            "class_name": "LiveCall",
+            "script_name": "voice-freight-api",
+          },
+        ],
+      },
       "queues": {
         "producers": [
           {

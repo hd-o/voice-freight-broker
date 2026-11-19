@@ -2,9 +2,12 @@ import { confirmationQuietMs } from "@voice-freight/backend/confirmation-policy"
 import { observeOperation } from "@voice-freight/backend/telemetry";
 import { DurableObject } from "cloudflare:workers";
 import { z } from "zod";
-import { toolNameSchema, type CallContext } from "@voice-freight/contracts/business";
+import { finalizationSchema, toolNameSchema, type CallContext } from "@voice-freight/contracts/business";
+import type { Call } from "@voice-freight/contracts/calls";
 import { createReadback } from "@voice-freight/backend/readbacks";
-import { completeCall } from "@voice-freight/backend/calls";
+import { completeCall, finalizeCall } from "@voice-freight/backend/calls";
+import { findPendingAnalysis, retryAnalysis, type AnalysisJob } from "@voice-freight/backend/analysis";
+import { findLiveSession, reserveLiveCall } from "@voice-freight/backend/live";
 import { ingestProviderEvent, providerEventSchema } from "@voice-freight/backend/provider-events";
 import { BusinessError, requireCondition } from "@voice-freight/backend/model";
 import { readState, transact } from "@voice-freight/backend/repository";
@@ -12,6 +15,7 @@ import {
   calculateAvailableMicrodollars,
   maximumContinuationCount,
   maximumResponseCount,
+  resolveUsageLimits,
   shutdownHeadroomMicrodollars,
 } from "@voice-freight/backend/spending";
 import { createSessionConfiguration, greeting, voiceToolArguments, voiceToolNameSchema } from "./live-configuration";
@@ -35,12 +39,207 @@ const functionEventSchema = z.object({
   }),
 });
 
+const startupTimeout = 30_000;
+const recoveryDelay = 30_000;
+const closureRetryInterval = 300_000;
+
+type AnalysisCommand = { context: CallContext } & (
+  | { action: "finalize"; input: z.infer<typeof finalizationSchema>; completedAt: string }
+  | { action: "retry"; version: number }
+);
+
+type CallWork = {
+  live?: number;
+  analysis?: AnalysisJob & { due?: number };
+  command?: { input: AnalysisCommand; due: number };
+};
+
+type CallOutcome<T> = { result: T } | { error: Pick<BusinessError, "code" | "message" | "status"> };
+
+async function captureOutcome<T>(command: () => Promise<T>): Promise<CallOutcome<T>> {
+  try {
+    return { result: await command() };
+  } catch (error) {
+    if (error instanceof BusinessError) {
+      return { error: { code: error.code, message: error.message, status: error.status } };
+    }
+
+    return {
+      error: { code: "unavailable", message: "Service unavailable. Check local migrations and retry.", status: 503 },
+    };
+  }
+}
+
 export class LiveCall extends DurableObject<LiveBindings> {
   private socket: WebSocket | null = null;
   private queue: Promise<void> = Promise.resolve();
   private context: CallContext | null = null;
   private closing = false;
   private invocations = new Set<string>();
+
+  private async updateWork<T>(command: (work: CallWork) => T): Promise<T> {
+    return this.ctx.storage.transaction(async (storage): Promise<T> => {
+      const work = (await storage.get<CallWork>("work")) ?? {};
+      const result = command(work);
+      const deadlines = [work.live, work.analysis?.due, work.command?.due].filter(
+        (due): due is number => due !== undefined,
+      );
+
+      if (deadlines.length) {
+        await storage.put("work", work);
+        await storage.setAlarm(Math.min(...deadlines));
+      } else {
+        await storage.delete("work");
+        await storage.deleteAlarm();
+      }
+
+      return result;
+    });
+  }
+
+  private async scheduleLive(due: number | null): Promise<void> {
+    await this.updateWork((work): void => {
+      if (due === null) {
+        delete work.live;
+      } else {
+        work.live = due;
+      }
+    });
+  }
+
+  private async stageAnalysis(job: AnalysisJob): Promise<void> {
+    await this.updateWork((work): void => {
+      if (!work.analysis || work.analysis.version < job.version) {
+        work.analysis = job;
+      }
+    });
+  }
+
+  async refreshAnalysis(job: AnalysisJob): Promise<void> {
+    await this.updateWork((work): void => {
+      if (
+        work.analysis?.callId === job.callId &&
+        work.analysis.version === job.version &&
+        work.analysis.due !== undefined
+      ) {
+        work.analysis.due = Date.now();
+      }
+    });
+  }
+
+  private async releaseAnalysis(live?: number | null): Promise<void> {
+    await this.updateWork((work): void => {
+      if (work.analysis && work.analysis.due === undefined) {
+        work.analysis.due = Date.now();
+      }
+
+      if (live === null) {
+        delete work.live;
+      } else if (live !== undefined) {
+        work.live = live;
+      }
+    });
+  }
+
+  async reserve(context: CallContext, operationId: string, now: string): Promise<CallOutcome<{ id: string }>> {
+    return this.ctx.blockConcurrencyWhile(() =>
+      captureOutcome(async () => {
+        await this.ctx.storage.put("context", context);
+        this.context = context;
+
+        // The coordinator owns the reservation write and is already wakeable
+        // if the request disappears after D1 accepts the batch.
+        await this.scheduleLive(Date.parse(now) + startupTimeout);
+
+        try {
+          const reservation = await reserveLiveCall(
+            this.env.DB,
+            context.userId,
+            operationId,
+            now,
+            resolveUsageLimits(this.env),
+            this.env.ENVIRONMENT,
+            context.callId,
+          );
+
+          if (reservation.id !== context.callId) {
+            await this.scheduleLive(null);
+          }
+
+          return reservation;
+        } catch (error) {
+          if (error instanceof BusinessError && error.status < 500) {
+            await this.scheduleLive(null);
+          }
+
+          throw error;
+        }
+      }),
+    );
+  }
+
+  async submitAnalysis(command: AnalysisCommand): Promise<CallOutcome<Call | AnalysisJob>> {
+    return this.ctx.blockConcurrencyWhile(async () => {
+      const pending = (await this.ctx.storage.get<CallWork>("work"))?.command;
+
+      if (pending) {
+        const outcome = await this.commitAnalysisCommand(pending.input, true);
+
+        if ("error" in outcome && outcome.error.status >= 500) {
+          return outcome;
+        }
+      }
+
+      await this.updateWork((work): void => {
+        work.command = { input: command, due: Date.now() + recoveryDelay };
+      });
+
+      return this.commitAnalysisCommand(command);
+    });
+  }
+
+  private async commitAnalysisCommand(
+    command: AnalysisCommand,
+    replay = false,
+  ): Promise<CallOutcome<Call | AnalysisJob>> {
+    const outcome = await captureOutcome<Call | AnalysisJob>(async () => {
+      if (command.action === "retry") {
+        return retryAnalysis(this.env.DB, command.context, command.version);
+      }
+
+      requireCondition(
+        !(await findLiveSession(this.env.DB, command.context.callId)),
+        "coordinator_required",
+        "Use the live call hang-up action.",
+      );
+
+      return finalizeCall(this.env.DB, command.context, command.input, command.completedAt);
+    });
+
+    if ("error" in outcome && outcome.error.status >= 500) {
+      return outcome;
+    }
+
+    // Access can change after a successful D1 commit loses its response.
+    // Recover an existing job even if the original command now gets a 4xx.
+    const callId = command.context.callId;
+    const job =
+      "result" in outcome
+        ? { callId, version: "version" in outcome.result ? outcome.result.version : 1 }
+        : replay
+          ? await findPendingAnalysis(this.env.DB, callId)
+          : null;
+
+    await this.updateWork((work): void => {
+      if (job && (!work.analysis || work.analysis.version < job.version)) {
+        work.analysis = { ...job, due: Date.now() };
+      }
+
+      delete work.command;
+    });
+
+    return outcome;
+  }
 
   private haltProvider(): void {
     if (this.socket?.readyState !== WebSocket.OPEN) {
@@ -69,7 +268,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
       this.closing = true;
       this.haltProvider();
 
-      await this.end("Interrupted", "The call was interrupted. Your saved agreements are preserved.").catch(
+      await this.closeCall("Interrupted", "The call was interrupted. Your saved agreements are preserved.").catch(
         (): void => {},
       );
     });
@@ -152,7 +351,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
       "The previous start is being reconciled. Start a new call after it ends.",
     );
 
-    await this.ctx.storage.setAlarm(Date.now() + 2000);
+    await this.scheduleLive(Date.now() + 2000);
 
     try {
       requireCondition(
@@ -216,6 +415,11 @@ export class LiveCall extends DurableObject<LiveBindings> {
         await this.attach(created.session.id);
 
         await this.updateSession((current): void => {
+          requireCondition(
+            current.state === "connecting" && !current.providerClosed,
+            "call_ended",
+            "This call already ended.",
+          );
           current.state = "connected";
         });
       }
@@ -228,7 +432,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
         provider: this.isStub() ? ("stub" as const) : ("openai" as const),
       };
     } catch (error) {
-      await this.end("Connection failed", "Could not connect. Your call record is saved.");
+      await this.closeCall("Connection failed", "Could not connect. Your call record is saved.");
 
       if (error instanceof BusinessError) {
         throw error;
@@ -274,16 +478,16 @@ export class LiveCall extends DurableObject<LiveBindings> {
     });
   }
 
-  private async updateSession(
-    command: (session: Awaited<ReturnType<LiveCall["readSession"]>>["session"]) => void,
-  ): Promise<void> {
+  private async updateSession<T>(
+    command: (session: Awaited<ReturnType<LiveCall["readSession"]>>["session"]) => T,
+  ): Promise<T> {
     const context = this.context;
     requireCondition(context, "call_unavailable", "Call unavailable.", 404);
 
-    await transact(this.env.DB, (state): void => {
+    return transact(this.env.DB, (state): T => {
       const session = state.liveSessions.find((entry): boolean => entry.id === context.callId);
       requireCondition(session, "call_unavailable", "Call unavailable.", 404);
-      command(session);
+      return command(session);
     });
   }
 
@@ -337,6 +541,10 @@ export class LiveCall extends DurableObject<LiveBindings> {
     });
 
     socket.addEventListener("close", (): void => {
+      if (this.socket !== socket) {
+        return;
+      }
+
       this.socket = null;
 
       this.enqueue(async (): Promise<void> => {
@@ -347,7 +555,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
             current.gap = true;
             current.accountingGap = true;
           });
-          await this.end("Interrupted", "Connection interrupted. Your partial transcript is saved.");
+          await this.closeCall("Interrupted", "Connection interrupted. Your partial transcript is saved.");
         }
       });
     });
@@ -358,7 +566,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
           current.gap = true;
           current.accountingGap = true;
         });
-        await this.end("Interrupted", "Voice connection failed. Your partial transcript is saved.");
+        await this.closeCall("Interrupted", "Voice connection failed. Your partial transcript is saved.");
       }),
     );
   }
@@ -399,7 +607,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
     }
 
     if (event.type === "error") {
-      await this.end("Interrupted", "The voice service could not continue. Your call is saved.");
+      await this.closeCall("Interrupted", "The voice service could not continue. Your call is saved.");
       return;
     }
 
@@ -431,7 +639,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
           new Promise<void>((resolve): ReturnType<typeof setTimeout> => setTimeout(resolve, 1500)).then((): void => {
             this.ctx.waitUntil(
               this.executeFunction(invocation).catch(async (): Promise<void> => {
-                await this.end("Interrupted", "The call was interrupted. Your saved agreements are preserved.");
+                await this.closeCall("Interrupted", "The call was interrupted. Your saved agreements are preserved.");
               }),
             );
           }),
@@ -468,14 +676,14 @@ export class LiveCall extends DurableObject<LiveBindings> {
       ),
     ).toISOString();
 
+    await this.scheduleLive(Math.min(Date.parse(deadline), Date.now() + 1000));
+
     await this.updateSession((current): void => {
       requireCondition(!this.closing && current.state === "connected", "call_ended", "This call is no longer active.");
 
       current.state = "ending";
       current.farewell = { deadline, delegationId };
     });
-
-    await this.ctx.storage.setAlarm(Math.min(Date.parse(deadline), Date.now() + 1000));
 
     await this.send({ type: "session.input_audio.mute", event_id: crypto.randomUUID() });
 
@@ -584,7 +792,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
     }
 
     if (count >= maximumContinuationCount) {
-      await this.end("Interrupted", "The voice service reached its work limit. Your call is saved.");
+      await this.closeCall("Interrupted", "The voice service reached its work limit. Your call is saved.");
       return;
     }
 
@@ -619,7 +827,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
       calculateAvailableMicrodollars(state, new Date().toISOString()) < 0 ||
       session.responseIds.length >= maximumResponseCount
     ) {
-      await this.end(
+      await this.closeCall(
         "Ended normally",
         "The shared spending allowance or call work limit was reached. Your call is saved. The monthly allowance renews at 00:00 UTC on the first day.",
       );
@@ -634,6 +842,14 @@ export class LiveCall extends DurableObject<LiveBindings> {
     connection: "Ended normally" | "Interrupted" | "Connection failed" = "Ended normally",
     notice: string | null = null,
   ): Promise<void> {
+    await this.ctx.blockConcurrencyWhile(() => this.closeCall(connection, notice));
+  }
+
+  private async closeCall(
+    connection: "Ended normally" | "Interrupted" | "Connection failed" = "Ended normally",
+    notice: string | null = null,
+    abandonedStartup = false,
+  ): Promise<void> {
     this.closing = true;
 
     try {
@@ -644,10 +860,21 @@ export class LiveCall extends DurableObject<LiveBindings> {
       }
 
       const now = new Date().toISOString();
+      await this.scheduleLive(Date.now() + 1000);
+      await this.stageAnalysis({ callId: session.id, version: 1 });
 
-      await observeOperation({ callId: session.id, function: "call", action: "ending" }, () =>
-        transact(this.env.DB, (state): void => {
+      const closing = await observeOperation({ callId: session.id, function: "call", action: "ending" }, () =>
+        transact(this.env.DB, (state): typeof session | null => {
           const current = state.liveSessions.find((entry): boolean => entry.id === session.id)!;
+
+          if (
+            current.state === "ended" ||
+            (current.state === "ending" && !current.farewell) ||
+            (abandonedStartup && (current.state !== "connecting" || current.providerAttempted))
+          ) {
+            return null;
+          }
+
           current.state = "ending";
           current.notice = notice;
           current.closingAt = now;
@@ -662,20 +889,23 @@ export class LiveCall extends DurableObject<LiveBindings> {
           }
 
           completeCall(state, this.context!, { connection, transcriptComplete: false }, now);
+          return current;
         }),
       );
 
-      await this.ctx.storage.setAlarm(Date.now() + 1000);
+      if (!closing) {
+        return;
+      }
 
-      if (!session.providerAttempted) {
+      if (!closing.providerAttempted) {
         await this.finish();
       } else if (this.isStub()) {
         await ingestProviderEvent(this.env.DB, this.context!, {
           type: "session.closed",
-          event_id: `closed-${session.id}`,
+          event_id: `closed-${closing.id}`,
           usage: {
             seconds: Math.max(
-              session.voiceSeconds,
+              closing.voiceSeconds,
               (Date.now() - Date.parse((await this.readSession()).call.record.startedAt)) / 1000,
             ),
           },
@@ -687,7 +917,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
           type: "session.close",
           event_id: crypto.randomUUID(),
         });
-      } else if (!session.providerAttempted || session.providerClosed) {
+      } else if (closing.providerClosed) {
         await this.finish();
       }
     } finally {
@@ -698,9 +928,13 @@ export class LiveCall extends DurableObject<LiveBindings> {
   }
 
   private async finish(): Promise<void> {
-    const { session } = await this.readSession();
+    const { call, session } = await this.readSession();
 
-    const providerClosed = await transact(this.env.DB, (state): boolean => {
+    if (session.state !== "ended" || !call.finalSnapshot) {
+      await this.stageAnalysis({ callId: session.id, version: 1 });
+    }
+
+    const needsClosure = await transact(this.env.DB, (state): boolean => {
       const current = state.liveSessions.find((entry): boolean => entry.id === session.id)!;
       const call = state.calls.find((entry): boolean => entry.id === session.id)!;
       const reservation = state.reservations.find((entry): boolean => entry.id === session.id)!;
@@ -733,67 +967,167 @@ export class LiveCall extends DurableObject<LiveBindings> {
         reservation.settled = true;
       }
 
-      return current.providerClosed;
+      return current.providerAttempted && !current.providerClosed && Boolean(current.providerId) && !this.isStub();
     });
 
-    if (providerClosed) {
-      this.socket?.close(1000);
-      this.socket = null;
+    if (!needsClosure) {
+      this.disconnectProvider();
     }
 
-    await this.ctx.storage.deleteAlarm();
-    this.ctx.waitUntil(this.env.TOOLS.publishAnalysis());
+    await this.releaseAnalysis(needsClosure ? Date.now() + 1000 : null);
   }
 
-  async recover(context: CallContext): Promise<void> {
-    this.context ??= context;
-    await this.ctx.storage.put("context", this.context);
-    const { session } = await this.readSession();
+  private disconnectProvider(): void {
+    const socket = this.socket;
+    this.socket = null;
+    socket?.close(1000);
+  }
 
-    const { call } = await this.readSession();
+  private async reconcileClosure(providerId: string): Promise<void> {
+    const now = Date.now();
+    const lastRecovery = await this.ctx.storage.get<number>("lastRecovery");
+    this.disconnectProvider();
 
-    if (
-      session.state === "connecting" &&
-      !session.providerAttempted &&
-      Date.now() - Date.parse(call.record.startedAt) >= 30_000
-    ) {
-      await this.end("Connection failed", "Call startup was abandoned before contacting the provider.");
+    if (lastRecovery !== undefined && now < lastRecovery + closureRetryInterval) {
+      await this.scheduleLive(lastRecovery + closureRetryInterval);
       return;
     }
 
-    if (session.state === "ended" && session.providerId && !session.providerClosed && !this.isStub()) {
-      const lastRecovery = (await this.ctx.storage.get<number>("lastRecovery")) ?? 0;
-
-      if (Date.now() - lastRecovery >= 300_000) {
-        await this.ctx.storage.put("lastRecovery", Date.now());
-        await this.updateSession((current): void => {
-          current.gap = true;
-          current.accountingGap = true;
-        });
-        await this.attach(session.providerId);
-        this.haltProvider();
-        await this.ctx.storage.setAlarm(Date.now() + 10_000);
+    const unresolved = await this.updateSession((current): boolean => {
+      if (current.state !== "ended" || current.providerClosed) {
+        return false;
       }
+
+      current.gap = true;
+      current.accountingGap = true;
+      return true;
+    });
+
+    if (!unresolved) {
+      await this.finish();
       return;
     }
 
-    if (session.state !== "ended") {
-      await this.ctx.storage.setAlarm(Date.now() + 1000);
-    }
+    await this.ctx.storage.put("lastRecovery", now);
+    await this.attach(providerId);
+    this.haltProvider();
+    await this.scheduleLive(Date.now() + 10_000);
   }
 
   async alarm(): Promise<void> {
-    try {
-      const { session, call } = await this.readSession();
+    await this.ctx.blockConcurrencyWhile(async (): Promise<void> => {
+      const now = Date.now();
 
-      if (this.closing && session.state === "connected") {
-        await this.end("Interrupted", "Usage accounting was interrupted. Your partial call is saved.");
+      const liveDue = await this.updateWork((work): boolean => {
+        if (work.live === undefined || work.live > now) {
+          return false;
+        }
+
+        work.live = now + recoveryDelay;
+        return true;
+      });
+
+      if (liveDue) {
+        await this.advanceLive();
+      }
+    });
+
+    await this.ctx.blockConcurrencyWhile(async (): Promise<void> => {
+      const clock = Date.now();
+
+      const pending = await this.updateWork((work): CallWork => {
+        const command = work.command && work.command.due <= clock ? work.command : undefined;
+        const analysis = work.analysis?.due !== undefined && work.analysis.due <= clock ? work.analysis : undefined;
+
+        if (command) {
+          command.due = clock + recoveryDelay;
+        }
+
+        if (analysis) {
+          analysis.due = clock + recoveryDelay;
+        }
+
+        return { command, analysis };
+      });
+
+      try {
+        if (pending.command) {
+          await this.commitAnalysisCommand(pending.command.input, true);
+        }
+
+        if (pending.analysis) {
+          const { callId, version, due } = pending.analysis;
+          const wakeup = await observeOperation({ callId, version, function: "analysis", action: "dispatch" }, () =>
+            this.env.TOOLS.dispatchAnalysis({ callId, version }),
+          );
+
+          await this.updateWork((work): void => {
+            if (work.analysis?.version === version && work.analysis.due === due) {
+              if (wakeup === null) {
+                delete work.analysis;
+              } else {
+                work.analysis.due = wakeup;
+              }
+            }
+          });
+        }
+      } catch {
+        // The fallback was committed before either operation and owns retry.
+      }
+    });
+  }
+
+  private async advanceLive(): Promise<void> {
+    try {
+      this.context ??= (await this.ctx.storage.get<CallContext>("context")) ?? null;
+      const context = this.context;
+      requireCondition(context, "call_unavailable", "Call unavailable.", 404);
+      let live = await findLiveSession(this.env.DB, context.callId);
+
+      if (!live) {
+        // A guarded D1 batch fences any outstanding reservation write from
+        // the old coordinator instance that read an earlier revision.
+        live = await transact(
+          this.env.DB,
+          (state) => state.liveSessions.find((row) => row.id === context.callId) ?? null,
+        );
+
+        if (!live) {
+          await this.scheduleLive(null);
+          return;
+        }
+      }
+
+      if (live.state === "ended") {
+        if (live.providerId && !live.providerClosed && !this.isStub()) {
+          await this.releaseAnalysis();
+          await this.reconcileClosure(live.providerId);
+        } else if (live.providerClosed) {
+          await this.finish();
+        } else {
+          this.disconnectProvider();
+          await this.releaseAnalysis(null);
+        }
+
         return;
       }
 
-      if (session.state === "ended") {
-        this.socket?.close();
-        this.socket = null;
+      const { session, call } = await this.readSession();
+
+      if (this.closing && session.state === "connected") {
+        await this.closeCall("Interrupted", "Usage accounting was interrupted. Your partial call is saved.");
+        return;
+      }
+
+      if (session.state === "connecting" && !session.providerAttempted) {
+        const deadline = Date.parse(call.record.startedAt) + startupTimeout;
+
+        if (Date.now() >= deadline) {
+          await this.closeCall("Connection failed", "Call startup was abandoned before contacting the provider.", true);
+        } else {
+          await this.scheduleLive(deadline);
+        }
+
         return;
       }
 
@@ -805,9 +1139,9 @@ export class LiveCall extends DurableObject<LiveBindings> {
         const deadline = Date.parse(session.farewell.deadline);
 
         if (Date.now() >= deadline) {
-          await this.end();
+          await this.closeCall();
         } else {
-          await this.ctx.storage.setAlarm(Math.min(deadline, Date.now() + 1000));
+          await this.scheduleLive(Math.min(deadline, Date.now() + 1000));
         }
 
         return;
@@ -817,6 +1151,8 @@ export class LiveCall extends DurableObject<LiveBindings> {
         const closingAt = session.closingAt ?? new Date().toISOString();
 
         if (!session.closingAt || !call.finalSnapshot) {
+          await this.stageAnalysis({ callId: session.id, version: 1 });
+
           await transact(this.env.DB, (state): void => {
             const current = state.liveSessions.find((entry): boolean => entry.id === session.id)!;
             current.closingAt ??= closingAt;
@@ -854,13 +1190,12 @@ export class LiveCall extends DurableObject<LiveBindings> {
 
         if (Date.now() - Date.parse(closingAt) >= 10_000) {
           await this.finish();
-          this.socket?.close();
-          this.socket = null;
+          this.disconnectProvider();
           return;
         }
       } else {
         if (!this.isStub() && !this.socket) {
-          await this.end("Interrupted", "The voice coordinator restarted. Your partial call is saved.");
+          await this.closeCall("Interrupted", "The voice coordinator restarted. Your partial call is saved.");
           return;
         }
 
@@ -872,7 +1207,7 @@ export class LiveCall extends DurableObject<LiveBindings> {
         const idle = (Date.now() - Date.parse(session.lastInputAt)) / 1000;
 
         if (elapsed >= session.maximumCallSeconds || idle >= session.inactivitySeconds) {
-          await this.end(
+          await this.closeCall(
             "Ended normally",
             elapsed >= session.maximumCallSeconds
               ? "The call duration limit was reached."
@@ -904,17 +1239,21 @@ export class LiveCall extends DurableObject<LiveBindings> {
         }
       }
 
-      await this.ctx.storage.setAlarm(Date.now() + 1000);
+      await this.scheduleLive(Date.now() + 1000);
     } catch {
       this.closing = true;
       this.haltProvider();
 
-      await this.end(
+      await this.closeCall(
         "Interrupted",
         "Usage accounting or the voice coordinator is unavailable. Your call is saved.",
       ).catch((): void => {});
 
-      await this.ctx.storage.setAlarm(Date.now() + 5000);
+      const work = await this.ctx.storage.get<CallWork>("work");
+
+      if (work?.live !== undefined) {
+        await this.scheduleLive(Date.now() + 5000);
+      }
     }
   }
 

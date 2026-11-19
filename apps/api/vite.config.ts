@@ -22,12 +22,18 @@ export default defineConfig({
             modulesRoot: fileURLToPath(new URL("../tools/dist/", import.meta.url)),
             compatibilityDate: "2026-11-12",
             compatibilityFlags: ["nodejs_compat"],
+            durableObjects: { CALLS: { className: "LiveCall", scriptName: "vitest-plugin-runner-api" } },
             serviceBindings: {
+              ANALYSIS_PROVIDER: { name: "vitest-plugin-runner-api", entrypoint: "AnalysisProvider" },
               CONFIRMATION_PROVIDER: { name: "vitest-plugin-runner-api", entrypoint: "ConfirmationProvider" },
             },
             queueProducers: {
               ANALYSIS_QUEUE: "voice-freight-analysis",
               ANALYSIS_DEAD_LETTER: "voice-freight-analysis-dead-letter",
+            },
+            queueConsumers: {
+              "voice-freight-analysis": { maxBatchSize: 1, deadLetterQueue: "voice-freight-analysis-dead-letter" },
+              "voice-freight-analysis-dead-letter": { maxBatchSize: 1 },
             },
             d1Databases: { DB: "00000000-0000-0000-0000-000000000001" },
           },

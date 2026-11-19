@@ -69,6 +69,7 @@ resource "cloudflare_workers_script" "tools" {
   observability       = local.observability
   bindings = [for binding in [
     { type = "d1", name = "DB", database_id = cloudflare_d1_database.hosting.id },
+    { type = "durable_object_namespace", name = "CALLS", class_name = "LiveCall", script_name = local.api_name },
     { type = "queue", name = "ANALYSIS_QUEUE", queue_name = cloudflare_queue.analysis["analysis"].queue_name },
     { type = "queue", name = "ANALYSIS_DEAD_LETTER", queue_name = cloudflare_queue.analysis["analysis-dead-letter"].queue_name },
     { type = "service", name = "ANALYSIS_PROVIDER", service = local.api_name, entrypoint = "AnalysisProvider" },
@@ -171,33 +172,6 @@ resource "cloudflare_workers_custom_domain" "app" {
   zone_id          = var.zone_id
   enabled          = true
   previews_enabled = false
-}
-
-# The Cloudflare provider does not remove cron triggers on destroy.
-# The shell provider keeps the cleanup command in state, including when this
-# resource configuration is removed.
-resource "shell_script" "schedules" {
-  for_each = var.bootstrap ? {} : {
-    api   = cloudflare_workers_script.api.script_name
-    tools = cloudflare_workers_script.tools.script_name
-  }
-
-  working_directory = "${path.module}/.."
-  inputs = {
-    accountId  = var.account_id
-    scriptName = each.value
-    schedules  = ["* * * * *"]
-  }
-  os_commands = {
-    default = {
-      plan   = { command = "pnpm --silent cli deployed schedules reconcile" }
-      create = { command = "pnpm --silent cli deployed schedules reconcile" }
-      read   = { command = "pnpm --silent cli deployed schedules reconcile" }
-      update = { command = "pnpm --silent cli deployed schedules reconcile" }
-      delete = { command = "pnpm --silent cli deployed schedules reconcile" }
-    }
-  }
-  depends_on = [terraform_data.secret]
 }
 
 resource "cloudflare_queue_consumer" "analysis" {

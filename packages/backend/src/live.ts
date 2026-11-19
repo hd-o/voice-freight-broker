@@ -6,9 +6,9 @@ import {
   type TranscriptFragment,
 } from "@voice-freight/contracts/live";
 import { authorizeCall, resolveIdentity } from "./authorization";
-import { initializeCall, completeCall } from "./calls";
+import { initializeCall } from "./calls";
 import { requireCondition } from "./model";
-import type { State } from "./model";
+import type { LiveSession, State } from "./model";
 import { localDailyQuotaId } from "./quotas";
 import { readState, transact } from "./repository";
 import {
@@ -26,6 +26,7 @@ export async function reserveLiveCall(
   now = new Date().toISOString(),
   limits = usageLimits,
   environment = "prod",
+  callId?: string,
 ): Promise<{
   id: string;
 }> {
@@ -38,29 +39,6 @@ export async function reserveLiveCall(
 
     if (previous) {
       return { id: previous.id };
-    }
-
-    for (const session of state.liveSessions.filter(
-      (entry): boolean => entry.state === "connecting" && !entry.providerAttempted,
-    )) {
-      const reservation = state.reservations.find((entry): boolean => entry.id === session.id)!;
-
-      if (Date.parse(now) - Date.parse(reservation.createdAt) < 30_000) {
-        continue;
-      }
-
-      session.state = "ended";
-
-      session.notice = "Call startup was abandoned before contacting the provider.";
-
-      reservation.settled = true;
-
-      completeCall(
-        state,
-        { callId: session.id, userId: reservation.ownerId },
-        { connection: "Connection failed", transcriptComplete: false },
-        now,
-      );
     }
 
     const active = state.liveSessions.filter(
@@ -103,7 +81,7 @@ export async function reserveLiveCall(
       `The shared $25 monthly allowance cannot cover another call. It renews on ${new Date(Date.UTC(Number(now.slice(0, 4)), Number(now.slice(5, 7)), 1)).toISOString().slice(0, 10)} at 00:00 UTC.`,
     );
 
-    const { id } = initializeCall(state, userId, now);
+    const { id } = initializeCall(state, userId, now, callId);
 
     state.reservations.push({
       ...(quotaVersion ? { dailyQuotaVersion: quotaVersion } : {}),
@@ -143,6 +121,24 @@ export async function reserveLiveCall(
 
     return { id };
   });
+}
+
+export async function findLiveReservation(
+  binding: D1Database,
+  userId: string,
+  operationId: string,
+): Promise<{ id: string } | null> {
+  return binding
+    .prepare(
+      "SELECT id FROM reservations WHERE json_extract(data, '$.ownerId') = ? AND json_extract(data, '$.operationId') = ?",
+    )
+    .bind(userId, operationId)
+    .first<{ id: string }>();
+}
+
+export async function findLiveSession(binding: D1Database, callId: string): Promise<LiveSession | null> {
+  const row = await binding.prepare('SELECT data FROM "liveSessions" WHERE id = ?').bind(callId).first<string>("data");
+  return row === null ? null : (JSON.parse(row) as LiveSession);
 }
 
 export async function queryLiveStatus(binding: D1Database, context: CallContext): Promise<LiveStatus> {

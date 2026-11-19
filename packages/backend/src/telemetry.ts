@@ -51,6 +51,7 @@ const values = new Set([
   "confirm_handoff",
   "cancel_agreement",
   "analysis",
+  "dispatch",
   "confirmation",
   "handoff",
   "cancel",

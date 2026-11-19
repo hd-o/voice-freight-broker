@@ -148,6 +148,9 @@ it("enforces call ownership, same-origin writes, safe returns, and alternate-hos
     403,
   );
   expect((await requestApi("/api/login?returnTo=https://untrusted.example", token)).status).toBe(400);
+  const home = await requestApi("/api/login?returnTo=%2F", token);
+  expect(home.status).toBe(303);
+  expect(home.headers.get("Location")).toBe("/?account=signed-in");
   const navigation = await requestApi("/api/login?returnTo=%2Fdashboard%2Fcall%3Fcall%3Dexample", token);
   expect(navigation.status).toBe(303);
   expect(navigation.headers.get("Location")).toBe("/dashboard/call?call=example&account=signed-in");

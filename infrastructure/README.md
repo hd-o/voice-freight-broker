@@ -1,7 +1,7 @@
 # Production deployment
 
-Terraform manages the application Workers, D1, queues, Access, bindings, schedules, and publication. Wrangler builds
-local bundles and supports local development. Production changes run through Terraform.
+Terraform manages the application Workers, D1, queues, Access, bindings, and publication. Wrangler builds local bundles
+and supports local development. Production changes run through Terraform.
 
 ## Prerequisites
 
@@ -77,8 +77,10 @@ D1 and queues have `prevent_destroy`. Removing a complete resource block also re
 plan. Worker removal deletes its Durable Object namespaces. Shared Access identity providers and the state bucket are
 outside application teardown.
 
-Scheduled triggers use the shell Terraform provider because Cloudflare does not clear schedules when their resources are
-removed. Keep the CLI schedule helper available until scheduled-resource deletion is applied.
+For the first release that removes the cron triggers, pause deployed tests and check D1 for pending analysis, unfinished
+live calls, and unconfirmed provider closure. Apply the release only after that check finds no work to reconcile. The
+shell provider runs the CLI schedule helper to clear the deployed triggers when it destroys the old schedule resources.
+Verify both Worker schedule lists are empty after the apply.
 
 ## Verification and recovery
 

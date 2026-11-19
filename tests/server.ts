@@ -60,6 +60,7 @@ export async function createBrowserServer(
       const incoming = await backend.fetch(url.href, {
         method: request.method,
         headers: Array.from(headers),
+        redirect: "manual",
         body: request.method === "GET" || request.method === "HEAD" ? undefined : await readBody(request),
       });
 

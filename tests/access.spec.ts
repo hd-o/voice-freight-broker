@@ -18,14 +18,19 @@ test.beforeEach(async ({ page, baseURL }): Promise<void> => {
       data: { userId: "reviewer" },
     });
     expect(response.ok()).toBe(true);
-    const destination = new URL(route.request().url()).searchParams.get("returnTo") ?? "/call";
-    const callback = new URL(destination, baseURL);
-    callback.searchParams.set("account", "signed-in");
-    await route.fulfill({ status: 303, headers: { Location: callback.href } });
+    const callback = await page.request.get(route.request().url(), { maxRedirects: 0 });
+    await route.fulfill({ response: callback });
   });
   await page.route("**/cdn-cgi/access/logout?*", (route): Promise<void> =>
     route.fulfill({ status: 303, headers: { Location: "/call" } }),
   );
+});
+
+test("deployed sign-in returns to the homepage", async ({ page, baseURL }): Promise<void> => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page.getByRole("img", { name: "Signed in as Local Reviewer" })).toBeVisible();
 });
 
 test("deployed login returns to the selected page, reload restores identity, and logout clears it", async ({

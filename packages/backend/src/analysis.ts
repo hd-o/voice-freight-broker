@@ -3,8 +3,8 @@ import type { Call } from "@voice-freight/contracts/calls";
 import type { CallContext } from "@voice-freight/contracts/business";
 import { authorizeCall, resolveIdentity } from "./authorization";
 import { requireCondition } from "./model";
-import type { Analysis, AnalysisAttempt, State } from "./model";
-import { readState, transact } from "./repository";
+import type { Analysis, AnalysisAttempt, LiveSession, State } from "./model";
+import { transact } from "./repository";
 import { collectTranscript } from "./live";
 import { describeOutcome } from "@voice-freight/contracts/reporting";
 import { describeLoad } from "./readbacks";
@@ -22,6 +22,7 @@ export const maximumAnalysisAttempts = 3;
 export const analysisPromptVersion = "call-analysis-v4";
 export const analysisModel = "gpt-6-luna";
 export const maximumAnalysisOutputTokens = 2048;
+const publicationLeaseMilliseconds = 120_000;
 // Include the constrained evidence-ID schema as well as the transcript and
 // instructions. One UTF-8 byte per token conservatively bounds the full body.
 export const maximumAnalysisInputBytes = 100_000;
@@ -72,11 +73,15 @@ function failAttempt(analysis: Analysis, attempt: AnalysisAttempt, now: string):
   analysis.publication = "pending";
 
   if ((analysis.runAttempts ?? 0) >= maximumAnalysisAttempts) {
-    analysis.status = "failed";
-    analysis.publication = "dead-letter";
-    delete analysis.reason;
-    delete analysis.nextAttemptAt;
+    exhaustAnalysis(analysis);
   }
+}
+
+function exhaustAnalysis(analysis: Analysis): void {
+  analysis.status = "failed";
+  analysis.publication = "dead-letter";
+  delete analysis.reason;
+  delete analysis.nextAttemptAt;
 }
 
 function recoverAttempt(analysis: Analysis, now: string): void {
@@ -89,7 +94,7 @@ function recoverAttempt(analysis: Analysis, now: string): void {
   }
 }
 
-function collectInput(state: State, callId: string): AnalysisInput {
+function collectInput(state: State, callId: string): AnalysisInput | null {
   const record = state.calls.find((entry): boolean => entry.id === callId)!;
   const snapshot = record.finalSnapshot!;
   const live = state.liveSessions.some((entry): boolean => entry.id === callId);
@@ -126,13 +131,7 @@ function collectInput(state: State, callId: string): AnalysisInput {
     }
   }
 
-  requireCondition(
-    encoder.encode(JSON.stringify(input)).byteLength <= 54_000,
-    "analysis_input_limit",
-    "Analysis input exceeds its reserved allowance.",
-    503,
-  );
-  return input;
+  return encoder.encode(JSON.stringify(input)).byteLength <= 54_000 ? input : null;
 }
 
 export async function processAnalysis(
@@ -142,6 +141,12 @@ export async function processAnalysis(
   now = new Date().toISOString(),
 ): Promise<"ack" | "retry" | "dead-letter"> {
   const job = analysisJobSchema.parse(input);
+  const { analysis, session } = await queryJob(binding, job);
+
+  if (analysis?.status !== "pending" || (session && session !== "ended")) {
+    return resolveDisposition(analysis);
+  }
+
   const claim = await transact(binding, (state): { attempt: AnalysisAttempt; input: AnalysisInput } | null => {
     const analysis = resolveJob(state, job);
 
@@ -169,6 +174,12 @@ export async function processAnalysis(
     }
 
     const source = collectInput(state, call.id);
+
+    if (!source) {
+      analysis.error = "retries_exhausted";
+      exhaustAnalysis(analysis);
+      return null;
+    }
 
     if (calculateAvailableMicrodollars(state, now) < analysisReservationMicrodollars) {
       analysis.reason = "allowance";
@@ -304,9 +315,11 @@ export async function processAnalysis(
 }
 
 async function queryDisposition(binding: D1Database, job: AnalysisJob): Promise<"ack" | "retry" | "dead-letter"> {
-  const { state } = await readState(binding);
-  const analysis = resolveJob(state, job);
+  const { analysis } = await queryJob(binding, job);
+  return resolveDisposition(analysis);
+}
 
+function resolveDisposition(analysis: Analysis | undefined): "ack" | "retry" | "dead-letter" {
   if (analysis?.status === "failed") {
     return "dead-letter";
   }
@@ -314,76 +327,106 @@ async function queryDisposition(binding: D1Database, job: AnalysisJob): Promise<
   return analysis?.status === "pending" && analysis.reason !== "allowance" ? "retry" : "ack";
 }
 
-export async function publishAnalysis(
+async function queryJob(
   binding: D1Database,
-  queue: { send(job: AnalysisJob): Promise<unknown> },
-  now = new Date().toISOString(),
-): Promise<void> {
-  const jobs = await transact(binding, (state): AnalysisJob[] => {
-    const jobs: AnalysisJob[] = [];
+  job: AnalysisJob,
+): Promise<{ analysis?: Analysis; session?: LiveSession["state"] }> {
+  const row = await binding
+    .prepare(
+      `SELECT analysis.data AS analysis, json_extract("liveSessions".data, '$.state') AS session
+       FROM analysis LEFT JOIN "liveSessions" USING (id) WHERE analysis.id = ?`,
+    )
+    .bind(job.callId)
+    .first<{ analysis: string; session: LiveSession["state"] | null }>();
 
-    for (const analysis of state.analysis) {
-      recoverAttempt(analysis, now);
-      const session = state.liveSessions.find((entry): boolean => entry.id === analysis.callId);
-      const active = analysis.history?.at(-1);
-
-      if (
-        analysis.status !== "pending" ||
-        (session && session.state !== "ended") ||
-        (active && !active.finishedAt) ||
-        (analysis.nextAttemptAt && analysis.nextAttemptAt > now)
-      ) {
-        continue;
-      }
-
-      if (
-        analysis.publication === "published" &&
-        analysis.publishedAt &&
-        Date.parse(now) - Date.parse(analysis.publishedAt) < 120_000
-      ) {
-        continue;
-      }
-
-      // Lease publication. A crash before send is repaired after this deadline;
-      // a crash after send can redeliver, but cannot claim a second paid attempt.
-      analysis.publication = "published";
-      analysis.publishedAt = now;
-      jobs.push({ callId: analysis.callId, version: analysis.version });
-
-      if (jobs.length === 20) {
-        break;
-      }
-    }
-
-    return jobs;
-  });
-
-  for (const job of jobs) {
-    await queue.send(job);
+  if (!row) {
+    return {};
   }
+
+  const analysis = JSON.parse(row.analysis) as Analysis;
+  return analysis.version === job.version ? { analysis, session: row.session ?? undefined } : {};
 }
 
-export async function recordDeadLetter(binding: D1Database, input: unknown): Promise<void> {
-  const job = analysisJobSchema.parse(input);
-  await transact(binding, (state): void => {
-    const analysis = resolveJob(state, job);
+function resolveAnalysisWakeup(
+  analysis: Analysis | undefined,
+  session: LiveSession["state"] | undefined,
+  now: string,
+): number | null {
+  if (analysis?.status !== "pending") {
+    return null;
+  }
 
-    if (!analysis || analysis.status !== "pending" || analysis.reason === "allowance") {
-      return;
+  const time = Date.parse(now);
+
+  if (session && session !== "ended") {
+    return time + 5000;
+  }
+
+  const active = analysis.history?.at(-1);
+
+  if (active && !active.finishedAt) {
+    return Date.parse(active.leaseUntil);
+  }
+
+  if (analysis.nextAttemptAt && analysis.nextAttemptAt > now) {
+    return Date.parse(analysis.nextAttemptAt);
+  }
+
+  return analysis.publication === "published" && analysis.publishedAt
+    ? Date.parse(analysis.publishedAt) + publicationLeaseMilliseconds
+    : time;
+}
+
+export async function dispatchAnalysis(
+  binding: D1Database,
+  queue: { send(job: AnalysisJob): Promise<unknown> },
+  job: AnalysisJob,
+  now = new Date().toISOString(),
+): Promise<number | null> {
+  const { analysis, session } = await queryJob(binding, job);
+  const time = Date.parse(now);
+  const wakeup = resolveAnalysisWakeup(analysis, session, now);
+
+  if (wakeup === null || wakeup > time) {
+    return wakeup;
+  }
+
+  const result = await transact(binding, (state): { send: boolean; wakeup: number | null } => {
+    const current = resolveJob(state, job);
+    const live = state.liveSessions.find((entry): boolean => entry.id === job.callId);
+
+    if (current?.status === "pending" && (!live || live.state === "ended")) {
+      recoverAttempt(current, now);
     }
 
-    const active = analysis.history?.at(-1);
+    const nextWakeup = resolveAnalysisWakeup(current, live?.state, now);
 
-    if (active && !active.finishedAt) {
-      return;
+    if (!current || nextWakeup === null || nextWakeup > time) {
+      return { send: false, wakeup: nextWakeup };
     }
 
-    analysis.status = "failed";
-    analysis.publication = "dead-letter";
-    analysis.error = "retries_exhausted";
-    delete analysis.reason;
-    delete analysis.nextAttemptAt;
+    // The coordinator keeps its wakeup through both the lease and queue handoff.
+    current.publication = "published";
+    current.publishedAt = now;
+    return { send: true, wakeup: time + publicationLeaseMilliseconds };
   });
+
+  if (result.send) {
+    await queue.send(job);
+  }
+
+  return result.wakeup;
+}
+
+export async function findPendingAnalysis(binding: D1Database, callId: string): Promise<AnalysisJob | null> {
+  const row = await binding
+    .prepare(
+      "SELECT json_extract(data, '$.version') AS version FROM analysis WHERE id = ? AND json_extract(data, '$.status') = 'pending'",
+    )
+    .bind(callId)
+    .first<{ version: number }>();
+
+  return row ? { callId, version: row.version } : null;
 }
 
 export async function retryAnalysis(binding: D1Database, context: CallContext, version: number): Promise<AnalysisJob> {
